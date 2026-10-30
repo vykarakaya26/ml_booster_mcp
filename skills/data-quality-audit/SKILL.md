@@ -50,9 +50,9 @@ düzeltmesini anlatır. `diagnostics` alanındaki durağanlık, kuyruk ve oynakl
 önerilerini `${CLAUDE_SKILL_DIR}/../_shared/references/analysis-playbook.md` ile yorumla.
 Panelde sektörün hedef değişkeni yoksa bunu en üst sıradaki bulgu yap. `notes.md` dosyasına kısa bir özet ve öncelik sıralı aksiyon listesi yaz.
 Bunlar raporun "Yorum ve öneriler" bölümünde görünür.
-Denetimin eşik altında bıraktığı ama modellemeyi etkileyen noktaları da ekle: 0,95 eşiğinin altında
-kalan yüksek korelasyonlar (ör. USD ile EUR kuru ≈ 0,9) ve TÜFE'nin yayın gecikmesiyle bir ay sonraki
-satırda durması. Gecikme kasıtlıdır; hedefle hizalarken yeniden kaydırılmamalıdır.
+`notable_pairs` alanındaki 0,8–0,95 arası korelasyonları (ör. USD ile EUR kuru ≈ 0,9) ve aynı
+seriden türeyen çiftleri (aofm/aofm_son) öneriye çevir. TÜFE'nin yayın gecikmesiyle bir ay sonraki
+satırda durduğunu da belirt; bu kasıtlıdır ve hedefle hizalarken yeniden kaydırılmamalıdır.
 Öncelik sırası:
 1. **high / stale**: seri durmuş. Kod büyük olasılıkla arşive taşınmıştır (TP.FG.J0 → TP.TUKFIY2025.GENEL
    gibi). `evds-series-discovery` skill'iyle güncel kodu bul.

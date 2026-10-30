@@ -34,6 +34,11 @@ Ridge ayrıntıları:
   iyidir.
 - **Ortak noktalar**: metrikler yalnızca tüm modellerin tahmin ürettiği başlangıçlarda hesaplanır.
 
+## Rejim alt dönemleri
+`regime_metrics`, metrikleri aynı ortak örneklemde üç rejim için ayrı hesaplar: 2021-11 ve öncesi,
+2021-12 – 2023, 2024 ve sonrası. Tam dönem sonucu tek başına yanıltıcı olabilir; bir model sakin
+dönemde kazanıp şok döneminde kaybediyor olabilir. Kabul ölçütüne son rejimdeki MAE'yi de ekle.
+
 ## Tuzaklar
 - Ufuk büyüdükçe (h ≥ 6) örnek sayısı azalır, metrikler oynaklaşır.
 - 2021-12 ile 2023 arası tüm modellerin hatasını büyütür. Bu dönemi dışlayan ayrı bir backtest

@@ -69,6 +69,17 @@ def build(bt: dict, notes: str | None, assumptions: dict | None = None) -> str:
     ]  # fmt: skip
     body = H.table(["Model", "n", "MAE", "RMSE", "sMAPE %", "MASE"], rows, numeric=[1, 2, 3, 4, 5])
     body += bar_chart([MODEL_LABELS.get(m["model"], m["model"]) for m in metrics], [m["mae"] for m in metrics], "MAE (düşük daha iyi)", lambda v: f"{v:,.4g}", MODEL_LABELS.get(best))
+    regimes = bt.get("regime_metrics") or []
+    if regimes:
+        names = list(dict.fromkeys(r["regime"] for r in regimes))
+        models = [m["model"] for m in metrics]
+        cell = {(r["regime"], r["model"]): r for r in regimes}
+        rrows = []
+        for m in models:
+            vals = [f"{cell[(n, m)]['mae']:,.4g} (n={cell[(n, m)]['n']})" if (n, m) in cell else "—" for n in names]
+            rrows.append((MODEL_LABELS.get(m, m), *vals))
+        body += "<h3>Rejimlere göre MAE</h3>" + H.table(["Model", *names], rrows, numeric=list(range(1, len(names) + 1)))
+        body += '<p class="muted">Sıralama rejimden rejime değişiyorsa tek bir "en iyi model" iddiası zayıftır; raporda bunu belirtin.</p>'
     sections.append(H.section("Model karşılaştırması", body, "metrikler"))
 
     preds = bt["predictions"]

@@ -129,3 +129,14 @@ def test_adf_critical_values_match_mackinnon():
 
     assert adf_critical(10_000) == pytest.approx(-2.8618, abs=1e-3)  # asimptotiğe yakın
     assert adf_critical(100) < adf_critical(1000)  # küçük örneklemde daha negatif
+
+
+def test_regime_metrics_and_notable_pairs():
+    panel = _panel()[["trend", "shifted"]]
+    result = rolling_origin_backtest(panel, BacktestConfig(target="trend", min_train=36, models=("naive",)))
+    regimes = set(result.regime_metrics["regime"])
+    assert regimes == {"2021-11 ve öncesi", "2021-12 – 2023", "2024 ve sonrası"}
+    assert result.regime_metrics["n"].sum() == result.metrics["n"].sum()
+    p = pd.DataFrame({"a": np.arange(100.0), "b": np.arange(100.0) + np.random.default_rng(3).normal(0, 14, 100)}, index=IDX[:100])
+    report = audit_panel(p, date(2026, 10, 30))
+    assert report.notable_pairs and not report.correlated_pairs

@@ -99,6 +99,12 @@ def build(m: dict, dates: list[date], columns: dict, audit: dict, backtests: lis
             gain = (1 - by[best]["mae"] / naive["mae"]) * 100 if naive and best != "naive" and naive["mae"] else None
             rows.append((bt["config"]["target"], bt["config"]["horizon"], best, _fmt(by[best]["mae"]), "—" if gain is None else f"%{gain:+.1f}", bt["common_origins"]))
         body = H.table(["Hedef", "Ufuk (ay)", "En iyi model", "MAE", "Naive'e göre", "n"], rows, numeric=[1, 3, 4, 5])
+        for bt in backtests:
+            reg = [r for r in bt.get("regime_metrics") or [] if r["model"] == bt["best_model"]]
+            if reg:
+                body += f"<h3>{H.esc(bt['config']['target'])}: en iyi modelin rejimlere göre MAE'si</h3>" + H.table(
+                    ["Rejim", "n", "MAE"], [(r["regime"], r["n"], _fmt(r["mae"])) for r in reg], numeric=[1, 2]
+                )
         body += '<p class="muted">Referans modeller: naive, mevsimsel naive, drift, ridge (değişim). Üretim modelinin bunları geçmesi beklenir.</p>'
         sections.append(H.section("Tahmin referansları", body, "tahmin"))
 

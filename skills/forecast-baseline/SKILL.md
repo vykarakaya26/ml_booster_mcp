@@ -32,8 +32,9 @@ SECTOR=otomotiv; OUT="mlbooster-reports/${SECTOR}-forecast-$(date +%Y%m%d)"; mkd
 3. **Varyantlar** (gerekirse): `--no-exog` ile ridge'i yalnızca hedefin geçmişiyle dene. Dış
    değişkenler fayda sağlamıyorsa raporda bunu söyle. Tek modeli görmek için `--models naive,ridge`
    kullan.
-4. **Yorum** → `$OUT/notes.md` (kısa Markdown): en iyi model, naive'e göre MAE farkı, ortak nokta sayısı,
-   hatanın büyüdüğü dönemler (tahmin tablosundan) ve üretim modeli için çıta. Ayrıntı
+4. **Yorum** → `$OUT/notes.md` (kısa Markdown): en iyi model, çıtaya göre MAE farkı, ortak nokta
+   sayısı, `regime_metrics` alanına göre rejim bazında sonuçlar (2021 öncesi, 2021-12–2023, 2024+;
+   sıralama rejime göre değişiyorsa bunu söyle) ve üretim modeli için çıta. Ayrıntı
    `references/methodology.md` dosyasında.
 5. **Rapor**:
    ```bash

@@ -105,6 +105,8 @@ def build(audit: dict, dates: list[date], columns: dict, sector: str, notes: str
     )
 
     extra = []
+    if audit.get("notable_pairs"):
+        extra.append("<h3>Dikkate değer korelasyonlar</h3>" + H.table(["A", "B", "Korelasyon", "Not"], [(p["a"], p["b"], f"{p['corr']:+.3f}", p["note"]) for p in audit["notable_pairs"]], numeric=[2]))
     if audit["correlated_pairs"]:
         extra.append("<h3>Aşırı korelasyon</h3>" + H.table(["A", "B", "Korelasyon"], [(p["a"], p["b"], f"{p['corr']:+.3f}") for p in audit["correlated_pairs"]], numeric=[2]))
     if audit["skipped_features"]:

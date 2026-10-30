@@ -16,6 +16,14 @@ from mlbooster.domain.errors import InvalidInput
 
 MODELS = ("naive", "seasonal_naive", "drift", "mean12", "ridge")
 
+# Türkiye makro rejimleri: sonuçlar tam dönemle birlikte bu alt dönemlerde de raporlanır
+# (dönem seçimiyle kiraz toplamayı önlemek ve rejim bağımlılığını göstermek için).
+REGIMES: tuple[tuple[str, str | None, str | None], ...] = (
+    ("2021-11 ve öncesi", None, "2021-11-30"),
+    ("2021-12 – 2023", "2021-12-01", "2023-12-31"),
+    ("2024 ve sonrası", "2024-01-01", None),
+)
+
 
 @dataclass(frozen=True)
 class BacktestConfig:
@@ -53,6 +61,7 @@ class BacktestResult:
     metrics: pd.DataFrame  # model, n, mae, rmse, smape, mase
     features_used: tuple[str, ...] = field(default_factory=tuple)
     common_origins: int = 0  # metriklerin hesaplandığı ortak başlangıç noktası sayısı
+    regime_metrics: pd.DataFrame = field(default_factory=pd.DataFrame)  # regime, model, n, mae, rmse
 
     @property
     def best_model(self) -> str | None:
@@ -172,4 +181,22 @@ def rolling_origin_backtest(panel: pd.DataFrame, config: BacktestConfig) -> Back
     common = per_origin[per_origin == n_models].index
     scored = predictions[predictions["origin"].isin(common)] if len(common) else predictions
     used = tuple(design.columns) if design is not None else ()
-    return BacktestResult(config, predictions, _metrics(scored, scale), used, int(len(common)))
+    return BacktestResult(
+        config, predictions, _metrics(scored, scale), used, int(len(common)), _regime_metrics(scored)
+    )
+
+
+def _regime_metrics(pred: pd.DataFrame) -> pd.DataFrame:
+    rows = []
+    for name, lo, hi in REGIMES:
+        mask = pd.Series(True, index=pred.index)
+        if lo:
+            mask &= pred["date"] >= pd.Timestamp(lo)
+        if hi:
+            mask &= pred["date"] <= pd.Timestamp(hi)
+        part = pred[mask]
+        for model, g in part.groupby("model", sort=False):
+            err = g["y_pred"] - g["y_true"]
+            rows.append({"regime": name, "model": model, "n": int(len(g)),
+                         "mae": float(err.abs().mean()), "rmse": float(np.sqrt((err**2).mean()))})  # fmt: skip
+    return pd.DataFrame(rows, columns=["regime", "model", "n", "mae", "rmse"])

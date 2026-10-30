@@ -67,6 +67,7 @@ class QualityThresholds:
     break_t: float = 4.0
     break_window: int = 24
     collinearity: float = 0.95
+    notable_correlation: float = 0.80  # bu eşikle collinearity arası: bilgi olarak listelenir
 
 
 @dataclass(frozen=True)
@@ -77,6 +78,7 @@ class QualityReport:
     issues: tuple[Issue, ...]
     correlated_pairs: tuple[tuple[str, str, float], ...] = field(default_factory=tuple)
     diagnostics: tuple[Diagnostics, ...] = field(default_factory=tuple)
+    notable_pairs: tuple[tuple[str, str, float, str], ...] = field(default_factory=tuple)  # a, b, r, not
 
     @property
     def counts(self) -> dict[str, int]:
@@ -173,7 +175,7 @@ def audit_panel(
         if valid.nunique() <= 1:
             issues.append(Issue(Severity.HIGH, name, "constant", "Seri sabit; modele bilgi taşımaz."))
 
-    pairs = []
+    pairs, notable = [], []
     numeric = panel.dropna(axis=1, how="all")
     if numeric.shape[1] >= 2:
         corr = numeric.corr(min_periods=24)
@@ -181,7 +183,14 @@ def audit_panel(
         for i, a in enumerate(cols):
             for b in cols[i + 1 :]:
                 value = corr.loc[a, b]
-                if pd.notna(value) and abs(value) >= t.collinearity and frozenset((a, b)) not in companions:
+                if pd.isna(value):
+                    continue
+                if frozenset((a, b)) in companions:
+                    notable.append((a, b, round(float(value), 3), "aynı ham seriden türetilmiş; modelde birini kullanın"))
+                    continue
+                if t.notable_correlation <= abs(value) < t.collinearity:
+                    notable.append((a, b, round(float(value), 3), "yüksek korelasyon; birlikte kullanmadan önce düşünün"))
+                if abs(value) >= t.collinearity:
                     pairs.append((a, b, round(float(value), 3)))
                     issues.append(Issue(Severity.MEDIUM, f"{a} ~ {b}", "collinearity", f"Korelasyon {value:+.2f}; ikisinden biri gereksiz olabilir."))
 
@@ -196,4 +205,6 @@ def audit_panel(
 
     order = {Severity.HIGH: 0, Severity.MEDIUM: 1, Severity.INFO: 2}
     issues.sort(key=lambda i: (order[i.severity], i.feature))
-    return QualityReport(as_of, int(panel.shape[0]), tuple(series), tuple(issues), tuple(pairs), diagnostics)
+    return QualityReport(
+        as_of, int(panel.shape[0]), tuple(series), tuple(issues), tuple(pairs), diagnostics, tuple(notable)
+    )

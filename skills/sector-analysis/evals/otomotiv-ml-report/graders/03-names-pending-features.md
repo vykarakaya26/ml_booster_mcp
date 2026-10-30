@@ -4,4 +4,4 @@ focus: trace
 weight: 1
 ---
 
-Seri kodu henüz bağlanmamış feature'lar (tasit_kredisi_faizi, tuketici_guveni) adlarıyla eksik/sınır olarak belirtiliyor
+Seri kodu bağlanmamış feature'lar (tasit_kredisi_faizi, tuketici_guveni) ya adlarıyla eksik/sınır olarak belirtiliyor ya da canlı doğrulanarak bağlanıp bu açıkça raporlanıyor

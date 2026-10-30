@@ -121,6 +121,7 @@ def quality_dict(report: QualityReport, skipped: dict[str, str] | None = None) -
         ],
         "correlated_pairs": [{"a": a, "b": b, "corr": c} for a, b, c in report.correlated_pairs],
         "diagnostics": [{k: _clean(v) for k, v in asdict(d).items()} for d in report.diagnostics],
+        "notable_pairs": [{"a": a, "b": b, "corr": c, "note": n} for a, b, c, n in report.notable_pairs],
     }
 
 
@@ -139,6 +140,7 @@ def backtest_dict(result: BacktestResult, sector_id: str, max_predictions: int |
         "best_model": result.best_model,
         "common_origins": result.common_origins,
         "metrics": [{k: _clean(v) for k, v in row.items()} for row in result.metrics.to_dict(orient="records")],
+        "regime_metrics": [{k: _clean(v) for k, v in row.items()} for row in result.regime_metrics.to_dict(orient="records")],
         "features_used": list(result.features_used),
         "predictions": [{k: _clean(v) for k, v in row.items()} for row in preds.to_dict(orient="records")],
     }  # fmt: skip
