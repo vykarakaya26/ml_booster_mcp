@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "mlbooster"
-version = "0.1.0"
+version = "0.2.0"
 description = "ML Booster Map: Türkiye için ücretsiz veri kaynakları haritası ve ML'e hazır panel üretici"
 requires-python = ">=3.12"
 license = "MIT"
@@ -24,16 +24,17 @@ dependencies = [
 dev = ["pytest>=8", "respx>=0.21"]
 
 [project.scripts]
-mlbooster = "mlbooster.cli:app"
-mlbooster-mcp = "mlbooster.mcp_server:main"
+mlbooster = "mlbooster.interfaces.cli:app"
+mlbooster-mcp = "mlbooster.interfaces.mcp_server:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+pythonpath = ["tests"]
 markers = ["live: gerçek uçlara giden contract testleri (EVDS_API_KEY gerekir)"]
-addopts = "-m 'not live'"
+addopts = "-m 'not live' --import-mode=importlib"
 
 [tool.setuptools.package-data]
 mlbooster = ["catalog_data/sources/*.yaml", "catalog_data/sectors/*.yaml"]
