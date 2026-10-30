@@ -120,3 +120,48 @@ def test_health_reports_provider_construction_errors(catalog_repo):
 def test_formula_must_be_int(formula):
     with pytest.raises(InvalidInput):
         FetchRequest.create("evds3", ["TP.TUKFIY2025.GENEL"], date(2024, 1, 1), formula=formula)
+
+
+def test_set_feature_series_writes_override_and_reloads(tmp_path, deps):
+    from mlbooster.application.use_cases import SetFeatureSeries
+    from mlbooster.infrastructure.catalog_yaml import YamlCatalogRepository
+    from mlbooster.infrastructure.settings import PACKAGE_DIR
+
+    _, providers, *_ = deps
+    overrides = tmp_path / "catalog" / "overrides.yaml"
+    repo = YamlCatalogRepository(PACKAGE_DIR / "catalog_data", overrides)
+    providers.series["TP.KREDI.X"] = pd.Series([1.0, 2.0], index=pd.to_datetime(["2026-08-31", "2026-09-30"]))
+
+    binding = SetFeatureSeries(repo, providers, repo)("bankacilik", "kredi_faizi", "TP.KREDI.X", kind="level")
+    assert binding.seed.publication_lag_days == 30  # aylık için muhafazakâr varsayılan
+    assert overrides.exists() and oct(overrides.stat().st_mode)[-3:] == "600"
+    providers.series["TP.TG2.Y01"] = pd.Series([90.0, 91.0], index=pd.to_datetime(["2026-08-31", "2026-09-30"]))
+    SetFeatureSeries(repo, providers, repo)("otomotiv", "tuketici_guveni", "TP.TG2.Y01")  # ikinci yazım
+    reloaded = YamlCatalogRepository(PACKAGE_DIR / "catalog_data", overrides).load()
+    assert next(f for f in reloaded.sector("otomotiv").macro_features if f.name == "tuketici_guveni").series == "TP.TG2.Y01"
+    feature = next(f for f in reloaded.sector("bankacilik").macro_features if f.name == "kredi_faizi")
+    assert feature.series == "TP.KREDI.X"
+    assert reloaded.source("evds3").seed("TP.KREDI.X").publication_lag_days == 30
+
+
+def test_set_feature_rejects_unknown_feature_and_stale_series(deps):
+    from mlbooster.application.errors import ProviderError
+    from mlbooster.application.use_cases import SetFeatureSeries
+
+    catalog, providers, *_ = deps
+    with pytest.raises(InvalidInput, match="feature"):
+        SetFeatureSeries(catalog, providers, None)("bankacilik", "yok_boyle", "TP.TUKFIY2025.GENEL")
+    providers.series["TP.TUKFIY2025.GENEL"] = pd.Series([1.0], index=pd.to_datetime(["2025-01-31"]))
+    with pytest.raises(ProviderError, match="durmuş"):
+        SetFeatureSeries(catalog, providers, None)("bankacilik", "kredi_faizi", "TP.TUKFIY2025.GENEL")
+
+
+def test_audit_and_backtest_use_cases(deps):
+    from mlbooster.application.use_cases import AuditPanel, RunBacktest
+    from mlbooster.domain.services.backtest import BacktestConfig
+
+    build = BuildPanel(*deps)
+    report, result = AuditPanel(build)("telekom", date(2024, 1, 1), date(2026, 9, 30))
+    assert report.months == len(result.panel)
+    bt, _ = RunBacktest(build)("telekom", BacktestConfig(target="usdtry_logdiff", min_train=24), date(2024, 1, 1), date(2026, 9, 30))
+    assert not bt.metrics.empty

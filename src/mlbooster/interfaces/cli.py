@@ -15,7 +15,8 @@ from mlbooster.application.use_cases.panel import DEFAULT_START
 from mlbooster.bootstrap import Container, build_container
 from mlbooster.domain.errors import DomainError
 from mlbooster.domain.model import HealthStatus
-from mlbooster.interfaces.presenters import sector_map_dict, sector_map_markdown
+from mlbooster.domain.services.backtest import MODELS, BacktestConfig
+from mlbooster.interfaces.presenters import backtest_dict, quality_dict, sector_map_dict, sector_map_markdown
 
 app = typer.Typer(help="ML Booster Map: Türkiye ücretsiz veri kaynakları → ML'e hazır panel", no_args_is_help=True)
 catalog_app = typer.Typer(help="Kaynak kataloğu", no_args_is_help=True)
@@ -118,7 +119,7 @@ def fetch(
 @app.command("build-panel")
 def build_panel(
     sector: Annotated[str, typer.Option(help="Sektör id")],
-    out: Annotated[Path | None, typer.Option(help="Ek olarak bu .parquet yoluna da yaz")] = None,
+    out: Annotated[Path | None, typer.Option(help="Ek olarak bu .parquet / .csv yoluna da yaz")] = None,
     start: Annotated[str, typer.Option(help="YYYY-AA[-GG]")] = DEFAULT_START.isoformat(),
     end: Annotated[str | None, typer.Option(help="YYYY-AA[-GG]")] = None,
     refresh: Annotated[bool, typer.Option(help="Yerel önbelleği yok sayıp yeniden çek")] = False,
@@ -150,6 +151,108 @@ def health(source: Annotated[str | None, typer.Option(help="Tek kaynak")] = None
         typer.secho(f"{r.status.value:<8} {r.source_id:<8} {r.detail}", fg=colors[r.status])
     if any(r.status is HealthStatus.FAIL for r in results):
         raise typer.Exit(1)
+
+
+def _write_json(data: dict, path: Path | None) -> None:
+    text = json.dumps(data, ensure_ascii=False, indent=2)
+    if path is None:
+        typer.echo(text)
+    else:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(text, encoding="utf-8")
+        typer.echo(f"JSON → {path}", err=True)
+
+
+@catalog_app.command("search")
+def catalog_search(
+    text: Annotated[str, typer.Argument(help="Aranacak kelimeler (ör. 'kredi faiz')")],
+    source: Annotated[str, typer.Option(help="Kaynak id")] = "evds3",
+    limit: Annotated[int, typer.Option(help="En fazla sonuç")] = 20,
+    as_json: Annotated[bool, typer.Option("--json", help="JSON çıktı")] = False,
+):
+    """Kaynakta veri grubu arar (Türkçe karakter/büyük-küçük harf duyarsız)."""
+    try:
+        df = container().search_series(text, source, limit)
+    except DomainError as exc:
+        _fail(exc)
+    if as_json:
+        typer.echo(df.to_json(orient="records", force_ascii=False, indent=2))
+    elif df.empty:
+        typer.echo("Sonuç yok.")
+    else:
+        for r in df.itertuples():
+            tag = " [arşiv]" if r.archived else ""
+            typer.echo(f"{r.datagroup:<24} {str(r.freq or ''):<3} {str(r.start or ''):>10} → {str(r.end or ''):<10} {r.name}{tag}")
+
+
+@catalog_app.command("set-feature")
+def catalog_set_feature(
+    sector: Annotated[str, typer.Option(help="Sektör id")],
+    feature: Annotated[str, typer.Option(help="Feature adı (map show çıktısındaki)")],
+    series: Annotated[str, typer.Option(help="Seri kodu (canlı doğrulanır)")],
+    name: Annotated[str | None, typer.Option(help="Seri açıklaması")] = None,
+    kind: Annotated[str, typer.Option(help="level | flow")] = "level",
+    lag: Annotated[int | None, typer.Option(help="Yayın gecikmesi (gün); verilmezse frekansa göre varsayılan")] = None,
+    datagroup: Annotated[str | None, typer.Option(help="Veri grubu kodu")] = None,
+):
+    """Keşif bekleyen bir feature'a seri kodu bağlar (~/.mlbooster/catalog/overrides.yaml)."""
+    try:
+        b = container().set_feature_series(sector, feature, series, name, kind, lag, datagroup)
+    except DomainError as exc:
+        _fail(exc)
+    typer.echo(
+        f"{b.sector_id}.{b.feature} ← {b.seed.code} (frekans {b.seed.freq.value}, gecikme {b.seed.publication_lag_days} gün, "
+        f"son gözlem {b.last_observation}) → {b.location}"
+    )
+
+
+@app.command()
+def audit(
+    sector: Annotated[str, typer.Option(help="Sektör id")],
+    start: Annotated[str, typer.Option(help="YYYY-AA[-GG]")] = DEFAULT_START.isoformat(),
+    end: Annotated[str | None, typer.Option(help="YYYY-AA[-GG]")] = None,
+    json_out: Annotated[Path | None, typer.Option("--json", help="JSON raporu bu dosyaya yaz")] = None,
+):
+    """Sektör panelinin veri kalitesini denetler (bayatlık, eksik, aykırı, kırılma, kolineerlik)."""
+    try:
+        report, result = container().audit_panel(sector, _date(start), _date(end))
+    except DomainError as exc:
+        _fail(exc)
+    data = quality_dict(report, result.skipped)
+    if json_out is not None:
+        _write_json(data, json_out)
+    counts = report.counts
+    typer.echo(f"{report.months} ay × {len(report.series)} feature — yüksek {counts['high']}, orta {counts['medium']}, bilgi {counts['info']}")
+    colors = {"high": typer.colors.RED, "medium": typer.colors.YELLOW, "info": typer.colors.BLUE}
+    for i in report.issues:
+        typer.secho(f"{i.severity.value:<7} {i.feature:<28} {i.message}", fg=colors[i.severity.value])
+
+
+@app.command()
+def backtest(
+    sector: Annotated[str, typer.Option(help="Sektör id")],
+    target: Annotated[str, typer.Option(help="Hedef feature (panel kolonu)")],
+    horizon: Annotated[int, typer.Option(help="Kaç ay ileri (1–24)")] = 1,
+    min_train: Annotated[int, typer.Option(help="İlk eğitim penceresi (ay, ≥24)")] = 48,
+    models: Annotated[str, typer.Option(help=f"Virgülle: {','.join(MODELS)}")] = ",".join(MODELS),
+    no_exog: Annotated[bool, typer.Option("--no-exog", help="Ridge'de diğer feature'ları kullanma")] = False,
+    start: Annotated[str, typer.Option(help="YYYY-AA[-GG]")] = DEFAULT_START.isoformat(),
+    end: Annotated[str | None, typer.Option(help="YYYY-AA[-GG]")] = None,
+    json_out: Annotated[Path | None, typer.Option("--json", help="Metrik + tahminleri bu dosyaya yaz")] = None,
+):
+    """Rolling-origin backtest ile referans modelleri karşılaştırır (look-ahead korumalı)."""
+    try:
+        config = BacktestConfig(
+            target=target, horizon=horizon, min_train=min_train,
+            models=tuple(m.strip() for m in models.split(",") if m.strip()), exogenous=not no_exog,
+        )  # fmt: skip
+        result, _ = container().run_backtest(sector, config, _date(start), _date(end))
+    except DomainError as exc:
+        _fail(exc)
+    if json_out is not None:
+        _write_json(backtest_dict(result, sector), json_out)
+    typer.echo(f"Hedef {target}, ufuk {horizon} ay — en iyi: {result.best_model}")
+    typer.echo(result.metrics.round(4).to_string(index=False))
 
 
 if __name__ == "__main__":

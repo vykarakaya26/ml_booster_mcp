@@ -9,11 +9,27 @@ from typing import Protocol
 import pandas as pd
 
 from mlbooster.application.dto import FetchRequest
-from mlbooster.domain.model import Catalog, HealthResult, Source
+from mlbooster.domain.model import Catalog, HealthResult, SeedSeries, Source
 
 
 class CatalogRepository(Protocol):
     def load(self) -> Catalog: ...
+
+
+class CatalogOverrides(Protocol):
+    """Kullanıcının keşfettiği seri kodlarını paket kataloğuna dokunmadan kalıcılaştırır."""
+
+    def set_feature(self, sector_id: str, feature: str, seed: SeedSeries, source_id: str) -> str:
+        """Override'ı yazar, konumunu döner; sonraki `load()` yeni değeri görür."""
+        ...
+
+
+class SupportsSearch(Protocol):
+    """Opsiyonel sağlayıcı yeteneği: anahtar kelimeyle veri grubu/seri arama."""
+
+    def search(self, text: str, limit: int = 20) -> pd.DataFrame:
+        """DataFrame[datagroup, name, freq, start, end]"""
+        ...
 
 
 class SeriesProvider(Protocol):

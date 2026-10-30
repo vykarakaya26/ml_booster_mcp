@@ -16,6 +16,7 @@ USER_AGENT = "mlbooster/0.2 (ML Booster Map)"
 class Settings:
     data_dir: Path
     catalog_dir: Path
+    overrides_path: Path
 
     @classmethod
     def from_env(cls, load_env_files: bool = True) -> Settings:
@@ -23,7 +24,11 @@ class Settings:
             # Önce çalışma dizinindeki .env, sonra ~/.mlbooster/.env. Mevcut değişkenler ezilmez.
             load_dotenv(find_dotenv(usecwd=True), override=False)
             load_dotenv(Path.home() / ".mlbooster" / ".env", override=False)
+        home = Path(os.environ.get("MLBOOSTER_HOME", Path.home() / ".mlbooster")).expanduser()
         return cls(
+            overrides_path=Path(
+                os.environ.get("MLBOOSTER_OVERRIDES", home / "catalog" / "overrides.yaml")
+            ).expanduser(),
             data_dir=Path(os.environ.get("MLBOOSTER_DATA_DIR", Path.home() / ".mlbooster" / "data")).expanduser(),
             catalog_dir=Path(os.environ.get("MLBOOSTER_CATALOG_DIR", PACKAGE_DIR / "catalog_data")).expanduser(),
         )

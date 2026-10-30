@@ -29,7 +29,7 @@ class FakeProvider:
                 pd.DataFrame(
                     {
                         "source_id": self.source.id, "dataset_id": "x", "series_id": code, "entity_id": "",
-                        "entity_name": None, "metric": request.metric, "date": s.index.date, "freq": seed.freq.value,
+                        "entity_name": None, "metric": request.metric, "date": s.index.date, "freq": seed.freq.value if seed else "M",
                         "value": s.to_numpy(), "unit": None, "currency": None, "is_proxy": False,
                         "vintage_ts": datetime.now(UTC), "publication_lag_days": self.source.lag_for(code),
                     }

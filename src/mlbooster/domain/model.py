@@ -40,6 +40,11 @@ class Frequency(StrEnum):
         return _MAX_STALENESS_DAYS[self]
 
     @property
+    def default_publication_lag_days(self) -> int:
+        """Yayın gecikmesi bilinmeyen yeni seriler için muhafazakâr varsayılan (look-ahead'e karşı)."""
+        return _DEFAULT_LAG_DAYS[self]
+
+    @property
     def rank(self) -> int:
         return list(Frequency).index(self)
 
@@ -53,6 +58,12 @@ _MAX_STALENESS_DAYS = {
     Frequency.HOURLY: 3, Frequency.DAILY: 10, Frequency.BUSINESS: 10, Frequency.WEEKLY: 21,
     Frequency.SEMI_MONTHLY: 35, Frequency.MONTHLY: 75, Frequency.QUARTERLY: 200,
     Frequency.SEMI_ANNUAL: 380, Frequency.ANNUAL: 550,
+}  # fmt: skip
+
+_DEFAULT_LAG_DAYS = {
+    Frequency.HOURLY: 1, Frequency.DAILY: 1, Frequency.BUSINESS: 1, Frequency.WEEKLY: 7,
+    Frequency.SEMI_MONTHLY: 15, Frequency.MONTHLY: 30, Frequency.QUARTERLY: 90,
+    Frequency.SEMI_ANNUAL: 120, Frequency.ANNUAL: 180,
 }  # fmt: skip
 
 

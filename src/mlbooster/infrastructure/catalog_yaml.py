@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import os
+from dataclasses import replace
+from datetime import date
 from pathlib import Path
 from typing import Literal
 from urllib.parse import urlsplit
@@ -29,6 +32,7 @@ from mlbooster.domain.model import (
     Verification,
 )
 from mlbooster.domain.validation import series_code, slug
+from mlbooster.infrastructure.settings import ensure_private_dir
 
 MAX_YAML_BYTES = 256 * 1024
 
@@ -209,9 +213,33 @@ def _read_yaml(path: Path) -> dict:
     return data
 
 
+class OverrideSeedSchema(SeedSchema):
+    verified_at: str | None = None
+
+
+class OverridesSchema(_Strict):
+    """~/.mlbooster/catalog/overrides.yaml — kullanıcının keşfettiği seriler."""
+
+    version: Literal[1] = 1
+    seeds: dict[str, list[OverrideSeedSchema]] = Field(default_factory=dict)  # kaynak → tohum seriler
+    features: dict[str, dict[str, str]] = Field(default_factory=dict)  # sektör → feature → seri kodu
+
+    @field_validator("features")
+    @classmethod
+    def _valid_codes(cls, v: dict[str, dict[str, str]]) -> dict[str, dict[str, str]]:
+        for sector, mapping in v.items():
+            slug(sector, "sektör")
+            for code in mapping.values():
+                series_code(code)
+        return v
+
+
 class YamlCatalogRepository:
-    def __init__(self, root: Path):
+    """Paket kataloğu + (varsa) kullanıcı override'ları. CatalogRepository ve CatalogOverrides port'larını uygular."""
+
+    def __init__(self, root: Path, overrides_path: Path | None = None):
         self._root = root
+        self._overrides_path = overrides_path
         self._cache: Catalog | None = None
 
     def load(self) -> Catalog:
@@ -223,9 +251,61 @@ class YamlCatalogRepository:
         try:
             sources = [SourceSchema.model_validate(_read_yaml(p)).to_domain() for p in self._files("sources")]
             sectors = [SectorSchema.model_validate(_read_yaml(p)).to_domain() for p in self._files("sectors")]
+            overrides = self._read_overrides()
         except ValidationError as exc:
             raise InconsistentCatalog(f"Katalog şema hatası: {exc}") from None
-        return Catalog(sources={s.id: s for s in sources}, sectors={s.id: s for s in sectors})
+        source_map = {s.id: s for s in sources}
+        sector_map = {s.id: s for s in sectors}
+        for source_id, seeds in overrides.seeds.items():
+            if source_id in source_map:
+                extra = {s.code: SeedSeries(**s.model_dump(exclude={"verified_at"})) for s in seeds}
+                kept = tuple(s for s in source_map[source_id].series if s.code not in extra)
+                source_map[source_id] = replace(source_map[source_id], series=kept + tuple(extra.values()))
+        for sector_id, mapping in overrides.features.items():
+            if sector_id in sector_map:
+                sector = sector_map[sector_id]
+                features = tuple(
+                    replace(f, series=mapping[f.name]) if f.name in mapping else f for f in sector.macro_features
+                )
+                sector_map[sector_id] = replace(sector, macro_features=features)
+        return Catalog(sources=source_map, sectors=sector_map)
+
+    def _read_overrides(self) -> OverridesSchema:
+        if self._overrides_path is None or not self._overrides_path.exists():
+            return OverridesSchema()
+        return OverridesSchema.model_validate(_read_yaml(self._overrides_path))
+
+    def set_feature(self, sector_id: str, feature: str, seed: SeedSeries, source_id: str) -> str:
+        if self._overrides_path is None:
+            raise InconsistentCatalog("Override dosyası yapılandırılmamış")
+        current = self._read_overrides().model_dump(mode="json")
+        seeds = [s for s in current["seeds"].get(source_id, []) if s["code"] != seed.code]
+        seeds.append(
+            {
+                "code": seed.code, "name": seed.name, "freq": seed.freq.value, "kind": seed.kind.value,
+                "unit": seed.unit, "currency": seed.currency, "datagroup": seed.datagroup,
+                "publication_lag_days": seed.publication_lag_days, "canary": False,
+                "verified_at": date.today().isoformat(),
+            }
+        )  # fmt: skip
+        current["seeds"][source_id] = seeds
+        current["features"].setdefault(sector_id, {})[feature] = seed.code
+        OverridesSchema.model_validate(current)  # yazmadan önce doğrula
+        _atomic_write_yaml(self._overrides_path, current)
+        self._cache = None  # sonraki load() yeni değeri görsün
+        return str(self._overrides_path)
 
     def _files(self, kind: str) -> list[Path]:
         return sorted((self._root / kind).glob("*.yaml"))
+
+
+def _atomic_write_yaml(path: Path, data: dict) -> None:
+    ensure_private_dir(path.parent)
+    tmp = path.with_suffix(".yaml.tmp")
+    tmp.write_text(
+        "# mlbooster kullanıcı override'ları — `mlbooster catalog set-feature` ile yönetilir.\n"
+        + yaml.safe_dump(data, allow_unicode=True, sort_keys=False),
+        encoding="utf-8",
+    )
+    os.chmod(tmp, 0o600)
+    os.replace(tmp, path)
