@@ -10,12 +10,17 @@ from mlbooster.domain.model import HealthStatus
 from mlbooster.infrastructure.http_client import SecureHttpClient
 from mlbooster.infrastructure.providers.evds3 import Evds3Provider
 from mlbooster.infrastructure.secret_store import EnvSecretProvider
+from dotenv import dotenv_values, find_dotenv
 
-pytestmark = [pytest.mark.live, pytest.mark.skipif(not os.environ.get("EVDS_API_KEY"), reason="EVDS_API_KEY yok")]
+# os.environ'u değiştirmeden oku: offline testler anahtarı görmemeli.
+API_KEY = os.environ.get("EVDS_API_KEY") or dotenv_values(find_dotenv(usecwd=True)).get("EVDS_API_KEY")
+
+pytestmark = [pytest.mark.live, pytest.mark.skipif(not API_KEY, reason="EVDS_API_KEY yok")]
 
 
 @pytest.fixture
-def evds(catalog):
+def evds(catalog, monkeypatch):
+    monkeypatch.setenv("EVDS_API_KEY", API_KEY)
     provider = Evds3Provider(catalog.source("evds3"), http=SecureHttpClient(), secrets=EnvSecretProvider())
     yield provider
     provider.close()
@@ -33,5 +38,11 @@ def test_seed_series_return_data(evds, catalog):
         assert set(df["freq"]) == {seed.freq.value}, seed.code
 
 
-def test_serielist_schema(evds):
-    assert "TP.DK.USD.A.YTL" in set(evds.list_series("bie_dkdovizgn")["series_id"])
+@pytest.mark.parametrize("seed_index", range(5))
+def test_seed_codes_listed_in_their_datagroup(evds, catalog, seed_index):
+    """Katalogdaki kod EVDS'nin güncel /serieList'inde mi? (kod değişikliklerini yakalar)"""
+    seed = catalog.source("evds3").series[seed_index]
+    listed = evds.list_series(seed.datagroup)
+    row = listed[listed["series_id"] == seed.code]
+    assert not row.empty, f"{seed.code} {seed.datagroup} içinde yok"
+    assert row.iloc[0]["freq"] in {seed.freq.value, "D"}  # EVDS kur gruplarını 'GÜNLÜK' etiketler

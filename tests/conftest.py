@@ -29,3 +29,12 @@ def api_key(monkeypatch) -> str:
 @pytest.fixture
 def data_dir(tmp_path) -> Path:
     return tmp_path / "data"
+
+
+@pytest.fixture(autouse=True)
+def _no_dotenv(request, monkeypatch):
+    """Offline testler geliştiricinin .env'indeki gerçek anahtarı görmesin (canlı istek atılmasın)."""
+    if request.node.get_closest_marker("live"):
+        return
+    monkeypatch.setattr("mlbooster.infrastructure.settings.load_dotenv", lambda *a, **k: False)
+    monkeypatch.delenv("EVDS_API_KEY", raising=False)

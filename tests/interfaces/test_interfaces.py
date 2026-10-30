@@ -26,7 +26,7 @@ def test_mcp_tool_rejects_injection_with_safe_message():
     from mcp.server.mcpserver.exceptions import ToolError
 
     with pytest.raises(ToolError, match="Geçersiz seri"):
-        mcp_server.fetch_series(["TP.FG.J0&type=xml"])
+        mcp_server.fetch_series(["TP.TUKFIY2025.GENEL&type=xml"])
     with pytest.raises(ToolError, match="Geçersiz sektör"):
         mcp_server.show_map("../../etc/passwd")
 

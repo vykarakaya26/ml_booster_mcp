@@ -46,17 +46,17 @@ FREQ_CODES = {
     Frequency.DAILY: 1, Frequency.BUSINESS: 2, Frequency.WEEKLY: 3, Frequency.SEMI_MONTHLY: 4,
     Frequency.MONTHLY: 5, Frequency.QUARTERLY: 6, Frequency.SEMI_ANNUAL: 7, Frequency.ANNUAL: 8,
 }  # fmt: skip
-_FREQ_LABELS = {
+_FREQ_LABELS = {  # anahtarlar boşluksuz
     "GÜNLÜK": "D", "DAILY": "D",
-    "İŞGÜNÜ": "B", "IŞGÜNÜ": "B", "BUSINESS": "B", "WORKDAY": "B",
+    "İŞGÜNÜ": "B", "IŞGÜNÜ": "B", "BUSINESS": "B", "WORKDAY": "B",  # canlıda "İŞ GÜNÜ"
     "HAFTALIK": "W", "WEEKLY": "W",
-    "AYDA 2 KEZ": "SM", "BIWEEKLY": "SM", "TWO TIMES IN A MONTH": "SM",
+    "AYDA2KEZ": "SM", "BIWEEKLY": "SM", "TWOTIMESINAMONTH": "SM",
     "AYLIK": "M", "MONTHLY": "M",
-    "ÜÇ AYLIK": "Q", "3 AYLIK": "Q", "QUARTERLY": "Q",
-    "ALTI AYLIK": "S", "6 AYLIK": "S", "SEMIANNUAL": "S", "SEMI-ANNUAL": "S", "SIX MONTH": "S",
+    "ÜÇAYLIK": "Q", "3AYLIK": "Q", "QUARTERLY": "Q",
+    "ALTIAYLIK": "S", "6AYLIK": "S", "SEMIANNUAL": "S", "SEMI-ANNUAL": "S", "SIXMONTH": "S",
     "YILLIK": "A", "ANNUAL": "A", "YEARLY": "A",
 }  # fmt: skip
-_HEALTH_LOOKBACK_DAYS = {"D": 30, "B": 30, "W": 60, "SM": 90, "M": 400, "Q": 800, "S": 1200, "A": 2200}
+_HEALTH_LOOKBACK_DAYS = {"D": 30, "B": 30, "W": 60, "SM": 90, "M": 400, "Q": 800, "S": 1200, "A": 2200}  # bayatlıktan geniş
 
 _DMY = re.compile(r"^(\d{1,2})-(\d{1,2})-(\d{4})$")
 _YM = re.compile(r"^(\d{4})-(\d{1,2})$")
@@ -91,7 +91,8 @@ def parse_evds_date(raw: str) -> tuple[date, Frequency]:
 def normalize_freq_label(label: object) -> str | None:
     if not isinstance(label, str) or not label.strip():
         return None
-    return _FREQ_LABELS.get(label.strip().upper(), label.strip())
+    key = "".join(label.split()).upper()  # "İŞ GÜNÜ" / "ÜÇ AYLIK" gibi boşluklu varyantlar
+    return _FREQ_LABELS.get(key, label.strip())
 
 
 def _fmt(d: date) -> str:
@@ -295,6 +296,12 @@ class Evds3Provider:
                 if df.empty:
                     return HealthResult(self.source.id, HealthStatus.FAIL, f"{seed.code}: son dönemde gözlem yok")
                 last = df.sort_values("date").iloc[-1]
+                age = (today - last["date"]).days
+                if age > seed.freq.max_staleness_days:
+                    # Seri veri dönüyor ama durmuş: kod arşive taşınmış olabilir (ör. TP.FG.J0, 2026-01).
+                    return HealthResult(
+                        self.source.id, HealthStatus.FAIL, f"{seed.code}: son gözlem {last['date']} ({age} gün önce), seri durmuş olabilir"
+                    )
                 details.append(f"{seed.code} son={last['date']} değer={last['value']:g}")
         except ProviderError as exc:
             return HealthResult(self.source.id, HealthStatus.FAIL, f"{type(exc).__name__}: {exc}")

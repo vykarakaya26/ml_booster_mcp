@@ -6,7 +6,7 @@ from mlbooster.domain.errors import InvalidInput
 from mlbooster.domain.validation import MAX_SERIES_PER_REQUEST, DateRange, series_code, series_codes, slug
 
 
-@pytest.mark.parametrize("code", ["TP.DK.USD.A.YTL", "TP.FG.J0", "bie_dkdovizgn", "TP.APIFON4"])
+@pytest.mark.parametrize("code", ["TP.DK.USD.A", "TP.TUKFIY2025.GENEL", "bie_dkdovizgn", "TP.APIFON4"])
 def test_valid_series_codes(code):
     assert series_code(code) == code
 
@@ -14,11 +14,11 @@ def test_valid_series_codes(code):
 @pytest.mark.parametrize(
     "code",
     [
-        "TP.FG.J0&type=xml",  # path parametre enjeksiyonu
+        "TP.TUKFIY2025.GENEL&type=xml",  # path parametre enjeksiyonu
         "../etc/passwd",
-        "TP.FG.J0?x=1",
+        "TP.TUKFIY2025.GENEL?x=1",
         "TP FG",
-        "TP.FG.J0#frag",
+        "TP.TUKFIY2025.GENEL#frag",
         "TP%2EFG",
         "",
         "-TP",

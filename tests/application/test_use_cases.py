@@ -13,8 +13,8 @@ from mlbooster.domain.model import HealthStatus
 MONTHS = pd.date_range("2024-01-31", "2026-09-30", freq="ME")
 DAYS = pd.bdate_range("2024-01-01", "2026-09-30")
 SERIES = {
-    "TP.FG.J0": pd.Series([100.0 + i for i in range(len(MONTHS))], index=MONTHS),
-    "TP.DK.USD.A.YTL": pd.Series([30 + i / 100 for i in range(len(DAYS))], index=DAYS),
+    "TP.TUKFIY2025.GENEL": pd.Series([100.0 + i for i in range(len(MONTHS))], index=MONTHS),
+    "TP.DK.USD.A": pd.Series([30 + i / 100 for i in range(len(DAYS))], index=DAYS),
 }
 
 
@@ -51,7 +51,7 @@ def test_build_panel_validates_sector(deps):
 def test_fetch_series_writes_and_summarizes(deps):
     catalog, providers, store, _ = deps
     summary = FetchSeries(catalog, providers, store).summarize(
-        FetchRequest.create("evds3", ["TP.FG.J0"], date(2024, 1, 1), date(2026, 9, 30)), max_rows=10_000
+        FetchRequest.create("evds3", ["TP.TUKFIY2025.GENEL"], date(2024, 1, 1), date(2026, 9, 30)), max_rows=10_000
     )
     assert summary.rows == len(MONTHS) and len(summary.tail) == len(MONTHS)  # ≤ MAX_TAIL_ROWS
     assert "TCMB" in summary.attribution and store.frames
@@ -77,7 +77,7 @@ def test_sector_map_statuses(deps):
     [{"freq": "X"}, {"agg": "median"}, {"formula": 9}, {"series_ids": ["TP&x=1"]}, {"source_id": "EVDS3"}],
 )
 def test_fetch_request_validation(kwargs):
-    base = {"source_id": "evds3", "series_ids": ["TP.FG.J0"], "start": date(2024, 1, 1)}
+    base = {"source_id": "evds3", "series_ids": ["TP.TUKFIY2025.GENEL"], "start": date(2024, 1, 1)}
     with pytest.raises(InvalidInput):
         FetchRequest.create(**(base | kwargs))
 
@@ -97,7 +97,7 @@ def test_build_panel_refetches_when_cache_misses_requested_start(deps):
 
 def test_cached_rows_of_other_frequency_are_ignored(deps):
     catalog, providers, store, panels = deps
-    quarterly = FetchRequest.create("evds3", ["TP.FG.J0"], date(2024, 1, 1), date(2026, 9, 30))
+    quarterly = FetchRequest.create("evds3", ["TP.TUKFIY2025.GENEL"], date(2024, 1, 1), date(2026, 9, 30))
     df = providers.create(catalog.load().source("evds3")).fetch(quarterly)
     store.write(df.assign(freq="Q", value=999.0))  # farklı frekansta önbellek kopyası
     result = BuildPanel(catalog, providers, store, panels)("telekom", date(2024, 1, 1), date(2026, 9, 30))
@@ -119,4 +119,4 @@ def test_health_reports_provider_construction_errors(catalog_repo):
 @pytest.mark.parametrize("formula", [1.0, True, "1"])
 def test_formula_must_be_int(formula):
     with pytest.raises(InvalidInput):
-        FetchRequest.create("evds3", ["TP.FG.J0"], date(2024, 1, 1), formula=formula)
+        FetchRequest.create("evds3", ["TP.TUKFIY2025.GENEL"], date(2024, 1, 1), formula=formula)

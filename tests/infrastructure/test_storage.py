@@ -14,7 +14,7 @@ from mlbooster.infrastructure.storage.panel_store import ParquetPanelStore
 def _obs(value, vintage):
     return pd.DataFrame(
         {
-            "source_id": "evds3", "dataset_id": "x", "series_id": "TP.FG.J0", "entity_id": "",
+            "source_id": "evds3", "dataset_id": "x", "series_id": "TP.TUKFIY2025.GENEL", "entity_id": "",
             "entity_name": None, "metric": "level", "date": [date(2026, 8, 31)], "freq": "M",
             "value": value, "unit": "index", "currency": None, "is_proxy": False,
             "vintage_ts": vintage, "publication_lag_days": 3,

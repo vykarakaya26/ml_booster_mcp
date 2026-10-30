@@ -1,8 +1,8 @@
 id: akaryakit
 name: Akaryakıt / LPG
 macro_features:
-  - {name: usdtry_logdiff, source: evds3, series: TP.DK.USD.A.YTL, transform: log_diff, agg: avg}
-  - {name: tufe_yoy, source: evds3, series: TP.FG.J0, transform: yoy_pct}
+  - {name: usdtry_logdiff, source: evds3, series: TP.DK.USD.A, transform: log_diff, agg: avg}
+  - {name: tufe_yoy, source: evds3, series: TP.TUKFIY2025.GENEL, transform: yoy_pct}
   - {name: brent, source: evds3, discover_hint: "Brent petrol fiyatı EVDS'de yoksa harici kaynak (faz 2)"}
 sector_sources: [epdk, epias]
 market_share_sources:

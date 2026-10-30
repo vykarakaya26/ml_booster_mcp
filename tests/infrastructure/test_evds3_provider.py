@@ -22,7 +22,7 @@ def _items(code, rows):
     return {"totalCount": len(rows), "items": [{"Tarih": d, col: v, "UNIXTIME": {"$numberLong": "0"}} for d, v in rows]}
 
 
-def _req(code="TP.FG.J0", start=date(2026, 8, 1), end=date(2026, 10, 30), **kw):
+def _req(code="TP.TUKFIY2025.GENEL", start=date(2026, 8, 1), end=date(2026, 10, 30), **kw):
     return FetchRequest.create("evds3", [code], start, end, **kw)
 
 
@@ -64,7 +64,7 @@ def test_refuses_untrusted_host(catalog):
 @respx.mock
 def test_key_only_in_header_never_in_url_or_bronze(evds, api_key, tmp_path):
     route = respx.get(url__startswith=BASE).mock(
-        return_value=httpx.Response(200, json=_items("TP.FG.J0", [("2026-8", "3500.1"), ("2026-9", "3550.2"), ("2026-10", None)]))
+        return_value=httpx.Response(200, json=_items("TP.TUKFIY2025.GENEL", [("2026-8", "3500.1"), ("2026-9", "3550.2"), ("2026-10", None)]))
     )
     df = evds.fetch(_req())
     request = route.calls.last.request
@@ -83,8 +83,8 @@ def test_key_only_in_header_never_in_url_or_bronze(evds, api_key, tmp_path):
 def test_formula_also_requests_level(evds):
     def responder(request):
         if "formulas=3" in str(request.url):
-            return httpx.Response(200, json={"items": [{"Tarih": "2026-9", "TP_FG_J0-3": "33.3", "TP_FG_J0": None}]})
-        return httpx.Response(200, json=_items("TP.FG.J0", [("2026-9", "3550.2")]))
+            return httpx.Response(200, json={"items": [{"Tarih": "2026-9", "TP_TUKFIY2025_GENEL-3": "33.3", "TP_TUKFIY2025_GENEL": None}]})
+        return httpx.Response(200, json=_items("TP.TUKFIY2025.GENEL", [("2026-9", "3550.2")]))
 
     route = respx.get(url__startswith=BASE).mock(side_effect=responder)
     df = evds.fetch(_req(start=date(2026, 9, 1), end=date(2026, 9, 30), formula=3))
@@ -94,8 +94,8 @@ def test_formula_also_requests_level(evds):
 
 @respx.mock
 def test_chunked_fetch_deduplicates(evds):
-    respx.get(url__startswith=BASE).mock(return_value=httpx.Response(200, json=_items("TP.DK.USD.A.YTL", [("02-01-2020", "5.9")])))
-    df = evds.fetch(_req("TP.DK.USD.A.YTL", date(2020, 1, 1), date(2026, 1, 1)))
+    respx.get(url__startswith=BASE).mock(return_value=httpx.Response(200, json=_items("TP.DK.USD.A", [("02-01-2020", "5.9")])))
+    df = evds.fetch(_req("TP.DK.USD.A", date(2020, 1, 1), date(2026, 1, 1)))
     assert respx.calls.call_count > 1 and len(df) == 1
 
 
@@ -136,10 +136,10 @@ def test_missing_key(evds, monkeypatch):
 @respx.mock
 def test_list_series_from_serielist(evds):
     respx.get(url__startswith=BASE + "serieList/").mock(
-        return_value=httpx.Response(200, json=[{"SERIE_CODE": "TP.DK.USD.A.YTL", "SERIE_NAME": "USD alış", "FREQUENCY_STR": "İŞGÜNÜ", "DATAGROUP_CODE": "bie_dkdovizgn"}])
+        return_value=httpx.Response(200, json=[{"SERIE_CODE": "TP.DK.USD.A", "SERIE_NAME": "USD alış", "FREQUENCY_STR": "İŞGÜNÜ", "DATAGROUP_CODE": "bie_dkdovizgn"}])
     )
     row = evds.list_series("bie_dkdovizgn").iloc[0]
-    assert row["series_id"] == "TP.DK.USD.A.YTL" and row["freq"] == "B"
+    assert row["series_id"] == "TP.DK.USD.A" and row["freq"] == "B"
 
 
 @respx.mock
@@ -163,3 +163,24 @@ def test_registry_shares_rate_limiter_per_source(catalog):
     a, b = registry.create(catalog.source("evds3")), registry.create(catalog.source("evds3"))
     assert a._http._limiter is b._http._limiter
     a.close(), b.close()
+
+
+@respx.mock
+def test_healthcheck_fails_on_stale_series(evds):
+    # Seri hâlâ veri dönüyor ama aylar önce durmuş (TP.FG.J0'ın 2026-01'de arşive taşınması gibi).
+    def responder(request):
+        url = str(request.url)
+        if "TP.TUKFIY2025.GENEL" in url:
+            return httpx.Response(200, json=_items("TP.TUKFIY2025.GENEL", [("2025-1", "100")]))
+        return httpx.Response(200, json=_items("TP.DK.USD.A", [(date.today().strftime("%d-%m-%Y"), "49")]))
+
+    respx.get(url__startswith=BASE).mock(side_effect=responder)
+    result = evds.healthcheck()
+    assert result.status is HealthStatus.FAIL and "durmuş" in result.detail
+
+
+@pytest.mark.parametrize(("label", "freq"), [("İŞ GÜNÜ", "B"), ("İŞGÜNÜ", "B"), ("ÜÇ AYLIK", "Q"), ("aylık", "M"), ("GÜNLÜK", "D")])
+def test_freq_labels_normalized(label, freq):
+    from mlbooster.infrastructure.providers.evds3 import normalize_freq_label
+
+    assert normalize_freq_label(label) == freq

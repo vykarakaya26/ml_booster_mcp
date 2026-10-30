@@ -18,7 +18,7 @@ from mlbooster.domain.services.frequency import to_monthly
 from mlbooster.domain.validation import DateRange, slug
 
 DEFAULT_START = date(2010, 1, 1)
-CPI = ("evds3", "TP.FG.J0")  # deflatör: TÜFE aylık % değişimi (formül 1)
+CPI = ("evds3", "TP.TUKFIY2025.GENEL")  # deflatör: TÜFE aylık % değişimi (formül 1)
 
 
 class BuildPanel:

@@ -1,9 +1,9 @@
 id: sigorta
 name: Sigorta
 macro_features:
-  - {name: tufe_yoy, source: evds3, series: TP.FG.J0, transform: yoy_pct}
-  - {name: usdtry_logdiff, source: evds3, series: TP.DK.USD.A.YTL, transform: log_diff, agg: avg}
-  - {name: eurtry_logdiff, source: evds3, series: TP.DK.EUR.A.YTL, transform: log_diff, agg: avg}
+  - {name: tufe_yoy, source: evds3, series: TP.TUKFIY2025.GENEL, transform: yoy_pct}
+  - {name: usdtry_logdiff, source: evds3, series: TP.DK.USD.A, transform: log_diff, agg: avg}
+  - {name: eurtry_logdiff, source: evds3, series: TP.DK.EUR.A, transform: log_diff, agg: avg}
   - {name: tasit_kredisi_hacmi, source: evds3, discover_hint: "Sektörel / taşıt kredisi hacmi"}
 sector_sources: [tsb, odmd]
 market_share_sources:

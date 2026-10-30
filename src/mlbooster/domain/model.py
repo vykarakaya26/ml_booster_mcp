@@ -35,6 +35,11 @@ class Frequency(StrEnum):
         return _MIN_PERIOD_DAYS[self]
 
     @property
+    def max_staleness_days(self) -> int:
+        """Son gözlem bundan eskiyse seri durmuş/taşınmış sayılır (dönem + tipik yayın gecikmesi)."""
+        return _MAX_STALENESS_DAYS[self]
+
+    @property
     def rank(self) -> int:
         return list(Frequency).index(self)
 
@@ -43,6 +48,11 @@ _MIN_PERIOD_DAYS = {
     Frequency.HOURLY: 1, Frequency.DAILY: 1, Frequency.BUSINESS: 1, Frequency.WEEKLY: 7,
     Frequency.SEMI_MONTHLY: 14, Frequency.MONTHLY: 28, Frequency.QUARTERLY: 89,
     Frequency.SEMI_ANNUAL: 181, Frequency.ANNUAL: 365,
+}  # fmt: skip
+_MAX_STALENESS_DAYS = {
+    Frequency.HOURLY: 3, Frequency.DAILY: 10, Frequency.BUSINESS: 10, Frequency.WEEKLY: 21,
+    Frequency.SEMI_MONTHLY: 35, Frequency.MONTHLY: 75, Frequency.QUARTERLY: 200,
+    Frequency.SEMI_ANNUAL: 380, Frequency.ANNUAL: 550,
 }  # fmt: skip
 
 

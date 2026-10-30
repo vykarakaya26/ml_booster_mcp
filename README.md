@@ -42,7 +42,7 @@ Seri kodlarını keşfetmek için TCMB'nin resmi EVDS-MCP sunucusu da eklenebili
 mlbooster catalog list --sector bankacilik
 mlbooster map show --sector sigorta              # --format json
 mlbooster catalog series --datagroup bie_dkdovizgn
-mlbooster fetch --series TP.FG.J0 --start 2015-01 --formula 3
+mlbooster fetch --series TP.TUKFIY2025.GENEL --start 2015-01 --formula 3
 mlbooster build-panel --sector otomotiv --out otomotiv.parquet
 mlbooster health
 ```
