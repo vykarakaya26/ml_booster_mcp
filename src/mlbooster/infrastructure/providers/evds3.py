@@ -28,6 +28,7 @@ from mlbooster.application.errors import (
     ProviderError,
     UnexpectedResponse,
 )
+from mlbooster.domain.errors import InvalidInput
 from mlbooster.domain.model import Frequency, HealthResult, HealthStatus, Source
 from mlbooster.domain.observations import OBSERVATION_COLUMNS, empty_observations
 from mlbooster.domain.services.chunking import date_chunks
@@ -189,6 +190,8 @@ class Evds3Provider:
     # --- Veri ----------------------------------------------------------------------------
 
     def fetch(self, request: FetchRequest) -> pd.DataFrame:
+        if request.freq is not None and request.freq not in FREQ_CODES:
+            raise InvalidInput(f"EVDS {request.freq.value} frekansını desteklemiyor; seçenekler: {[f.value for f in FREQ_CODES]}")
         # Formül uygulanınca orijinal değerler None döner; düzeyi her zaman ayrıca iste.
         formulas = [0] if request.formula == 0 else [0, request.formula]
         vintage = datetime.now(UTC)

@@ -42,7 +42,7 @@ class FetchRequest:
         agg: str | None = None,
         formula: int = 0,
     ) -> FetchRequest:
-        if formula not in FORMULA_METRICS:
+        if type(formula) is not int or formula not in FORMULA_METRICS:  # bool/float'ı da reddet
             raise InvalidInput(f"Geçersiz formül {formula}; seçenekler: {sorted(FORMULA_METRICS)}")
         try:
             freq_v = Frequency(freq) if freq else None

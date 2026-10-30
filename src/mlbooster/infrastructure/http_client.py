@@ -65,6 +65,7 @@ class SecureHttpClient:
         max_bytes: int = DEFAULT_MAX_BYTES,
         sleep: Callable[[float], None] = time.sleep,
         transport: httpx.BaseTransport | None = None,
+        limiter: RateLimiter | None = None,
     ):
         self._client = httpx.Client(
             timeout=timeout,
@@ -74,7 +75,8 @@ class SecureHttpClient:
             trust_env=False,  # ortamdaki proxy/netrc ayarları istekleri (ve header'ları) başka yere taşımasın
             transport=transport,
         )
-        self._limiter = RateLimiter(rps)
+        # Aynı kaynağa giden tüm istemciler limiti paylaşabilsin diye dışarıdan verilebilir.
+        self._limiter = limiter or RateLimiter(rps)
         self._max_retries = max_retries
         self._backoff_base = backoff_base
         self._max_bytes = max_bytes

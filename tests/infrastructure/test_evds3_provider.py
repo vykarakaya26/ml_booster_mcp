@@ -147,3 +147,19 @@ def test_healthcheck_fails_on_html(evds):
     respx.get(url__startswith=BASE).mock(return_value=httpx.Response(200, text="<html>", headers={"content-type": "text/html"}))
     result = evds.healthcheck()
     assert result.status is HealthStatus.FAIL and "HTML" in result.detail
+
+
+def test_hourly_frequency_rejected(evds):
+    from mlbooster.domain.errors import InvalidInput
+
+    with pytest.raises(InvalidInput, match="frekans"):
+        evds.fetch(_req(freq="H"))
+
+
+def test_registry_shares_rate_limiter_per_source(catalog):
+    from mlbooster.infrastructure.providers.registry import ProviderRegistry
+
+    registry = ProviderRegistry(EnvSecretProvider())
+    a, b = registry.create(catalog.source("evds3")), registry.create(catalog.source("evds3"))
+    assert a._http._limiter is b._http._limiter
+    a.close(), b.close()

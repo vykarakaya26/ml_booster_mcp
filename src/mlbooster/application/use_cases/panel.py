@@ -77,17 +77,17 @@ class BuildPanel:
             result.location = self._panels.save(sector.id, panel)
         return result
 
-    def _observations(self, catalog: Catalog, source_id: str, code: str, period, metric: str, formula: int, refresh: bool):
+    def _observations(
+        self, catalog: Catalog, source_id: str, code: str, period: DateRange, metric: str, formula: int, refresh: bool
+    ) -> pd.DataFrame:
+        """Önce depodan okur; depo istenen başlangıcı kapsamıyorsa sağlayıcıdan yeniden çeker.
+        Tek bir frekansa indirger (ör. önceden çekilmiş üç aylık kopyalar aylık veriyle karışmaz)."""
+        seed = catalog.source(source_id).seed(code)
         df = pd.DataFrame() if refresh else self._store.read(source_id, [code])
-        if not df.empty:
-            df = df[df["metric"] == metric]
-            seed = catalog.source(source_id).seed(code)
-            if seed is not None and metric == "level":
-                df = df[df["freq"] == seed.freq.value]
-        if df.empty:
+        df = _single_series(df, metric, seed.freq.value if seed else None)
+        if df.empty or not _covers_start(df, period.start):
             request = FetchRequest.create(source_id, [code], period.start, period.end, formula=formula)
-            df = self._fetch(request)
-            df = df[df["metric"] == metric] if not df.empty else df
+            df = _single_series(self._fetch(request), metric, seed.freq.value if seed else None)
         if df.empty:
             raise ProviderError(f"{code}: veri yok")
         return df
@@ -110,3 +110,19 @@ class BuildPanel:
         pct = pd.Series(df["value"].astype(float).to_numpy(), index=pd.to_datetime(df["date"]))
         lag = int(df["publication_lag_days"].iloc[0] or 0)
         return index_from_pct_changes(to_monthly(pct, Frequency.MONTHLY, publication_lag_days=lag))
+
+
+def _single_series(df: pd.DataFrame, metric: str, freq: str | None) -> pd.DataFrame:
+    if df.empty:
+        return df
+    df = df[df["metric"] == metric]
+    if df.empty:
+        return df
+    return df[df["freq"] == (freq or df["freq"].iloc[0])]
+
+
+def _covers_start(df: pd.DataFrame, start: date) -> bool:
+    """İlk gözlem, istenen başlangıçtan en fazla bir dönem (+%10) sonra mı?"""
+    freq = Frequency(df["freq"].iloc[0])
+    tolerance = max(7, int(freq.min_period_days * 1.1))
+    return pd.Timestamp(df["date"].min()) <= pd.Timestamp(start) + pd.Timedelta(days=tolerance)

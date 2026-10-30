@@ -7,6 +7,7 @@ from datetime import UTC, datetime
 import pandas as pd
 
 from mlbooster.application.dto import FetchRequest
+from mlbooster.application.errors import ProviderNotImplemented
 from mlbooster.domain.model import HealthResult, HealthStatus, Source
 from mlbooster.domain.observations import empty_observations
 
@@ -51,6 +52,8 @@ class FakeProviderFactory:
         return {"evds3"}
 
     def create(self, source):
+        if source.provider not in self.available():
+            raise ProviderNotImplemented(f"{source.id} için sağlayıcı henüz yazılmadı")
         provider = FakeProvider(source, self.series)
         self.created.append(provider)
         return provider

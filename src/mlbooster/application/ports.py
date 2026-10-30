@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from datetime import datetime
 from pathlib import Path
-from typing import Protocol, runtime_checkable
+from typing import Protocol
 
 import pandas as pd
 
@@ -16,7 +16,6 @@ class CatalogRepository(Protocol):
     def load(self) -> Catalog: ...
 
 
-@runtime_checkable
 class SeriesProvider(Protocol):
     """Tek bir veri kaynağına erişim. `fetch` gözlem çerçevesi (domain.observations) döner."""
 

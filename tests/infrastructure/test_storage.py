@@ -60,3 +60,11 @@ def test_rejects_duplicates_and_nulls(tmp_path):
         store.write(pd.concat([_obs(1.0, v), _obs(1.0, v)]))
     with pytest.raises(InvalidInput, match="null"):
         store.write(_obs(None, v))
+
+
+def test_intermediate_dirs_are_private(tmp_path):
+    from mlbooster.infrastructure.settings import ensure_private_dir
+
+    ensure_private_dir(tmp_path / "a" / "b" / "c")
+    for d in ["a", "a/b", "a/b/c"]:
+        assert stat.S_IMODE(os.stat(tmp_path / d).st_mode) & 0o077 == 0, d

@@ -30,6 +30,10 @@ class Settings:
 
 
 def ensure_private_dir(path: Path) -> Path:
-    """Dizini yalnızca sahibinin erişebileceği izinlerle (0700) oluşturur."""
-    path.mkdir(parents=True, exist_ok=True, mode=0o700)
+    """Eksik dizinleri (ara dizinler dahil) yalnızca sahibinin erişebileceği izinlerle (0700) oluşturur.
+    `mkdir(parents=True, mode=...)` modu yalnızca son dizine uygular; bu yüzden tek tek oluşturulur.
+    Önceden var olan dizinlerin izinlerine dokunulmaz."""
+    for directory in [*reversed(path.parents), path]:
+        if not directory.exists():
+            directory.mkdir(mode=0o700, exist_ok=True)
     return path

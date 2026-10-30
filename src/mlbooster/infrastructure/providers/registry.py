@@ -7,7 +7,7 @@ from collections.abc import Callable
 from mlbooster.application.errors import ProviderNotImplemented
 from mlbooster.application.ports import SeriesProvider
 from mlbooster.domain.model import Source
-from mlbooster.infrastructure.http_client import SecureHttpClient
+from mlbooster.infrastructure.http_client import RateLimiter, SecureHttpClient
 from mlbooster.infrastructure.providers.evds3 import Evds3Provider
 from mlbooster.infrastructure.secret_store import EnvSecretProvider
 from mlbooster.infrastructure.storage.raw_store import RawStore
@@ -26,7 +26,13 @@ class ProviderRegistry:
     ):
         self._secrets = secrets
         self._raw_store = raw_store
-        self._http_factory = http_factory or (lambda source: SecureHttpClient(rps=source.rate_limit.rps))
+        self._http_factory = http_factory or self._default_http
+        # Kaynak başına tek limiter: her çağrı yeni sağlayıcı açsa da rps sınırı korunur.
+        self._limiters: dict[str, RateLimiter] = {}
+
+    def _default_http(self, source: Source) -> SecureHttpClient:
+        limiter = self._limiters.setdefault(source.id, RateLimiter(source.rate_limit.rps))
+        return SecureHttpClient(rps=source.rate_limit.rps, limiter=limiter)
 
     def available(self) -> set[str]:
         return set(PROVIDERS)

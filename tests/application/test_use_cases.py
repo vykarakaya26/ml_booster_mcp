@@ -80,3 +80,43 @@ def test_fetch_request_validation(kwargs):
     base = {"source_id": "evds3", "series_ids": ["TP.FG.J0"], "start": date(2024, 1, 1)}
     with pytest.raises(InvalidInput):
         FetchRequest.create(**(base | kwargs))
+
+
+def test_build_panel_refetches_when_cache_misses_requested_start(deps):
+    catalog, providers, store, panels = deps
+    build = BuildPanel(catalog, providers, store, panels)
+    build("telekom", date(2025, 6, 1), date(2026, 9, 30))
+    narrow_calls = sum(len(p.calls) for p in providers.created)
+    # Önceki çağrının depoya yazdığı veri 2024'ten başlıyor (sahte sağlayıcı tam seriyi döner);
+    # bu yüzden 2024 başlangıcı önbellekten karşılanır, 2015 başlangıcı ise yeniden çekmeyi tetikler.
+    build("telekom", date(2024, 1, 1), date(2026, 9, 30))
+    assert sum(len(p.calls) for p in providers.created) == narrow_calls
+    build("telekom", date(2015, 1, 1), date(2026, 9, 30))
+    assert sum(len(p.calls) for p in providers.created) > narrow_calls
+
+
+def test_cached_rows_of_other_frequency_are_ignored(deps):
+    catalog, providers, store, panels = deps
+    quarterly = FetchRequest.create("evds3", ["TP.FG.J0"], date(2024, 1, 1), date(2026, 9, 30))
+    df = providers.create(catalog.load().source("evds3")).fetch(quarterly)
+    store.write(df.assign(freq="Q", value=999.0))  # farklı frekansta önbellek kopyası
+    result = BuildPanel(catalog, providers, store, panels)("telekom", date(2024, 1, 1), date(2026, 9, 30))
+    assert result.panel["tufe_yoy"].abs().max() < 100  # 999'lar karışsaydı YoY patlardı
+
+
+def test_health_reports_provider_construction_errors(catalog_repo):
+    from mlbooster.application.errors import ProviderError
+
+    class Broken(FakeProviderFactory):
+        def create(self, source):
+            raise ProviderError("host sabitleme")
+
+    results = {r.source_id: r for r in RunHealthChecks(catalog_repo, Broken({}))()}
+    assert results["evds3"].status is HealthStatus.FAIL and "host" in results["evds3"].detail
+    assert len(results) == len(catalog_repo.load().sources)
+
+
+@pytest.mark.parametrize("formula", [1.0, True, "1"])
+def test_formula_must_be_int(formula):
+    with pytest.raises(InvalidInput):
+        FetchRequest.create("evds3", ["TP.FG.J0"], date(2024, 1, 1), formula=formula)

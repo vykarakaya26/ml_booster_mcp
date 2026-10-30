@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from mlbooster.application.errors import ProviderNotImplemented
+from mlbooster.application.errors import ProviderError, ProviderNotImplemented
 from mlbooster.application.ports import CatalogRepository, ProviderFactory
 from mlbooster.application.use_cases._providers import open_provider
 from mlbooster.domain.model import HealthResult, HealthStatus
@@ -22,4 +22,6 @@ class RunHealthChecks:
                     results.append(provider.healthcheck())
             except ProviderNotImplemented:
                 results.append(HealthResult(source.id, HealthStatus.SKIPPED, "sağlayıcı henüz yazılmadı"))
+            except ProviderError as exc:  # ör. sağlayıcı kurulamadı (host sabitleme)
+                results.append(HealthResult(source.id, HealthStatus.FAIL, f"{type(exc).__name__}: {exc}"))
         return results
