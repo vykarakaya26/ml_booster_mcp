@@ -1,0 +1,13 @@
+id: bkm
+name: BKM kartlı ödeme istatistikleri
+owner: Bankalararası Kart Merkezi
+base_url: https://bkm.com.tr
+access: file_download
+auth: {type: none}
+license: {attribution: required, notes: "Kurumsal koşullar kontrol edilmeli."}
+frequency: [M]
+formats: [html, xlsx]
+sectors: [perakende, eticaret, turizm]
+publication_lag_days: 30  # tahmini
+verification_status: reported
+priority: 10

@@ -1,0 +1,15 @@
+id: bankacilik
+name: Bankacılık
+macro_features:
+  - {name: aofm, source: evds3, series: TP.APIFON4, transform: level, agg: avg}
+  - {name: usdtry_logdiff, source: evds3, series: TP.DK.USD.A.YTL, transform: log_diff, agg: avg}
+  - {name: tufe_yoy, source: evds3, series: TP.FG.J0, transform: yoy_pct}
+  - {name: dis_borc_logdiff, source: evds3, series: TP.DB.B01, transform: log_diff}
+  - {name: kredi_faizi, source: evds3, discover_hint: "Ticari/tüketici kredi faizleri veri grubu: /serieList veya EVDS-MCP list_series"}
+  - {name: mevduat_faizi, source: evds3, discover_hint: "TL mevduat faizleri (vadeye göre) veri grubu"}
+  - {name: pka_enflasyon_beklentisi, source: evds3, discover_hint: "Piyasa Katılımcıları Anketi, 12 ay sonrası TÜFE beklentisi"}
+sector_sources: [bddk, tbb]
+market_share_sources:
+  - {source: tbb, metric: "aktif / nakdi kredi / mevduat / şube payı (banka bazlı)"}
+  - {source: bddk, metric: "banka grubu payları (aylık bülten)"}
+ml_use_cases: ["Kredi riski (PD)", "Mevduat ve kredi hacmi tahmini", "Churn"]

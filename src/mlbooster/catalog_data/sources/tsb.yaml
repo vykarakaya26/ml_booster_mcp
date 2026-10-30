@@ -1,0 +1,13 @@
+id: tsb
+name: TSB prim üretimi (şirket × branş)
+owner: Türkiye Sigorta Birliği
+base_url: https://www.tsb.org.tr
+access: file_download
+auth: {type: none}
+license: {attribution: required, notes: "Açık veri lisansı yayımlanmamış; kurumsal koşullar kontrol edilmeli."}
+frequency: [M]
+formats: [xlsx, pdf]
+sectors: [sigorta]
+publication_lag_days: 45  # tahmini
+verification_status: reported
+priority: 8

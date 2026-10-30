@@ -1,0 +1,13 @@
+id: btk
+name: BTK Üç Aylık Pazar Verileri Raporu
+owner: BTK
+base_url: https://www.btk.gov.tr
+access: pdf_report
+auth: {type: none}
+license: {attribution: required, notes: "Kamuya açık yayın."}
+frequency: [Q]
+formats: [pdf]
+sectors: [telekom]
+publication_lag_days: 100  # tahmini; Ç4 raporu Ocak'tan geç yayımlanıyor
+verification_status: reported
+priority: 7

@@ -1,0 +1,10 @@
+id: telekom
+name: Telekom
+macro_features:
+  - {name: tufe_yoy, source: evds3, series: TP.FG.J0, transform: yoy_pct}
+  - {name: usdtry_logdiff, source: evds3, series: TP.DK.USD.A.YTL, transform: log_diff, agg: avg}
+  - {name: haberlesme_tufe, source: tuik, discover_hint: "TÜFE haberleşme alt endeksi (2025=100, ECOICOP v2 köprüsü gerekir)"}
+sector_sources: [btk]
+market_share_sources:
+  - {source: btk, metric: "abone / gelir / trafik payı, numara taşıma, churn"}
+ml_use_cases: ["ARPU tahmini", "Churn", "Abone büyümesi"]

@@ -1,0 +1,13 @@
+id: otomotiv
+name: Otomotiv
+macro_features:
+  - {name: usdtry_logdiff, source: evds3, series: TP.DK.USD.A.YTL, transform: log_diff, agg: avg}
+  - {name: eurtry_logdiff, source: evds3, series: TP.DK.EUR.A.YTL, transform: log_diff, agg: avg}
+  - {name: tufe_yoy, source: evds3, series: TP.FG.J0, transform: yoy_pct}
+  - {name: aofm, source: evds3, series: TP.APIFON4, transform: level, agg: avg}
+  - {name: tasit_kredisi_faizi, source: evds3, discover_hint: "Taşıt kredisi faiz oranı"}
+  - {name: tuketici_guveni, source: evds3, discover_hint: "Tüketici güven endeksi"}
+sector_sources: [odmd]
+market_share_sources:
+  - {source: odmd, metric: "marka / model / segment satış adedi payı"}
+ml_use_cases: ["Talep ve satış tahmini", "Fiyat esnekliği"]

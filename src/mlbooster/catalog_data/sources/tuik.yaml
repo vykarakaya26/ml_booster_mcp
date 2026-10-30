@@ -1,0 +1,15 @@
+id: tuik
+name: TÜİK Veri Portalı
+owner: TÜİK
+base_url: https://veriportali.tuik.gov.tr
+access: file_download
+auth: {type: none}
+license: {attribution: required, notes: "Kaynak gösterilerek kullanım. Web servisi sözleşmesi yalnızca kamu kurumlarına açık."}
+frequency: [M, Q, A]
+formats: [xlsx, json]
+sectors: ["*"]
+publication_lag_days: 30  # tahmini; bülten bazında yayın takviminden doldurulmalı
+verification_status: reported
+verification_notes: "nsiws SDMX servisinin 2026-08'den beri anonim çağrıda 401 döndüğü yalnızca üçüncü taraflarca raporlandı."
+known_breaks: ["2026-01: TÜFE 2025=100 ve ECOICOP v2", "2026-08: nsiws SDMX anonim erişim kapandı (raporlanan)"]
+priority: 2

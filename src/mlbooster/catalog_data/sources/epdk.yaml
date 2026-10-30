@@ -1,0 +1,13 @@
+id: epdk
+name: EPDK aylık sektör raporları (petrol, LPG, doğal gaz, elektrik)
+owner: EPDK
+base_url: https://www.epdk.gov.tr
+access: pdf_report
+auth: {type: none}
+license: {attribution: required, notes: "Kamuya açık yayın."}
+frequency: [M, A]
+formats: [pdf, xlsx]
+sectors: [akaryakit, enerji]
+publication_lag_days: 60  # tahmini
+verification_status: reported
+priority: 6

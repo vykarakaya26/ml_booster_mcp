@@ -1,0 +1,11 @@
+id: sigorta
+name: Sigorta
+macro_features:
+  - {name: tufe_yoy, source: evds3, series: TP.FG.J0, transform: yoy_pct}
+  - {name: usdtry_logdiff, source: evds3, series: TP.DK.USD.A.YTL, transform: log_diff, agg: avg}
+  - {name: eurtry_logdiff, source: evds3, series: TP.DK.EUR.A.YTL, transform: log_diff, agg: avg}
+  - {name: tasit_kredisi_hacmi, source: evds3, discover_hint: "Sektörel / taşıt kredisi hacmi"}
+sector_sources: [tsb, odmd]
+market_share_sources:
+  - {source: tsb, metric: "prim üretimi payı (şirket × branş: trafik, kasko, sağlık, hayat)"}
+ml_use_cases: ["Prim tahmini", "Hasar enflasyonu", "Fiyatlama"]

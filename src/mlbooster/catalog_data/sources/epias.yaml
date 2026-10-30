@@ -1,0 +1,19 @@
+id: epias
+name: EPİAŞ Şeffaflık Platformu
+owner: EPİAŞ
+base_url: https://seffaflik.epias.com.tr
+access: rest_api
+auth:
+  type: tgt
+  env_vars: [EPIAS_USERNAME, EPIAS_PASSWORD]
+  ticket_url: https://giris.epias.com.tr/cas/v1/tickets
+  ttl_hours: 8
+rate_limit: {rps: 60, per_minute: 1500, backoff: fixed, blocked_seconds_on_429: 30}
+license: {attribution: required, notes: "Web servis şartnamesi geçerli."}
+frequency: [H, D]
+formats: [json]
+sectors: [enerji, akaryakit]
+publication_lag_days: 1
+verification_status: reported
+verification_notes: "2026-10-20'den beri kimlik bilgileri yalnızca request body'de kabul ediliyor (raporlanan)."
+priority: 5

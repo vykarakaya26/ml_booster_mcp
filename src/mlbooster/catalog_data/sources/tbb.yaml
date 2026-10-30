@@ -1,0 +1,13 @@
+id: tbb
+name: TBB Veri Sistemi
+owner: Türkiye Bankalar Birliği
+base_url: https://verisistemi.tbb.org.tr
+access: file_download
+auth: {type: none}
+license: {attribution: required, notes: "Açık veri lisansı yayımlanmamış; ticari kullanım için site koşulları kontrol edilmeli."}
+frequency: [Q, A]
+formats: [xlsx]
+sectors: [bankacilik]
+publication_lag_days: 75  # tahmini
+verification_status: reported
+priority: 4

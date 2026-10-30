@@ -1,0 +1,13 @@
+id: odmd
+name: ODMD aylık basın bülteni (marka/model/segment)
+owner: Otomotiv Distribütörleri ve Mobilite Derneği
+base_url: https://www.odmd.org.tr
+access: pdf_report
+auth: {type: none}
+license: {attribution: required, notes: "Basın bülteni; ticari yeniden dağıtım koşulları kontrol edilmeli."}
+frequency: [M]
+formats: [pdf]
+sectors: [otomotiv]
+publication_lag_days: 5  # tahmini
+verification_status: reported
+priority: 9

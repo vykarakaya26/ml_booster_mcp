@@ -1,0 +1,37 @@
+id: evds3
+name: TCMB Elektronik Veri Dağıtım Sistemi (EVDS3)
+owner: TCMB
+base_url: https://evds3.tcmb.gov.tr/igmevdsms-dis/
+access: rest_api
+auth: {type: header, header_name: key, env_var: EVDS_API_KEY}
+rate_limit:
+  rps: 2
+  backoff: exponential
+  max_obs_per_call: 1000
+  notes: "TCMB sayısal limit yayımlamıyor; 1000 gözlem limiti borsapy'den, doğrulanmadı (başka kaynak 150 diyor)."
+license:
+  commercial: true
+  redistribution: true
+  attribution: required
+  notes: "Kaynak gösterilerek kullanılabilir; veri ürün kullanıcılarına/abonelerine ek ücret olarak yansıtılamaz (EVDS kullanım koşulları)."
+frequency: [D, B, W, SM, M, Q, S, A]
+formats: [json, csv, xml]
+sectors: ["*"]
+publication_lag_days: 1
+verification_status: verified
+verification_notes: >-
+  2026-10-30: uç canlı denendi. Anahtarsız → 403 JSON "Required request header 'key' is not present",
+  geçersiz anahtar → 401 text/plain, evds2.tcmb.gov.tr/service/evds → 302 (kapalı).
+  Geçerli anahtarla veri biçimi henüz canlı doğrulanmadı (pytest -m live).
+known_breaks:
+  - "2024-04-05: API anahtarı URL'den header'a taşındı"
+  - "2025 sonu: evds2 REST ucu kapandı (302 → SPA)"
+  - "2026-01: TÜFE 2025=100 bazına ve ECOICOP v2'ye geçti"
+adapter: evds3
+priority: 1
+series:
+  - {code: TP.DK.USD.A.YTL, name: "USD/TRY döviz alış", freq: B, kind: level, unit: TRY, currency: TRY, datagroup: bie_dkdovizgn, publication_lag_days: 0, canary: true}
+  - {code: TP.DK.EUR.A.YTL, name: "EUR/TRY döviz alış", freq: B, kind: level, unit: TRY, currency: TRY, datagroup: bie_dkdovizgn, publication_lag_days: 0}
+  - {code: TP.FG.J0, name: "TÜFE genel endeksi", freq: M, kind: level, unit: index, publication_lag_days: 3, canary: true}
+  - {code: TP.APIFON4, name: "TCMB ağırlıklı ortalama fonlama maliyeti", freq: B, kind: level, unit: percent, publication_lag_days: 1}
+  - {code: TP.DB.B01, name: "Brüt dış borç stoku", freq: Q, kind: level, unit: million_usd, currency: USD, datagroup: bie_dbdborc, publication_lag_days: 90}
