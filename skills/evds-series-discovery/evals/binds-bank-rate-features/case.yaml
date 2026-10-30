@@ -1,0 +1,4 @@
+schema_version: "1.1"
+name: binds-bank-rate-features
+expected_outcome: |
+  kredi_faizi ve mevduat_faizi güncel (arşiv olmayan) TL akım faiz serilerine canlı doğrulanarak bağlanır; panel yeniden üretilip iki feature'ın girdiği gösterilir.

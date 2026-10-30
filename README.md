@@ -1,37 +1,50 @@
 # ML Booster Map
 
-Türkiye için ücretsiz veri kaynaklarını sektör bazında haritalayan ve ML'e hazır **aylık panel** (Parquet) üreten Python aracı. Hem CLI hem de **MCP sunucusu** olarak çalışır; Claude Code / Claude Desktop'a ekleyip doğal dille kullanabilirsiniz.
+Türkiye için ücretsiz veri kaynaklarını sektör bazında haritalayan ve ML'e hazır **aylık panel** üreten araç. Üç şekilde kullanılabilir:
 
-> **Durum (v0.2):** Katalog 10 kaynak ve 5 sektör içeriyor. Uçtan uca çalışan sağlayıcı şimdilik **TCMB EVDS3**. TÜİK, BDDK, TBB, EPİAŞ, EPDK, BTK, TSB, ODMD ve BKM katalogda yer alıyor; bu kaynakların sağlayıcıları yol haritasında.
+- **Claude Code plugin'i**: MCP sunucusu ve otonom çalışan 4 skill. Doğal dille "otomotiv sektörünü analiz et" dediğinizde paylaşılabilir bir HTML rapor alırsınız.
+- **MCP sunucusu**: Claude Code ya da Claude Desktop'tan araç olarak.
+- **CLI / Python paketi**: `mlbooster`.
 
-## Kurulum
+> **Durum (v0.3):** Katalog 10 kaynak ve 5 sektör içeriyor. Uçtan uca çalışan sağlayıcı şimdilik **TCMB EVDS3**. TÜİK, BDDK, TBB, EPİAŞ, EPDK, BTK, TSB, ODMD ve BKM katalogda yer alıyor; bu kaynakların sağlayıcıları yol haritasında.
 
-Python 3.12+ gerekir.
+## 1. EVDS API anahtarı
+
+Anahtarı [evds3.tcmb.gov.tr](https://evds3.tcmb.gov.tr) → Benim Sayfam → Profilim → **API KEY KOPYALA** yolundan alın. Tek bir yere koymanız yeterlidir; CLI, MCP ve skill'lerin hepsi buradan okur:
+
+```bash
+mkdir -p ~/.mlbooster && echo "EVDS_API_KEY=ANAHTARINIZ" >> ~/.mlbooster/.env && chmod 600 ~/.mlbooster/.env
+```
+
+Anahtar yalnızca HTTP header'ında ve yalnızca `evds3.tcmb.gov.tr` adresine gönderilir. URL'lere, loglara ve ham veri manifestine yazılmaz.
+
+## 2a. Claude Code plugin'i (önerilen)
+
+[uv](https://docs.astral.sh/uv/) gerekir; MCP sunucusu `uvx` ile kendiliğinden kurulur.
+
+```bash
+claude plugin install ml-booster --marketplace vykarakaya26/ml_booster_mcp
+```
+
+Claude Code içinden de kurulabilir: `/plugin install ml-booster --marketplace vykarakaya26/ml_booster_mcp`
+
+| Skill | Ne yapar | Örnek istem |
+|---|---|---|
+| `sector-analysis` | Kaynak haritası, panel, kalite özeti ve tahmin referanslarını yorumlu bir HTML raporda birleştirir | "Otomotiv sektörü için veri analizi ve rapor hazırla" |
+| `evds-series-discovery` | EVDS'de güncel seri kodunu bulur, canlı doğrular ve feature'a bağlar | "Bankacılıkta kredi faizi feature'ı eksik, EVDS'den bul" |
+| `data-quality-audit` | Bayat seri, eksik, aykırı değer, yapısal kırılma ve kolineerlik denetimi yapar (HTML) | "Sigorta panelindeki veriler temiz mi?" |
+| `forecast-baseline` | Look-ahead korumalı backtest ile naive, drift ve ridge referans modellerini karşılaştırır (HTML) | "Taşıt kredisi faizini 1 ay ileri tahmin etmenin çıtası ne?" |
+
+Raporlar çalışma dizininde `mlbooster-reports/<sektör>-<tarih>/` altına yazılır. Raporlar tek dosyadır, açık/koyu temayı destekler ve dış kaynak yüklemez.
+
+## 2b. Yalnızca MCP sunucusu
 
 ```bash
 pip install "git+https://github.com/vykarakaya26/ml_booster_mcp.git"
+claude mcp add mlbooster -- mlbooster-mcp
 ```
 
-EVDS API anahtarınızı alın: [evds3.tcmb.gov.tr](https://evds3.tcmb.gov.tr) → Benim Sayfam → Profilim → **API KEY KOPYALA**. Anahtarı ortam değişkeni ya da `.env` dosyası olarak verin. `.env` çalışma dizininde veya `~/.mlbooster/.env` konumunda olabilir:
-
-```bash
-export EVDS_API_KEY=...
-```
-
-Anahtar yalnızca HTTP header'ında gönderilir. URL'lere, loglara ve ham veri manifestine yazılmaz.
-
-## Claude Code'da MCP olarak kullanım
-
-```bash
-claude mcp add mlbooster -e EVDS_API_KEY=ANAHTARINIZ -- mlbooster-mcp
-```
-
-Araçlar: `list_sectors`, `list_sources`, `show_map`, `discover_series`, `fetch_series`, `build_panel`, `health`.
-
-Örnek istemler:
-- "Sigorta sektörü için veri kaynağı haritasını göster."
-- "bie_dkdovizgn veri grubundaki serileri listele."
-- "Otomotiv için 2015'ten bugüne aylık feature panelini üret."
+Araçlar: `list_sectors`, `list_sources`, `show_map`, `search_series`, `discover_series`, `set_feature_series`, `fetch_series`, `build_panel`, `audit_panel`, `run_backtest`, `health`.
 
 Seri kodlarını keşfetmek için TCMB'nin resmi EVDS-MCP sunucusu da eklenebilir:
 `claude mcp add --transport http evds https://mcp.tcmb.gov.tr/tcmb-mcp/evds/mcp`
@@ -40,10 +53,14 @@ Seri kodlarını keşfetmek için TCMB'nin resmi EVDS-MCP sunucusu da eklenebili
 
 ```bash
 mlbooster catalog list --sector bankacilik
-mlbooster map show --sector sigorta              # --format json
-mlbooster catalog series --datagroup bie_dkdovizgn
+mlbooster map show --sector sigorta                       # --format json
+mlbooster catalog search "kredi faiz"                     # EVDS veri grubu arama
+mlbooster catalog series --datagroup bie_kt100h
+mlbooster catalog set-feature --sector otomotiv --feature tasit_kredisi_faizi --series TP.KTF11
 mlbooster fetch --series TP.TUKFIY2025.GENEL --start 2015-01 --formula 3
-mlbooster build-panel --sector otomotiv --out otomotiv.parquet
+mlbooster build-panel --sector otomotiv --out otomotiv.csv  # .parquet veya .csv
+mlbooster audit --sector otomotiv --json audit.json
+mlbooster backtest --sector otomotiv --target tasit_kredisi_faizi --horizon 1 --json bt.json
 mlbooster health
 ```
 
@@ -63,11 +80,10 @@ Veriler varsayılan olarak `~/.mlbooster/data` altında tutulur. Bu dizin `MLBOO
 
 ## Yeni sektör veya seri eklemek
 
-Kod değişikliği gerekmez:
-- Sektörler: `src/mlbooster/catalog_data/sectors/*.yaml`
-- Kaynaklar ve tohum seriler: `src/mlbooster/catalog_data/sources/*.yaml`
+- **Kendi makinenizde**: `mlbooster catalog set-feature` komutu (ya da `evds-series-discovery` skill'i) kodu canlı doğrular ve `~/.mlbooster/catalog/overrides.yaml` dosyasına yazar. Paket dosyaları değişmez.
+- **Herkes için (PR)**: `src/mlbooster/catalog_data/sectors/*.yaml` ve `sources/*.yaml` dosyalarını düzenleyin. Kod değişikliği gerekmez.
 
-Seri kodu henüz bilinmeyen feature'lar `discover_hint` ile tutulur ve panelde "atlandı" olarak raporlanır. Kendi kataloğunuzu kullanmak için `MLBOOSTER_CATALOG_DIR` değişkenini ayarlayın.
+Seri kodu henüz bilinmeyen feature'lar `discover_hint` ile tutulur ve panelde "atlandı" olarak raporlanır.
 
 ## Mimari: Onion (Application Core)
 

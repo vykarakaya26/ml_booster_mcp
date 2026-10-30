@@ -1,0 +1,4 @@
+schema_version: "1.1"
+name: otomotiv-ml-report
+expected_outcome: |
+  Tek dosyalık bir HTML rapor; kaynak haritası, panel, kalite özeti, en az bir backtest ve dosyalardaki sayılara dayanan yönetici özeti içerir.
