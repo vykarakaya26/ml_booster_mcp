@@ -16,11 +16,12 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "_shared"))
 
 from mlb_report import html as H  # noqa: E402
+from mlb_report import assumptions as A  # noqa: E402
 from mlb_report.data import read_json, read_panel_csv  # noqa: E402
 from mlb_report.svg import Flag, LineChart, Marker, Series, line_chart  # noqa: E402
 
 
-def build(audit: dict, dates: list[date], columns: dict, sector: str, notes: str | None = None) -> str:
+def build(audit: dict, dates: list[date], columns: dict, sector: str, notes: str | None = None, assumptions: dict | None = None) -> str:
     counts = audit["counts"]
     series = {s["feature"]: s for s in audit["series"]}
     sections = []
@@ -40,6 +41,9 @@ def build(audit: dict, dates: list[date], columns: dict, sector: str, notes: str
             "ozet",
         )
     )
+    if assumptions:
+        sections.insert(1, A.section(assumptions))
+
 
     if notes:
         sections.append(H.section("Yorum ve öneriler", f'<div class="narrative">{H.markdown(notes)}</div>', "oneriler"))
@@ -66,6 +70,23 @@ def build(audit: dict, dates: list[date], columns: dict, sector: str, notes: str
         "Grafiklerin üzerine gelince değerler görünür.</p>"
     )
     sections.append(H.section("Seriler", legend + f'<div class="grid-2">{"".join(charts)}</div>', "seriler"))
+
+    diag = audit.get("diagnostics") or []
+    if diag:
+        drows = [
+            (d["feature"], d["n"], d["stationarity"].replace("_", " "), "—" if d["adf_t"] is None else f"{d['adf_t']:.2f}",
+             "—" if d["kpss_stat"] is None else f"{d['kpss_stat']:.3f}", f"{d['skew']:.2f}", f"{d['excess_kurtosis']:.2f}",
+             "—" if d["volatility_ratio"] is None else f"{d['volatility_ratio']:.2f}", "—" if d["acf12"] is None else f"{d['acf12']:.2f}")
+            for d in diag
+        ]  # fmt: skip
+        recs = [(d["feature"], r) for d in diag for r in d["recommendations"]]
+        body = (
+            '<p class="muted">ADF (H0: birim kök, %5 kritik −2,86) ve KPSS (H0: durağan, %5 kritik 0,463) birlikte okunur. '
+            "Oynaklık oranı: son 36 ayın değişim std'si / tüm dönem. ACF12: 12. gecikme otokorelasyonu (mevsimsellik).</p>"
+            + H.table(["Feature", "n", "Durağanlık", "ADF t", "KPSS", "Çarpıklık", "Fazla basıklık", "Oynaklık oranı", "ACF12"], drows, numeric=[1, 3, 4, 5, 6, 7, 8])
+            + ("<h3>Ön işleme önerileri</h3>" + H.table(["Feature", "Öneri"], recs) if recs else "")
+        )
+        sections.append(H.section("Dağılım ve durağanlık", body, "dagilim"))
 
     srows = [
         (
@@ -96,7 +117,8 @@ def build(audit: dict, dates: list[date], columns: dict, sector: str, notes: str
         f"Denetim tarihi {audit['as_of']} · nokta-zamanlı aylık panel",
         sections,
         "Kaynak: TCMB EVDS ve katalogdaki diğer kurumlar. Kırılma eşleştirmesi bilinen TR şok tarihlerine göre yapılır; nedensellik iddiası değildir.",
-        nav=[("ozet", "Özet")] + ([("oneriler", "Öneriler")] if notes else []) + [("bulgular", "Bulgular"), ("seriler", "Seriler"), ("seri-ozeti", "Seri özeti")],
+        nav=[("ozet", "Özet")] + ([("varsayimlar", "Varsayımlar")] if assumptions else []) + ([("oneriler", "Öneriler")] if notes else [])
+        + [("bulgular", "Bulgular"), ("dagilim", "Dağılım"), ("seriler", "Seriler"), ("seri-ozeti", "Seri özeti")],
     )
 
 
@@ -107,11 +129,15 @@ def main() -> None:
     ap.add_argument("--sector", required=True)
     ap.add_argument("--out", required=True, type=Path)
     ap.add_argument("--notes", type=Path, help="Yorum ve öneriler (Markdown)")
+    ap.add_argument("--assumptions", type=Path, help="Girdi/varsayım kaydı (assumptions.json)")
     args = ap.parse_args()
+    assumptions = A.load(args.assumptions) if args.assumptions else None
+    if assumptions is None:
+        print("Uyarı: --assumptions verilmedi; raporda girdiler ve varsayımlar bölümü olmayacak.", file=sys.stderr)
     dates, columns = read_panel_csv(args.panel)
     notes = args.notes.read_text(encoding="utf-8") if args.notes else None
     args.out.parent.mkdir(parents=True, exist_ok=True)
-    args.out.write_text(build(read_json(args.audit), dates, columns, args.sector, notes), encoding="utf-8")
+    args.out.write_text(build(read_json(args.audit), dates, columns, args.sector, notes, assumptions), encoding="utf-8")
     print(f"Rapor → {args.out}")
 
 

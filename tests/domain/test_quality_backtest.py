@@ -46,7 +46,7 @@ def test_audit_handles_empty_and_constant():
 def test_backtest_ranks_models_and_has_no_lookahead():
     panel = _panel()[["trend", "shifted"]]
     result = rolling_origin_backtest(panel, BacktestConfig(target="trend", horizon=3, min_train=36))
-    assert set(result.metrics["model"]) == {"naive", "seasonal_naive", "drift", "ridge"}
+    assert set(result.metrics["model"]) == {"naive", "seasonal_naive", "drift", "mean12", "ridge"}
     assert result.best_model in {"drift", "ridge"}  # trendli seride naive'den iyi olmalı
     p = result.predictions
     assert ((p["date"] - p["origin"]).dt.days > 0).all()
@@ -95,3 +95,37 @@ def test_anchor_naive_model():
     assert result.best_model == "anchor_naive"
     with pytest.raises(InvalidInput):
         BacktestConfig(target="x", anchor="x")
+
+
+def test_distribution_diagnostics_classify_stationarity_and_tails():
+    from mlbooster.domain.services.distribution import diagnose
+
+    rng = np.random.default_rng(42)
+    idx = pd.date_range("1975-01-31", periods=600, freq="ME")
+    walk = pd.Series(np.cumsum(rng.normal(0, 1, 600)) + 500, index=idx)
+    noise = pd.Series(rng.normal(0, 1, 600), index=idx)
+    tails = pd.Series(rng.standard_t(2, 600), index=idx)
+    w = diagnose(walk, "walk")
+    assert w.stationarity == "birim_kök" and w.adf_t > -2.86 and w.kpss_stat > 0.463
+    assert any("log-fark" in r for r in w.recommendations)
+    assert diagnose(walk, "walk", transform="log_diff").recommendations == ()  # zaten dönüştürülmüş
+    assert diagnose(noise, "noise").stationarity == "durağan"
+    d = diagnose(tails, "tails")
+    assert d.excess_kurtosis > 3 and any("Kalın kuyruk" in r for r in d.recommendations)
+    assert diagnose(pd.Series([1.0, 2.0]), "kisa").stationarity == "kararsız"
+
+
+def test_companion_pairs_not_flagged_as_collinear():
+    panel = _panel()[["trend", "twin"]]
+    plain = audit_panel(panel, date(2026, 10, 30))
+    assert plain.correlated_pairs
+    skipped = audit_panel(panel, date(2026, 10, 30), companions={frozenset(("trend", "twin"))})
+    assert not skipped.correlated_pairs
+    assert {d.feature for d in skipped.diagnostics} == {"trend", "twin"}
+
+
+def test_adf_critical_values_match_mackinnon():
+    from mlbooster.domain.services.distribution import adf_critical
+
+    assert adf_critical(10_000) == pytest.approx(-2.8618, abs=1e-3)  # asimptotiğe yakın
+    assert adf_critical(100) < adf_critical(1000)  # küçük örneklemde daha negatif

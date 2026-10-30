@@ -51,6 +51,9 @@ def artifacts(tmp_path):
     (tmp_path / "map.json").write_text(json.dumps(sector_map), encoding="utf-8")
     (tmp_path / "narrative.md").write_text(f"## Ana bulgular\n- **TÜFE** %31,5 {EVIL}\n\n<img src=x onerror=alert(1)>\n", encoding="utf-8")
     (tmp_path / "notes.md").write_text(f"Naive kazandı {EVIL}", encoding="utf-8")
+    assumptions = json.loads((SKILLS / "_shared/assets/assumptions.example.json").read_text(encoding="utf-8"))
+    assumptions["assumptions"][0]["statement"] += EVIL
+    (tmp_path / "assumptions.json").write_text(json.dumps(assumptions, ensure_ascii=False), encoding="utf-8")
     return tmp_path
 
 
@@ -66,16 +69,18 @@ def _assert_safe(html: str) -> None:
 def test_audit_report(artifacts):
     out = artifacts / "audit.html"
     _run(SKILLS / "data-quality-audit/scripts/render_audit_report.py", "--audit", str(artifacts / "audit.json"),
-         "--panel", str(artifacts / "panel.csv"), "--sector", "telekom", "--out", str(out))  # fmt: skip
+         "--panel", str(artifacts / "panel.csv"), "--sector", "telekom", "--assumptions", str(artifacts / "assumptions.json"),
+         "--out", str(out))  # fmt: skip
     html = out.read_text(encoding="utf-8")
     _assert_safe(html)
     assert "Veri kalitesi denetimi — telekom" in html and "data-chart=" in html
+    assert "Dağılım ve durağanlık" in html and "Girdiler ve varsayımlar" in html
 
 
 def test_backtest_report(artifacts):
     out = artifacts / "bt.html"
     _run(SKILLS / "forecast-baseline/scripts/render_backtest_report.py", "--backtest", str(artifacts / "bt.json"),
-         "--notes", str(artifacts / "notes.md"), "--out", str(out))  # fmt: skip
+         "--notes", str(artifacts / "notes.md"), "--assumptions", str(artifacts / "assumptions.json"), "--out", str(out))  # fmt: skip
     html = out.read_text(encoding="utf-8")
     _assert_safe(html)
     assert "Model karşılaştırması" in html and "Gerçekleşen" in html
@@ -85,9 +90,11 @@ def test_sector_report(artifacts):
     out = artifacts / "report.html"
     _run(SKILLS / "sector-analysis/scripts/render_sector_report.py", "--map", str(artifacts / "map.json"),
          "--panel", str(artifacts / "panel.csv"), "--audit", str(artifacts / "audit.json"),
-         "--narrative", str(artifacts / "narrative.md"), "--backtest", str(artifacts / "bt.json"), "--out", str(out))  # fmt: skip
+         "--narrative", str(artifacts / "narrative.md"), "--backtest", str(artifacts / "bt.json"),
+         "--assumptions", str(artifacts / "assumptions.json"), "--out", str(out))  # fmt: skip
     html = out.read_text(encoding="utf-8")
     _assert_safe(html)
+    assert "2 varsayım kullanıcı tarafından onaylanmadı (A1, A2)" in html
     assert "<strong>TÜFE</strong>" in html and "Telekom sektörü" in html and "Metodoloji ve sınırlar" in html
 
 
@@ -112,8 +119,38 @@ def test_every_skill_has_valid_frontmatter():
         front = text.split("---")[1]
         assert f"name: {skill.name}" in front
         assert "description:" in front and len(front) < 2500
-        for ref in ("references/", "scripts/"):
-            for mention in {line for line in text.split() if ref in line}:
-                rel = mention.strip("`\"'(),").split(ref, 1)[1].split()[0].rstrip("`\"').,")
+        for ref in ("references/", "scripts/", "assets/"):
+            for mention in {word for word in text.split() if ref in word}:
+                clean = mention.strip("`\"'(),").rstrip("`\"').,:")
+                rel = clean.split(ref, 1)[1]
+                base = SKILLS / "_shared" if "_shared/" in clean else skill
                 if rel and "*" not in rel and "<" not in rel:
-                    assert (skill / ref / rel).exists(), f"{skill.name}: {ref}{rel} yok"
+                    assert (base / ref / rel).exists(), f"{skill.name}: {base.name}/{ref}{rel} yok"
+
+
+def test_assumptions_validation():
+    sys.path.insert(0, str(SKILLS / "_shared"))
+    from mlb_report.assumptions import AssumptionsError, validate
+
+    good = json.loads((SKILLS / "_shared/assets/assumptions.example.json").read_text(encoding="utf-8"))
+    validate(good)
+    for broken in (
+        {"context": {}, "assumptions": []},
+        {"context": {}, "assumptions": [{"id": "A1", "topic": "x", "statement": "y", "kind": "user", "confirmed": False}]},
+        {"context": {}, "assumptions": [{"id": "1", "topic": "x", "statement": "y", "kind": "data", "confirmed": True}]},
+        {"context": {}, "assumptions": [{"id": "A1", "topic": "x", "statement": "y", "kind": "guess", "confirmed": True}]},
+    ):
+        with pytest.raises(AssumptionsError):
+            validate(broken)
+
+
+def test_stale_assumptions_flagged():
+    sys.path.insert(0, str(SKILLS / "_shared"))
+    from datetime import date as _d
+
+    from mlb_report.assumptions import section, stale
+
+    data = json.loads((SKILLS / "_shared/assets/assumptions.example.json").read_text(encoding="utf-8"))
+    data["assumptions"][0]["as_of"] = "2025-01-01"
+    assert [a["id"] for a in stale(data, _d(2026, 10, 30))] == ["A1"]
+    assert "bayat — doğrula" in section(data)

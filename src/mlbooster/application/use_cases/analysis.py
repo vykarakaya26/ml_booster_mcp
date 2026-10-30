@@ -25,7 +25,16 @@ class AuditPanel:
         result = self._build(sector_id, start, end, save=False)  # paylaşılan gold dosyasına dokunma
         if result.panel.empty:
             raise InvalidInput(f"{sector_id} paneli boş; atlanan feature'lar: {result.skipped}")
-        return audit_panel(result.panel, end or date.today(), thresholds), result
+        features = [f for f in self._build.sector(sector_id).macro_features if f.name in result.panel.columns]
+        transforms = {f.name: f.transform.value for f in features}
+        companions = {
+            frozenset((a.name, b.name))
+            for i, a in enumerate(features)
+            for b in features[i + 1 :]
+            if a.series and a.series == b.series
+        }
+        report = audit_panel(result.panel, end or date.today(), thresholds, transforms, companions)
+        return report, result
 
 
 class RunBacktest:

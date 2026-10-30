@@ -41,7 +41,7 @@ gereksiz yere bir ay geç gösterir. Biliniyorsa mutlaka verin.
 | TÜFE (TÜİK/EVDS) | İzleyen ayın 3'ü | 3 |
 | Tüketici güven endeksi (TP.TG2.*) | Aynı ayın ~20'si | 0 |
 | Reel kesim güven, kapasite kullanımı | Aynı ayın ~25'i | 0 |
-| Haftalık kredi/mevduat faizleri (bie_kt100h, bie_mt100h) | İzleyen hafta | 7 |
+| Haftalık kredi/mevduat faizleri (bie_kt100h, bie_mt100h) | ~2 hafta sonra (Cuma verisi, sonraki haftanın sonunda) — 2026-10-30'da son veri 10-16 | 14 |
 | Kur, AOFM (günlük) | Ertesi iş günü | 1 |
 | Dış borç (çeyreklik) | ~3 ay | 90 |
 

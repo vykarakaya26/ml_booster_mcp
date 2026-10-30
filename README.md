@@ -37,6 +37,24 @@ Claude Code içinden de kurulabilir: `/plugin install ml-booster --marketplace v
 
 Raporlar çalışma dizininde `mlbooster-reports/<sektör>-<tarih>/` altına yazılır. Raporlar tek dosyadır, açık/koyu temayı destekler ve dış kaynak yüklemez.
 
+### Varsayım ve dayanak yapısı
+Analiz içeren skill'ler işe başlamadan önce kullanıcıdan şu girdileri alır:
+- amaç ve desteklenen karar
+- hedef değişken
+- ufuk
+- nominal ya da reel çalışılacağı
+- sektör varsayımları
+
+Bu girdiler `assumptions.json` dosyasına kaydedilir. Raporun **Girdiler ve varsayımlar** bölümü her varsayımın türünü (kullanıcı onaylı, sektör varsayımı, onaysız varsayılan ya da veriden), güven düzeyini ve tarihini gösterir. 3 aydan eski bilgiler "bayat — doğrula" diye işaretlenir. Rapordaki her ifade dört dayanaktan birine bağlıdır: **veri**, **varsayım (A#)**, **model** ya da **yorum**. Onaysız bir varsayıma dayanan sonuç koşullu yazılır.
+
+### Know-how belgeleri (`skills/_shared/references/`)
+
+| Belge | İçerik |
+|---|---|
+| `analysis-playbook.md` | Dağılım teşhisi (ADF ve KPSS birlikte, kalın kuyruk, oynaklık rejimi, mevsimsellik); yüksek enflasyona özgü kurallar (log-fark, YoY baz etkisi, reel faiz, efektif politika duruşu, olay takvimi); sızıntı kontrol listesi; rolling-origin değerlendirme ve çıtalar |
+| `assumptions-guide.md` | Analiz öncesi sorulacak sorular, varsayım kaydı, veri/varsayım/model/yorum etiketleri, senaryo ve duyarlılık, ölçülü olasılık dili, abartıya karşı kontrol listesi |
+| `sector-assumptions.md` | Bankacılık, sigorta, telekom, otomotiv ve akaryakıt için belirleyiciler, açıkça yazılması gereken varsayımlar ve birincil kontrol kaynakları. Regülasyon rakamları sabit olarak gömülmez |
+
 ## 2b. Yalnızca MCP sunucusu
 
 ```bash

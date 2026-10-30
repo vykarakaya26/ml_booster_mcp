@@ -77,6 +77,10 @@ class BuildPanel:
             result.location = self._panels.save(sector.id, panel)
         return result
 
+    def sector(self, sector_id: str):
+        """Sektör tanımı (analiz use case'leri feature meta verisi için kullanır)."""
+        return self._catalog.load().sector(slug(sector_id, "sektör"))
+
     def _observations(
         self, catalog: Catalog, source_id: str, code: str, period: DateRange, metric: str, formula: int, refresh: bool
     ) -> pd.DataFrame:

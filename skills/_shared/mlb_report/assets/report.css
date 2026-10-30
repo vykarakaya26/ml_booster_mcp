@@ -88,7 +88,7 @@ td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
 details.table-view { margin-top: 6px; font-size: 13px; }
 details.table-view summary { cursor: pointer; color: var(--text-secondary); }
 .badge { display: inline-flex; gap: 4px; align-items: center; font-size: 12px; font-weight: 600; white-space: nowrap; }
-.badge.critical { color: var(--critical); } .badge.serious { color: var(--serious); } .badge.info { color: var(--info); }
+.badge.critical { color: var(--critical); } .badge.serious { color: var(--serious); } .badge.info { color: var(--info); } .badge.good { color: var(--good); }
 .narrative p, .narrative li { max-width: 72ch; }
 footer { color: var(--text-secondary); font-size: 13px; margin-top: 24px; }
 @media print { section { break-inside: avoid; } .tooltip, .crosshair { display: none; } }

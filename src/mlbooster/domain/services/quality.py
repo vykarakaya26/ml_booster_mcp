@@ -13,8 +13,11 @@ from enum import StrEnum
 import numpy as np
 import pandas as pd
 
+from mlbooster.domain.services.distribution import Diagnostics, diagnose_panel
+
 # Türkiye makro verisinde bilinen rejim/şok dönemleri: kırılma bulgularını yorumlamak için bağlam.
 KNOWN_EVENTS: dict[str, str] = {
+    "2014-01": "Ocak 2014 TCMB olağanüstü faiz artırımı",
     "2018-08": "Ağustos 2018 kur şoku",
     "2020-03": "COVID-19 şoku",
     "2021-12": "Aralık 2021 kur şoku / KKM",
@@ -73,6 +76,7 @@ class QualityReport:
     series: tuple[SeriesQuality, ...]
     issues: tuple[Issue, ...]
     correlated_pairs: tuple[tuple[str, str, float], ...] = field(default_factory=tuple)
+    diagnostics: tuple[Diagnostics, ...] = field(default_factory=tuple)
 
     @property
     def counts(self) -> dict[str, int]:
@@ -119,8 +123,16 @@ def _event_for(ts: pd.Timestamp, tolerance_months: int = 3) -> str | None:
     return None
 
 
-def audit_panel(panel: pd.DataFrame, as_of: date, thresholds: QualityThresholds | None = None) -> QualityReport:
+def audit_panel(
+    panel: pd.DataFrame,
+    as_of: date,
+    thresholds: QualityThresholds | None = None,
+    transforms: dict[str, str] | None = None,
+    companions: set[frozenset[str]] | None = None,
+) -> QualityReport:
+    """`companions`: aynı ham seriden türeyen feature çiftleri (ör. aofm / aofm_son); kolineerlik sayılmaz."""
     t = thresholds or QualityThresholds()
+    companions = companions or set()
     as_of_month = pd.Timestamp(as_of).to_period("M")
     series, issues = [], []
 
@@ -169,10 +181,19 @@ def audit_panel(panel: pd.DataFrame, as_of: date, thresholds: QualityThresholds 
         for i, a in enumerate(cols):
             for b in cols[i + 1 :]:
                 value = corr.loc[a, b]
-                if pd.notna(value) and abs(value) >= t.collinearity:
+                if pd.notna(value) and abs(value) >= t.collinearity and frozenset((a, b)) not in companions:
                     pairs.append((a, b, round(float(value), 3)))
                     issues.append(Issue(Severity.MEDIUM, f"{a} ~ {b}", "collinearity", f"Korelasyon {value:+.2f}; ikisinden biri gereksiz olabilir."))
 
+    diagnostics = diagnose_panel(panel, transforms)
+    for d in diagnostics:
+        if d.stationarity == "birim_kök":
+            issues.append(Issue(Severity.INFO, d.feature, "nonstationary", f"ADF t={d.adf_t}, KPSS={d.kpss_stat}: birim kök (seviye durağan değil)."))
+        elif d.stationarity == "kırılma_şüphesi":
+            issues.append(Issue(Severity.INFO, d.feature, "nonstationary", f"ADF ve KPSS ikisi de reddediyor (t={d.adf_t}, KPSS={d.kpss_stat}): kırılma/rejim şüphesi."))
+        if d.excess_kurtosis is not None and d.excess_kurtosis > 3:
+            issues.append(Issue(Severity.INFO, d.feature, "heavy_tails", f"Fazla basıklık {d.excess_kurtosis:.1f}: kalın kuyruk (şoklar)."))
+
     order = {Severity.HIGH: 0, Severity.MEDIUM: 1, Severity.INFO: 2}
     issues.sort(key=lambda i: (order[i.severity], i.feature))
-    return QualityReport(as_of, int(panel.shape[0]), tuple(series), tuple(issues), tuple(pairs))
+    return QualityReport(as_of, int(panel.shape[0]), tuple(series), tuple(issues), tuple(pairs), diagnostics)

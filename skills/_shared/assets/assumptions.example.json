@@ -1,0 +1,74 @@
+{
+  "context": {
+    "purpose": "Otomotiv talep modeli için makro feature setini değerlendirmek",
+    "decision": "Hangi feature'larla 1–3 ay ileri satış tahmini modeli kurulacağı",
+    "audience": "ML ekibi",
+    "target": "Aylık binek otomobil satış adedi (ODMD) — panelde henüz yok",
+    "horizon": "1 ay (operasyonel), 3 ay (planlama)",
+    "units": "Faizler ve TÜFE nominal; satış adedi fiziksel birim",
+    "period": "2012-01 → son yayımlanan ay"
+  },
+  "assumptions": [
+    {
+      "id": "A1",
+      "topic": "Kredi koşulları",
+      "statement": "Taşıt kredisi faizi talebin ana belirleyicilerinden biridir; BDDK vade/kredi sınırlamaları dönem dönem değişir.",
+      "kind": "sector",
+      "confirmed": false,
+      "source": "BDDK düzenlemeleri, sektör pratiği",
+      "impact": "Faiz feature'ının etkisi düzenleme dönemlerinde kırılabilir",
+      "check": "BDDK kararları takvimi; rejim dummy'si ile duyarlılık",
+      "as_of": "2026-10-30",
+      "confidence": "low"
+    },
+    {
+      "id": "A2",
+      "topic": "Vergi",
+      "statement": "ÖTV matrah/oran değişiklikleri fiyatı ve talebi sıçratır; bu dönemler şok olarak ele alınır.",
+      "kind": "sector",
+      "confirmed": false,
+      "source": "Resmî Gazete ÖTV listeleri",
+      "impact": "Değişiklik aylarında aykırı satış",
+      "check": "ÖTV değişiklik tarihleri için dummy",
+      "as_of": "2026-10-30",
+      "confidence": "medium"
+    },
+    {
+      "id": "A3",
+      "topic": "Yayın gecikmesi",
+      "statement": "Paneldeki tarih, verinin yayımlandığı ayı gösterir (look-ahead yok).",
+      "kind": "data",
+      "confirmed": true,
+      "source": "mlbooster nokta-zamanlı hizalama",
+      "impact": "Hedefle birleştirirken ek kaydırma yapılmamalı",
+      "check": "panel.csv ile ham seriyi karşılaştır",
+      "as_of": "2026-10-30",
+      "confidence": "high"
+    },
+    {
+      "id": "A4",
+      "topic": "Ufuk",
+      "statement": "Karar sıklığı aylık olduğu için birincil ufuk 1 ay.",
+      "kind": "user",
+      "confirmed": true,
+      "source": "Kullanıcı yanıtı",
+      "impact": "Backtest ufku",
+      "check": "—",
+      "as_of": "2026-10-30",
+      "confidence": "high"
+    }
+  ],
+  "scenarios": [
+    {
+      "name": "Baz",
+      "description": "Politika faizi PKA medyan beklentisi doğrultusunda"
+    },
+    {
+      "name": "Sıkı",
+      "description": "Faiz indirimleri ertelenir; kredi koşulları sıkı kalır"
+    }
+  ],
+  "open_questions": [
+    "ODMD satış verisi hangi dönemden itibaren elle derlenebilir?"
+  ]
+}

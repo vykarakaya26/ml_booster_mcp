@@ -37,8 +37,22 @@ SECTOR=otomotiv; OUT="mlbooster-reports/${SECTOR}-forecast-$(date +%Y%m%d)"; mkd
    `references/methodology.md` dosyasında.
 5. **Rapor**:
    ```bash
-   python3 "${CLAUDE_SKILL_DIR}/scripts/render_backtest_report.py" --backtest "$OUT/bt.json" --notes "$OUT/notes.md" --out "$OUT/backtest.html"
+   python3 "${CLAUDE_SKILL_DIR}/scripts/render_backtest_report.py" --backtest "$OUT/bt.json" --notes "$OUT/notes.md" \
+     --assumptions "$OUT/assumptions.json" --out "$OUT/backtest.html"
    ```
+
+### 1. Girdileri ve varsayımları al → `$OUT/assumptions.json`
+Yorum içeren her çıktı, okurun dayanağı ayırt edebileceği biçimde varsayımlara bağlanır. Bunun için
+`${CLAUDE_SKILL_DIR}/../_shared/references/assumptions-guide.md` dosyasını oku.
+- İstekten çıkarılabilenleri (sektör, hedef, ufuk…) kendin doldur.
+- Sonucu değiştirecek eksik girdileri kullanıcıya **tek seferde, en fazla 3–4 kısa soruyla** sor.
+  AskUserQuestion aracı varsa onu kullan. Sorulacaklar: amaç ve karar, hedef değişken, ufuk,
+  nominal/reel. Sektör varsayımlarını `${CLAUDE_SKILL_DIR}/../_shared/references/sector-assumptions.md`
+  dosyasındaki seçeneklerle sun.
+- Yanıt gelmezse ya da kullanıcı "sen karar ver" derse sektör varsayılanlarıyla devam et. Bunları
+  `kind: sector|default, confirmed: false` olarak kaydet ve kullanıcı adına onaylanmış gibi yazma.
+- Şablon: `${CLAUDE_SKILL_DIR}/../_shared/assets/assumptions.example.json`. Rapor script'ine
+  `--assumptions "$OUT/assumptions.json"` ver; dosya şema doğrulamasından geçmezse script hata verir.
 
 ## Yorum ilkeleri
 - **Çıta en güçlü naive'dir.** Çapa verildiyse çapa naive, verilmediyse naive. Bir model yalnızca
@@ -53,3 +67,13 @@ SECTOR=otomotiv; OUT="mlbooster-reports/${SECTOR}-forecast-$(date +%Y%m%d)"; mkd
   söyle.
 - Gelecek değer tahmini (ör. "gelecek ay kur şu olur") verme. Bu skill geçmiş performansı ölçer;
   yatırım tavsiyesi değildir.
+
+## Dayanak kuralı (yanıltıcı değil, güçlendirici)
+Her ifade dört dayanaktan birine bağlanır ve bu dayanak metinde görünür (ayrıntı:
+`${CLAUDE_SKILL_DIR}/../_shared/references/assumptions-guide.md`):
+- **Veri**: yayımlanmış gözlem; ay ve kaynakla.
+- **Varsayım**: `(A2)` gibi kimlikle. Onaysız ya da bayat varsayıma dayanan sonuç koşullu yazılır.
+- **Model**: tahmin veya backtest sonucu; yöntem, örneklem ve belirsizlikle.
+- **Yorum**: analistin çıkarımı; güven düzeyiyle ("muhtemel, orta güven"). Nedensellik iddia edilmez.
+Bulguyu zayıflatan kanıtı da yaz: dönem seçimi, kısa rejim örneklemi, baz etkisi, nominal yanılsama.
+Belirsizliği gizlemek okuru yanıltır; doğru ölçüde vermek ise kararı güçlendirir.

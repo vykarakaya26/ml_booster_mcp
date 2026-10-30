@@ -14,7 +14,7 @@ import pandas as pd
 
 from mlbooster.domain.errors import InvalidInput
 
-MODELS = ("naive", "seasonal_naive", "drift", "ridge")
+MODELS = ("naive", "seasonal_naive", "drift", "mean12", "ridge")
 
 
 @dataclass(frozen=True)
@@ -130,6 +130,11 @@ def rolling_origin_backtest(panel: pd.DataFrame, config: BacktestConfig) -> Back
             value = y.iloc[pos + h - 12]
             if pd.notna(value):
                 preds["seasonal_naive"] = float(value)
+        if "mean12" in config.models:
+            # Atkeson–Ohanian: son 12 ayın ortalaması (enflasyonda geçilmesi zor bir çıta)
+            window = history.iloc[-12:].dropna()
+            if len(window) == 12:
+                preds["mean12"] = float(window.mean())
         if "drift" in config.models:
             hist = history.dropna()
             if len(hist) >= 2:

@@ -16,6 +16,7 @@ tahminler değişmemelidir (`test_backtest_future_values_do_not_change_past_pred
 | naive | y[t] | Rastgele yürüyüşe yakın seriler (kur, kısa vadeli YoY) |
 | seasonal_naive | y[t+h−12] | Mevsimsel seviye serileri. YoY serilerde kötüdür |
 | drift | y[t] + h · ortalama eğim | Trendli seviye serileri |
+| mean12 | son 12 ayın ortalaması (Atkeson–Ohanian) | Enflasyon: literatürde geçilmesi zor çıta ([Stock & Watson](https://scholar.harvard.edu/sites/scholar.harvard.edu/files/stock/files/forecastinginflation.pdf)) |
 | anchor_naive | anchor[t] (`--anchor`) | Aylık ortalama hedefler. Ay sonu değeri, ortalamadan çok daha günceldir |
 | ridge | taban[t] + ridge(gecikmeler → y[t+h] − taban[t]); taban = çapa ya da y | Dış değişkenlerin bilgi taşıdığı durumlar (ör. politika faizi → kredi faizi) |
 

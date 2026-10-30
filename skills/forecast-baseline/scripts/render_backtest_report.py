@@ -16,6 +16,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "_shared"))
 
 from mlb_report import html as H  # noqa: E402
+from mlb_report import assumptions as A  # noqa: E402
 from mlb_report.data import read_json  # noqa: E402
 from mlb_report.svg import LineChart, Series, bar_chart, line_chart  # noqa: E402
 
@@ -23,12 +24,13 @@ MODEL_LABELS = {
     "naive": "Naive (son değer)",
     "seasonal_naive": "Mevsimsel naive (12 ay önce)",
     "drift": "Drift (doğrusal eğilim)",
+    "mean12": "Son 12 ay ortalaması (Atkeson–Ohanian)",
     "ridge": "Ridge (gecikmeli, değişim)",
     "anchor_naive": "Çapa naive (ay sonu değeri)",
 }
 
 
-def build(bt: dict, notes: str | None) -> str:
+def build(bt: dict, notes: str | None, assumptions: dict | None = None) -> str:
     cfg, metrics = bt["config"], bt["metrics"]
     by_model = {m["model"]: m for m in metrics}
     best = bt["best_model"]
@@ -54,6 +56,9 @@ def build(bt: dict, notes: str | None) -> str:
             "ozet",
         )
     )
+    if assumptions:
+        sections.insert(1, A.section(assumptions))
+
     if notes:
         sections.append(H.section("Yorum", f'<div class="narrative">{H.markdown(notes)}</div>', "yorum"))
 
@@ -101,7 +106,8 @@ def build(bt: dict, notes: str | None) -> str:
         f"{cfg['horizon']} ay ileri · {len(metrics)} model",
         sections,
         "Kaynak: TCMB EVDS (kaynak gösterilerek). Geçmiş performans gelecekteki sonuçları garanti etmez.",
-        nav=[("ozet", "Özet"), ("metrikler", "Modeller"), ("tahminler", "Tahminler"), ("metodoloji", "Metodoloji")],
+        nav=[("ozet", "Özet")] + ([("varsayimlar", "Varsayımlar")] if assumptions else [])
+        + [("metrikler", "Modeller"), ("tahminler", "Tahminler"), ("metodoloji", "Metodoloji")],
     )
 
 
@@ -110,10 +116,14 @@ def main() -> None:
     ap.add_argument("--backtest", required=True, type=Path)
     ap.add_argument("--out", required=True, type=Path)
     ap.add_argument("--notes", type=Path, help="Rapora eklenecek yorum (Markdown)")
+    ap.add_argument("--assumptions", type=Path, help="Girdi/varsayım kaydı (assumptions.json)")
     args = ap.parse_args()
+    assumptions = A.load(args.assumptions) if args.assumptions else None
+    if assumptions is None:
+        print("Uyarı: --assumptions verilmedi; raporda girdiler ve varsayımlar bölümü olmayacak.", file=sys.stderr)
     notes = args.notes.read_text(encoding="utf-8") if args.notes else None
     args.out.parent.mkdir(parents=True, exist_ok=True)
-    args.out.write_text(build(read_json(args.backtest), notes), encoding="utf-8")
+    args.out.write_text(build(read_json(args.backtest), notes, assumptions), encoding="utf-8")
     print(f"Rapor → {args.out}")
 
 

@@ -18,6 +18,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "_shared"))
 
 from mlb_report import html as H  # noqa: E402
+from mlb_report import assumptions as A  # noqa: E402
 from mlb_report.data import read_json, read_panel_csv  # noqa: E402
 from mlb_report.svg import LineChart, Series, line_chart  # noqa: E402
 
@@ -44,10 +45,12 @@ def _fmt(v: float | None, transform: str | None = None) -> str:
     return f"{v:,.1f}" if a >= 100 else f"{v:,.2f}" if a >= 1 else f"{v:,.4f}"
 
 
-def build(m: dict, dates: list[date], columns: dict, audit: dict, backtests: list[dict], narrative: str) -> str:
+def build(m: dict, dates: list[date], columns: dict, audit: dict, backtests: list[dict], narrative: str, assumptions: dict | None = None) -> str:
     sector = m["sector"]
     features = {f["name"]: f for f in m["macro_features"]}
     sections = [H.section("Yönetici özeti", f'<div class="narrative">{H.markdown(narrative)}</div>', "ozet")]
+    if assumptions:
+        sections.append(A.section(assumptions))
 
     tiles = []
     for name, values in list(columns.items())[:8]:
@@ -104,7 +107,8 @@ def build(m: dict, dates: list[date], columns: dict, audit: dict, backtests: lis
     licenses = [(s["name"], s["license"] or "—") for s in m["sources"]]
     sections.append(H.section("Kaynaklar ve kullanım koşulları", H.table(["Kaynak", "Koşul"], licenses), "kaynaklar"))
 
-    nav = [("ozet", "Özet"), ("gorunum", "Görünüm"), ("harita", "Kaynak haritası"), ("kalite", "Kalite")]
+    nav = [("ozet", "Özet")] + ([("varsayimlar", "Varsayımlar")] if assumptions else [])
+    nav += [("gorunum", "Görünüm"), ("harita", "Kaynak haritası"), ("kalite", "Kalite")]
     nav += [("tahmin", "Tahmin")] if backtests else []
     nav += [("metodoloji", "Metodoloji")]
     period = f"{dates[0]:%Y-%m} → {dates[-1]:%Y-%m}" if dates else ""
@@ -125,11 +129,15 @@ def main() -> None:
     ap.add_argument("--narrative", required=True, type=Path, help="Yönetici özeti (Markdown)")
     ap.add_argument("--backtest", type=Path, action="append", default=[])
     ap.add_argument("--out", required=True, type=Path)
+    ap.add_argument("--assumptions", type=Path, help="Girdi/varsayım kaydı (assumptions.json)")
     args = ap.parse_args()
+    assumptions = A.load(args.assumptions) if args.assumptions else None
+    if assumptions is None:
+        print("Uyarı: --assumptions verilmedi; raporda girdiler ve varsayımlar bölümü olmayacak.", file=sys.stderr)
     dates, columns = read_panel_csv(args.panel)
     html = build(
         read_json(args.map), dates, columns, read_json(args.audit),
-        [read_json(p) for p in args.backtest], args.narrative.read_text(encoding="utf-8"),
+        [read_json(p) for p in args.backtest], args.narrative.read_text(encoding="utf-8"), assumptions,
     )  # fmt: skip
     args.out.parent.mkdir(parents=True, exist_ok=True)
     args.out.write_text(html, encoding="utf-8")

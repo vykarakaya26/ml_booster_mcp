@@ -120,6 +120,7 @@ def quality_dict(report: QualityReport, skipped: dict[str, str] | None = None) -
             for s in report.series
         ],
         "correlated_pairs": [{"a": a, "b": b, "corr": c} for a, b, c in report.correlated_pairs],
+        "diagnostics": [{k: _clean(v) for k, v in asdict(d).items()} for d in report.diagnostics],
     }
 
 
