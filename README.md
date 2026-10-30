@@ -9,7 +9,7 @@ Türkiye için ücretsiz veri kaynaklarını sektör bazında haritalayan ve ML'
 Python 3.12+ gerekir.
 
 ```bash
-pip install "git+https://github.com/<kullanici>/ml_booster_mcp.git"
+pip install "git+https://github.com/vykarakaya26/ml_booster_mcp.git"
 ```
 
 EVDS API anahtarınızı alın: [evds3.tcmb.gov.tr](https://evds3.tcmb.gov.tr) → Benim Sayfam → Profilim → **API KEY KOPYALA**. Anahtarı ortam değişkeni ya da `.env` dosyası olarak verin. `.env` çalışma dizininde veya `~/.mlbooster/.env` konumunda olabilir:
@@ -86,3 +86,5 @@ python3.12 -m venv .venv && .venv/bin/pip install -e ".[dev]"
 ```
 
 Mimari ve kaynak bazındaki kurallar için [CLAUDE.md](CLAUDE.md) dosyasına bakın.
+
+Kod [MIT](LICENSE) lisanslıdır; verilerin koşulları yukarıda belirtildiği gibi kaynak kurumlara aittir.
