@@ -30,7 +30,8 @@ def test_build_panel_point_in_time_and_caching(deps):
 
     assert set(result.panel.columns) == {"tufe_yoy", "usdtry_logdiff"}
     assert "haberlesme_tufe" in result.skipped  # TÜİK sağlayıcısı yok
-    # TÜFE 3 gün gecikmeli: Ocak 2024 değeri Şubat satırında; ilk YoY Şubat 2025'te.
+    # TÜFE 3 gün gecikmeli: Ocak 2024 değeri Şubat satırında; ilk YoY Şubat 2025'te
+    # (sahte veri 2024'te başlıyor; gerçekte tampon geçmiş çekildiği için panel başı da dolu olur).
     assert result.panel["tufe_yoy"].dropna().index.min() == pd.Timestamp("2025-02-28")
     assert result.location == "memory://telekom"
     assert all(p.closed for p in providers.created)

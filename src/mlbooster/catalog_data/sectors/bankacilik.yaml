@@ -2,6 +2,7 @@ id: bankacilik
 name: Bankacılık
 macro_features:
   - {name: aofm, source: evds3, series: TP.APIFON4, transform: level, agg: avg}
+  - {name: aofm_son, source: evds3, series: TP.APIFON4, transform: level, agg: last}  # ay sonu değeri: aylık ortalama hedefin çapası
   - {name: usdtry_logdiff, source: evds3, series: TP.DK.USD.A, transform: log_diff, agg: avg}
   - {name: tufe_yoy, source: evds3, series: TP.TUKFIY2025.GENEL, transform: yoy_pct}
   - {name: dis_borc_logdiff, source: evds3, series: TP.BRUTDBORCLU.G1, transform: log_diff}

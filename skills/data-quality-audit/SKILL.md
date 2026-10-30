@@ -20,8 +20,9 @@ MLB="${CLAUDE_SKILL_DIR}/../_shared/bin/mlb"
 SECTOR=bankacilik; OUT="mlbooster-reports/${SECTOR}-audit-$(date +%Y%m%d)"; mkdir -p "$OUT"
 "$MLB" build-panel --sector "$SECTOR" --start 2012-01 --out "$OUT/panel.csv"
 "$MLB" audit --sector "$SECTOR" --start 2012-01 --json "$OUT/audit.json"
+# notes.md'yi aşağıdaki "Bulguları yorumla" adımında yaz, sonra:
 python3 "${CLAUDE_SKILL_DIR}/scripts/render_audit_report.py" \
-  --audit "$OUT/audit.json" --panel "$OUT/panel.csv" --sector "$SECTOR" --out "$OUT/audit.html"
+  --audit "$OUT/audit.json" --panel "$OUT/panel.csv" --sector "$SECTOR" --notes "$OUT/notes.md" --out "$OUT/audit.html"
 ```
 
 - `health` "skipped" dönerse kullanıcıdan anahtarı `~/.mlbooster/.env` dosyasına koymasını iste.
@@ -29,9 +30,13 @@ python3 "${CLAUDE_SKILL_DIR}/scripts/render_audit_report.py" \
 - Kullanıcı yalnızca tek bir seriyi soruyorsa (ör. "TP.KTF11 neden düz?") sektör paneli yerine
   `"$MLB" fetch --series <KOD> --start 2015-01` ile bak ve aynı kontrolleri sözlü uygula.
 
-## Bulguları yorumla
+## Bulguları yorumla → `$OUT/notes.md`
 `audit.json` dosyasını oku. `references/checks.md` her kontrolün anlamını, eşiğini ve tipik
-düzeltmesini anlatır; rapor özetini ve önerileri buna göre yaz.
+düzeltmesini anlatır. `notes.md` dosyasına kısa bir özet ve öncelik sıralı aksiyon listesi yaz.
+Bunlar raporun "Yorum ve öneriler" bölümünde görünür.
+Denetimin eşik altında bıraktığı ama modellemeyi etkileyen noktaları da ekle: 0,95 eşiğinin altında
+kalan yüksek korelasyonlar (ör. USD ile EUR kuru ≈ 0,9) ve TÜFE'nin yayın gecikmesiyle bir ay sonraki
+satırda durması. Gecikme kasıtlıdır; hedefle hizalarken yeniden kaydırılmamalıdır.
 Öncelik sırası:
 1. **high / stale**: seri durmuş. Kod büyük olasılıkla arşive taşınmıştır (TP.FG.J0 → TP.TUKFIY2025.GENEL
    gibi). `evds-series-discovery` skill'iyle güncel kodu bul.

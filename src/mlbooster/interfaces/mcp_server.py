@@ -189,14 +189,17 @@ def run_backtest(
     min_train: int = 48,
     models: list[str] | None = None,
     exogenous: bool = True,
+    anchor: str | None = None,
     start: str = DEFAULT_START.isoformat(),
     end: str | None = None,
 ) -> dict:
     """Panel hedef kolonu için rolling-origin backtest (look-ahead korumalı). Modeller: naive, seasonal_naive,
     drift, ridge (gecikmeli; exogenous=True ise diğer feature'larla). Metrikler: MAE, RMSE, sMAPE, MASE.
-    Son 24 tahmin noktası döner."""
+    anchor: hedefin daha güncel versiyonu (ör. aofm_son); verilirse anchor_naive modeli eklenir — aylık
+    ortalama hedeflerde gerçek çıta budur. Son 24 tahmin noktası döner."""
     config = BacktestConfig(
-        target=target, horizon=horizon, min_train=min_train, models=tuple(models or MODELS), exogenous=exogenous
+        target=target, horizon=horizon, min_train=min_train, models=tuple(models or MODELS), exogenous=exogenous,
+        anchor=anchor,
     )
     result, _ = container().run_backtest(sector, config, _iso(start, "start"), _iso(end, "end") if end else None)
     return backtest_dict(result, sector, max_predictions=24)

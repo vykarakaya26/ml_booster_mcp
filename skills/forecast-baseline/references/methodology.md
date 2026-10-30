@@ -16,7 +16,8 @@ tahminler değişmemelidir (`test_backtest_future_values_do_not_change_past_pred
 | naive | y[t] | Rastgele yürüyüşe yakın seriler (kur, kısa vadeli YoY) |
 | seasonal_naive | y[t+h−12] | Mevsimsel seviye serileri. YoY serilerde kötüdür |
 | drift | y[t] + h · ortalama eğim | Trendli seviye serileri |
-| ridge | y[t] + ridge(gecikmeler → y[t+h] − y[t]) | Dış değişkenlerin bilgi taşıdığı durumlar (ör. politika faizi → kredi faizi) |
+| anchor_naive | anchor[t] (`--anchor`) | Aylık ortalama hedefler. Ay sonu değeri, ortalamadan çok daha günceldir |
+| ridge | taban[t] + ridge(gecikmeler → y[t+h] − taban[t]); taban = çapa ya da y | Dış değişkenlerin bilgi taşıdığı durumlar (ör. politika faizi → kredi faizi) |
 
 Ridge ayrıntıları:
 - Gecikmeler 0, 1, 2 ve 11 aydır; hedefin ve (açıksa) diğer feature'ların gecikmeleri kullanılır.
@@ -37,3 +38,10 @@ Ridge ayrıntıları:
 - 2021-12 ile 2023 arası tüm modellerin hatasını büyütür. Bu dönemi dışlayan ayrı bir backtest
   (`--start` ya da `--end` ile) karşılaştırma için faydalı olabilir; dışladıysan raporda söyle.
 - Bu çerçeve hiperparametre araması yapmaz. Referans olmasının amacı da budur.
+
+## Çapa (anchor) neden gerekli
+Günlük bir seri aylığa ortalama alınarak indirgenince, ay içindeki son seviye bilgisi ortalamada
+kaybolur. Örneğin bir faiz kararı ayın ortasında açıklanmışsa, aylık ortalama yeni seviyeyi yalnızca
+kısmen yansıtır. Ay sonu değeri (`agg: last`) ise t anında zaten bilinir ve t+1 ortalamasının en iyi
+basit tahminidir. 2026-10 canlı testinde AOFM için çapa naive MAE 0,45 iken düz naive 1,02 ölçüldü.
+Çapasız bir backtest çıtayı yarı yarıya olduğundan düşük gösterir.

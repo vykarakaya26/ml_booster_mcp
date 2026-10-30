@@ -85,3 +85,13 @@ def test_metrics_use_common_origins():
     assert result.metrics["n"].nunique() == 1  # hepsi aynı noktalarda ölçüldü
     assert result.metrics["n"].iloc[0] == result.common_origins
     assert result.predictions.groupby("model").size()["naive"] > result.common_origins
+
+
+def test_anchor_naive_model():
+    panel = _panel()[["trend"]].copy()
+    panel["trend_son"] = panel["trend"].shift(-1)  # hedefin "geleceğe yakın" versiyonu (ay sonu değeri gibi)
+    result = rolling_origin_backtest(panel.iloc[:-1], BacktestConfig(target="trend", min_train=36, anchor="trend_son"))
+    assert "anchor_naive" in set(result.metrics["model"])
+    assert result.best_model == "anchor_naive"
+    with pytest.raises(InvalidInput):
+        BacktestConfig(target="x", anchor="x")

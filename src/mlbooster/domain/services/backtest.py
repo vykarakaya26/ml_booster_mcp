@@ -26,6 +26,9 @@ class BacktestConfig:
     alpha: float = 10.0
     models: tuple[str, ...] = MODELS
     exogenous: bool = True  # ridge için diğer panel kolonlarını da kullan
+    # Çapa: hedefin bilgi açısından daha güncel bir versiyonu (ör. aylık ortalama hedef için ay sonu değeri).
+    # Verilirse "anchor_naive" modeli = anchor[t]; aylık ortalama hedeflerde gerçek çıta budur.
+    anchor: str | None = None
 
     def __post_init__(self) -> None:
         if not 1 <= self.horizon <= 24:
@@ -39,6 +42,8 @@ class BacktestConfig:
             raise InvalidInput(f"Bilinmeyen model(ler): {sorted(unknown)}; seçenekler: {list(MODELS)}")
         if self.alpha < 0:
             raise InvalidInput("alpha negatif olamaz")
+        if self.anchor is not None and self.anchor == self.target:
+            raise InvalidInput("anchor hedefle aynı kolon olamaz")
 
 
 @dataclass(frozen=True)
@@ -91,6 +96,8 @@ def _metrics(pred: pd.DataFrame, scale: float) -> pd.DataFrame:
 def rolling_origin_backtest(panel: pd.DataFrame, config: BacktestConfig) -> BacktestResult:
     if config.target not in panel.columns:
         raise InvalidInput(f"Hedef kolon panelde yok: {config.target}. Kolonlar: {list(panel.columns)}")
+    if config.anchor is not None and config.anchor not in panel.columns:
+        raise InvalidInput(f"Çapa kolon panelde yok: {config.anchor}. Kolonlar: {list(panel.columns)}")
     panel = panel.sort_index()
     y = panel[config.target]
     first_valid = y.first_valid_index()
@@ -115,6 +122,10 @@ def rolling_origin_backtest(panel: pd.DataFrame, config: BacktestConfig) -> Back
         preds: dict[str, float] = {}
         if "naive" in config.models:
             preds["naive"] = float(y.iloc[pos])
+        if config.anchor is not None:
+            value = panel[config.anchor].iloc[pos]
+            if pd.notna(value):
+                preds["anchor_naive"] = float(value)
         if "seasonal_naive" in config.models and pos + h - 12 >= 0 and h <= 12:
             value = y.iloc[pos + h - 12]
             if pd.notna(value):
@@ -129,14 +140,15 @@ def rolling_origin_backtest(panel: pd.DataFrame, config: BacktestConfig) -> Back
             # Hedef seviyesi değil h-adımlı değişim (y_{s+h} - y_s): durağan olmayan TR serilerinde
             # daha sağlam; tahmin naive'in üstüne eklenir, en kötü durumda naive'e yakın kalır.
             x_all = design.iloc[: pos + 1]
-            change = (y.shift(-h) - y).iloc[: pos + 1]
+            base = panel[config.anchor] if config.anchor is not None else y  # değişim çapadan ölçülür
+            change = (y.shift(-h) - base).iloc[: pos + 1]
             train = pd.concat([x_all, change.rename("__y")], axis=1).iloc[: pos + 1 - h].dropna()
             x_new = design.iloc[[pos]]
-            if len(train) >= max(24, train.shape[1]) and not x_new.isna().any(axis=None):
+            if len(train) >= max(24, train.shape[1]) and not x_new.isna().any(axis=None) and pd.notna(base.iloc[pos]):
                 delta = _ridge_fit_predict(
                     train.drop(columns="__y").to_numpy(), train["__y"].to_numpy(), x_new.to_numpy()[0], config.alpha
                 )
-                preds["ridge"] = float(y.iloc[pos]) + delta
+                preds["ridge"] = float(base.iloc[pos]) + delta
         rows += [
             {"origin": origin, "date": target_date, "model": m, "y_true": float(y_true), "y_pred": p}
             for m, p in preds.items()

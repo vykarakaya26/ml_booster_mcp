@@ -22,7 +22,7 @@ class AuditPanel:
         end: date | None = None,
         thresholds: QualityThresholds | None = None,
     ) -> tuple[QualityReport, PanelResult]:
-        result = self._build(sector_id, start, end)
+        result = self._build(sector_id, start, end, save=False)  # paylaşılan gold dosyasına dokunma
         if result.panel.empty:
             raise InvalidInput(f"{sector_id} paneli boş; atlanan feature'lar: {result.skipped}")
         return audit_panel(result.panel, end or date.today(), thresholds), result
@@ -39,7 +39,7 @@ class RunBacktest:
         start: date = DEFAULT_START,
         end: date | None = None,
     ) -> tuple[BacktestResult, PanelResult]:
-        result = self._build(sector_id, start, end)
+        result = self._build(sector_id, start, end, save=False)
         if result.panel.empty:
             raise InvalidInput(f"{sector_id} paneli boş; atlanan feature'lar: {result.skipped}")
         return rolling_origin_backtest(result.panel, config), result

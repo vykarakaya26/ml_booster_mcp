@@ -20,7 +20,11 @@ SECTOR=otomotiv; OUT="mlbooster-reports/${SECTOR}-forecast-$(date +%Y%m%d)"; mkd
 "$MLB" backtest --sector "$SECTOR" --target <hedef> --horizon <h> --start 2012-01 --json "$OUT/bt.json"
 ```
 
-1. **Hedef**: `panel.csv` başlığındaki kolonlardan biri olmalıdır. Kullanıcı ham bir seri istiyorsa
+1. **Hedef ve çapa**: hedef, `panel.csv` başlığındaki kolonlardan biri olmalıdır. Hedef günlük bir
+   serinin **aylık ortalamasıysa** (aofm, kur, haftalık faizler), ay sonu değeri çok daha güncel bilgi
+   taşır. Panelde `<hedef>_son` kolonu varsa (ör. `aofm_son`) `--anchor aofm_son` ver. Gerçek çıta
+   "çapa naive" modelidir ve düz naive'i geçmek bir başarı sayılmaz. Çapa kolonu yoksa bunu rapordaki
+   sınırlar kısmında belirt. Kullanıcı ham bir seri istiyorsa
    (ör. "taşıt kredisi faizi") panelde hangi feature olduğunu bul. Panelde yoksa
    `evds-series-discovery` skill'iyle önce bağla.
 2. **Ufuk**: kullanıcı belirtmediyse kararın sıklığına göre seç. Fiyatlama ve likidite için 1 ay,
@@ -37,6 +41,8 @@ SECTOR=otomotiv; OUT="mlbooster-reports/${SECTOR}-forecast-$(date +%Y%m%d)"; mkd
    ```
 
 ## Yorum ilkeleri
+- **Çıta en güçlü naive'dir.** Çapa verildiyse çapa naive, verilmediyse naive. Bir model yalnızca
+  bu çıtayı ortak örneklemde geçtiğinde "çıtayı geçti" denebilir.
 - **Naive kazanırsa** bu bir bulgudur. Kısa vadede kur ya da YoY enflasyon için olağandır. "Model
   başarısız" deme; "bu ufukta seri, son değerden daha iyi tahmin edilemiyor; çıta naive MAE = X" de.
 - **MASE > 1** TR verisinde sık görülür, çünkü test dönemi ilk eğitim dönemine göre daha oynaktır.

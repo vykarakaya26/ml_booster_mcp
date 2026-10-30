@@ -85,8 +85,8 @@ class BuildPanel:
         seed = catalog.source(source_id).seed(code)
         df = pd.DataFrame() if refresh else self._store.read(source_id, [code])
         df = _single_series(df, metric, seed.freq.value if seed else None)
-        if df.empty or not _covers_start(df, period.start):
-            request = FetchRequest.create(source_id, [code], period.start, period.end, formula=formula)
+        if df.empty or not _covers_start(df, period.start):  # çekerken tamponlu, önbellekte istenen başlangıç yeterli
+            request = FetchRequest.create(source_id, [code], _with_history(period.start), period.end, formula=formula)
             df = _single_series(self._fetch(request), metric, seed.freq.value if seed else None)
         if df.empty:
             raise ProviderError(f"{code}: veri yok")
@@ -126,3 +126,13 @@ def _covers_start(df: pd.DataFrame, start: date) -> bool:
     freq = Frequency(df["freq"].iloc[0])
     tolerance = max(7, int(freq.min_period_days * 1.1))
     return pd.Timestamp(df["date"].min()) <= pd.Timestamp(start) + pd.Timedelta(days=tolerance)
+
+
+HISTORY_DAYS = 400  # yoy_pct (12 ay) + yayın gecikmesi için başlangıçtan önceki tampon
+
+
+def _with_history(start: date) -> date:
+    """Dönüşümler (yıllık değişim, fark) panelin ilk aylarında da dolu olsun diye tampon geçmiş."""
+    from datetime import timedelta
+
+    return max(date(1950, 1, 1), start - timedelta(days=HISTORY_DAYS))

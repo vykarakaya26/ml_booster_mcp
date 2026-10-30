@@ -236,6 +236,7 @@ def backtest(
     min_train: Annotated[int, typer.Option(help="İlk eğitim penceresi (ay, ≥24)")] = 48,
     models: Annotated[str, typer.Option(help=f"Virgülle: {','.join(MODELS)}")] = ",".join(MODELS),
     no_exog: Annotated[bool, typer.Option("--no-exog", help="Ridge'de diğer feature'ları kullanma")] = False,
+    anchor: Annotated[str | None, typer.Option(help="Çapa kolon (ör. aofm_son): anchor_naive modeli = bu kolonun son değeri")] = None,
     start: Annotated[str, typer.Option(help="YYYY-AA[-GG]")] = DEFAULT_START.isoformat(),
     end: Annotated[str | None, typer.Option(help="YYYY-AA[-GG]")] = None,
     json_out: Annotated[Path | None, typer.Option("--json", help="Metrik + tahminleri bu dosyaya yaz")] = None,
@@ -244,7 +245,7 @@ def backtest(
     try:
         config = BacktestConfig(
             target=target, horizon=horizon, min_train=min_train,
-            models=tuple(m.strip() for m in models.split(",") if m.strip()), exogenous=not no_exog,
+            models=tuple(m.strip() for m in models.split(",") if m.strip()), exogenous=not no_exog, anchor=anchor,
         )  # fmt: skip
         result, _ = container().run_backtest(sector, config, _date(start), _date(end))
     except DomainError as exc:

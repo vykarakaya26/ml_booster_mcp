@@ -2,7 +2,7 @@
 """`mlbooster audit --json` çıktısı + panel CSV'sinden HTML kalite raporu üretir.
 
 Kullanım:
-  python3 render_audit_report.py --audit audit.json --panel panel.csv --sector otomotiv --out audit.html
+  python3 render_audit_report.py --audit audit.json --panel panel.csv --sector otomotiv --notes notes.md --out audit.html
 Yalnızca standart kütüphane gerekir.
 """
 
@@ -20,7 +20,7 @@ from mlb_report.data import read_json, read_panel_csv  # noqa: E402
 from mlb_report.svg import Flag, LineChart, Marker, Series, line_chart  # noqa: E402
 
 
-def build(audit: dict, dates: list[date], columns: dict, sector: str) -> str:
+def build(audit: dict, dates: list[date], columns: dict, sector: str, notes: str | None = None) -> str:
     counts = audit["counts"]
     series = {s["feature"]: s for s in audit["series"]}
     sections = []
@@ -40,6 +40,9 @@ def build(audit: dict, dates: list[date], columns: dict, sector: str) -> str:
             "ozet",
         )
     )
+
+    if notes:
+        sections.append(H.section("Yorum ve öneriler", f'<div class="narrative">{H.markdown(notes)}</div>', "oneriler"))
 
     rows = [(H.badge(i["severity"]), i["feature"], i["check"], i["message"]) for i in audit["issues"]]
     body = H.table(["Önem", "Feature", "Kontrol", "Bulgu"], rows, raw=[0]) if rows else '<p>Bulgu yok.</p>'
@@ -93,7 +96,7 @@ def build(audit: dict, dates: list[date], columns: dict, sector: str) -> str:
         f"Denetim tarihi {audit['as_of']} · nokta-zamanlı aylık panel",
         sections,
         "Kaynak: TCMB EVDS ve katalogdaki diğer kurumlar. Kırılma eşleştirmesi bilinen TR şok tarihlerine göre yapılır; nedensellik iddiası değildir.",
-        nav=[("ozet", "Özet"), ("bulgular", "Bulgular"), ("seriler", "Seriler"), ("seri-ozeti", "Seri özeti")],
+        nav=[("ozet", "Özet")] + ([("oneriler", "Öneriler")] if notes else []) + [("bulgular", "Bulgular"), ("seriler", "Seriler"), ("seri-ozeti", "Seri özeti")],
     )
 
 
@@ -103,10 +106,12 @@ def main() -> None:
     ap.add_argument("--panel", required=True, type=Path)
     ap.add_argument("--sector", required=True)
     ap.add_argument("--out", required=True, type=Path)
+    ap.add_argument("--notes", type=Path, help="Yorum ve öneriler (Markdown)")
     args = ap.parse_args()
     dates, columns = read_panel_csv(args.panel)
+    notes = args.notes.read_text(encoding="utf-8") if args.notes else None
     args.out.parent.mkdir(parents=True, exist_ok=True)
-    args.out.write_text(build(read_json(args.audit), dates, columns, args.sector), encoding="utf-8")
+    args.out.write_text(build(read_json(args.audit), dates, columns, args.sector, notes), encoding="utf-8")
     print(f"Rapor → {args.out}")
 
 

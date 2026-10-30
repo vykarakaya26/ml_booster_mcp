@@ -24,6 +24,7 @@ MODEL_LABELS = {
     "seasonal_naive": "Mevsimsel naive (12 ay önce)",
     "drift": "Drift (doğrusal eğilim)",
     "ridge": "Ridge (gecikmeli, değişim)",
+    "anchor_naive": "Çapa naive (ay sonu değeri)",
 }
 
 
@@ -31,9 +32,11 @@ def build(bt: dict, notes: str | None) -> str:
     cfg, metrics = bt["config"], bt["metrics"]
     by_model = {m["model"]: m for m in metrics}
     best = bt["best_model"]
-    naive = by_model.get("naive")
+    # Çıta: en güçlü naive (çapa varsa çapa naive, yoksa naive).
+    ref_name = "anchor_naive" if "anchor_naive" in by_model else "naive"
+    naive = by_model.get(ref_name)
     gain = None
-    if naive and best and best != "naive" and naive["mae"]:
+    if naive and best and best != ref_name and naive["mae"]:
         gain = (1 - by_model[best]["mae"] / naive["mae"]) * 100
     sections = []
     sections.append(
@@ -44,7 +47,8 @@ def build(bt: dict, notes: str | None) -> str:
                     ("Hedef", cfg["target"], f"{cfg['horizon']} ay ileri"),
                     ("En iyi model", MODEL_LABELS.get(best, best or "—"), None),
                     ("MAE", f"{by_model[best]['mae']:,.4g}" if best else "—", f"{bt['common_origins']} ortak nokta"),
-                    ("Naive'e göre", f"%{gain:+.1f}" if gain is not None else "—", "MAE iyileşmesi" if gain is not None else "en iyi model naive"),
+                    ("Çıtaya göre", f"%{gain:+.1f}" if gain is not None else "—",
+                     f"MAE iyileşmesi ({MODEL_LABELS[ref_name]})" if gain is not None else f"en iyi model: {MODEL_LABELS[ref_name]}"),
                 ]
             ),
             "ozet",
@@ -67,7 +71,7 @@ def build(bt: dict, notes: str | None) -> str:
         dates = sorted({date.fromisoformat(p["date"]) for p in preds})
         idx = {d: i for i, d in enumerate(dates)}
         actual: list[float | None] = [None] * len(dates)
-        shown = [best] + [m for m in ("naive", "drift") if m != best][:1]
+        shown = [best] + [m for m in (ref_name, "naive", "drift") if m != best][:1]
         lines = {m: [None] * len(dates) for m in shown}
         for p in preds:
             i = idx[date.fromisoformat(p["date"])]
@@ -86,7 +90,8 @@ def build(bt: dict, notes: str | None) -> str:
 - **Yöntem:** genişleyen pencereyle rolling-origin backtest; ilk eğitim penceresi {cfg['min_train']} ay, her ay bir adım ileri.
 - **Look-ahead yok:** t başlangıcında yalnızca t ve öncesi kullanılır; panel yayın gecikmesine göre hizalanmıştır.
 - **Adil karşılaştırma:** metrikler tüm modellerin tahmin ürettiği {bt['common_origins']} ortak noktada hesaplanır.
-- **Ridge:** hedefin {cfg['horizon']} adımlı değişimini öğrenir, naive'in üstüne ekler; gecikmeler {cfg['lags']}, alpha {cfg['alpha']}, dış değişkenler {'açık' if cfg['exogenous'] else 'kapalı'}.
+- **Ridge:** hedefin {cfg['horizon']} adımlı değişimini {'çapadan (' + cfg['anchor'] + ')' if cfg.get('anchor') else 'son değerden'} öğrenir; gecikmeler {cfg['lags']}, alpha {cfg['alpha']}, dış değişkenler {'açık' if cfg['exogenous'] else 'kapalı'}.
+- **Çapa:** {('`' + cfg['anchor'] + '` — aylık ortalama hedefte ay sonu değeri en güçlü bilgidir; çıta çapa naive’dir.') if cfg.get('anchor') else 'kullanılmadı.'}
 - **MASE < 1** ilk eğitim penceresindeki naive hatasından iyi demektir; TR'de rejim değişimleri yüzünden 1'in üstü sık görülür.
 - Bu modeller referans (baseline) içindir; üretim modelinin bunları geçmesi beklenir.
 """

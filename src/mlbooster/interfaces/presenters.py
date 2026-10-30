@@ -133,7 +133,7 @@ def backtest_dict(result: BacktestResult, sector_id: str, max_predictions: int |
         "sector": sector_id,
         "config": {
             "target": c.target, "horizon": c.horizon, "min_train": c.min_train, "lags": list(c.lags),
-            "alpha": c.alpha, "models": list(c.models), "exogenous": c.exogenous,
+            "alpha": c.alpha, "models": list(c.models), "exogenous": c.exogenous, "anchor": c.anchor,
         },
         "best_model": result.best_model,
         "common_origins": result.common_origins,

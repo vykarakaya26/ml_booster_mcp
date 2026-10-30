@@ -73,3 +73,13 @@ def test_date_chunks_cover_range_without_overlap():
     assert all((b[0] - a[1]).days == 1 for a, b in zip(chunks, chunks[1:]))
     assert all((e - s).days < 1000 for s, e in chunks)
     assert len(date_chunks(date(2000, 1, 1), date(2026, 1, 1), Frequency.MONTHLY, 1000)) == 1
+
+
+def test_daily_lag_applied_before_aggregation():
+    # 1 gün gecikmeli günlük seri: Eylül satırı Eylül içinde yayımlanan gözlemlerin ortalaması olmalı,
+    # Ağustos'unki değil (eski hata: ortalama alıp sonra bütün ayı kaydırmak).
+    idx = pd.bdate_range("2026-08-03", "2026-10-30")
+    s = pd.Series(np.where(idx.month == 8, 10.0, np.where(idx.month == 9, 20.0, 30.0)), index=idx)
+    m = to_monthly(s, Frequency.BUSINESS, publication_lag_days=1)
+    assert m.loc["2026-09-30"] > 19.0  # yalnızca 31 Ağustos gözlemi (1 Eylül'de yayımlanan) karışır
+    assert m.loc["2026-10-31"] > 29.0

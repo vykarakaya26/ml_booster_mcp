@@ -1,7 +1,8 @@
 """Frekans hizalama: her şey aylık dönem sonu takvimine indirgenir.
 
-Nokta-zamanlı kural: bir gözlem, `dönem sonu + publication_lag_days` tarihinin düştüğü ayın
-satırına yazılır. Böylece t ayının satırında yalnızca t sonunda bilinen veri olur (look-ahead yok).
+Nokta-zamanlı kural: bir gözlem, yayımlandığı tarihin (`gözlem/dönem sonu + publication_lag_days`)
+düştüğü ayın satırına yazılır. Sık serilerde bu kayma her gözleme toplamadan önce uygulanır; seyrek
+serilerde dönem sonuna. Böylece t ayının satırında yalnızca t sonunda bilinen veri olur (look-ahead yok).
 """
 
 from __future__ import annotations
@@ -38,6 +39,10 @@ def to_monthly(
     s.index = pd.DatetimeIndex(s.index)
 
     if freq.is_high:
+        # Gecikme TOPLAMADAN ÖNCE her gözleme uygulanır: t ayının satırı, t içinde yayımlanmış
+        # gözlemlerin özetidir. (Toplamadan sonra kaydırmak ay içi bilgiyi bir ay geç gösterirdi.)
+        if publication_lag_days:
+            s.index = s.index + pd.Timedelta(days=publication_lag_days)
         default = Aggregation.SUM if kind is SeriesKind.FLOW else Aggregation.AVG
         monthly = s.resample("ME").agg(_PANDAS_AGG[agg or default])
         last_obs = s.index.max()
@@ -48,7 +53,7 @@ def to_monthly(
         monthly = s.copy()
         monthly.index = _month_end(monthly.index)
 
-    if publication_lag_days:
+    if publication_lag_days and not freq.is_high:
         available = monthly.index + pd.Timedelta(days=publication_lag_days)
         monthly.index = _month_end(pd.DatetimeIndex(available))
         monthly = monthly[~monthly.index.duplicated(keep="last")]
