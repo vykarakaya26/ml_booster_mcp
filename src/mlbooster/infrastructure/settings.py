@@ -9,21 +9,26 @@ from pathlib import Path
 from dotenv import find_dotenv, load_dotenv
 
 PACKAGE_DIR = Path(__file__).resolve().parents[1]
-USER_AGENT = "mlbooster/0.2 (ML Booster Map)"
+USER_AGENT = "mlbooster/0.3 (ML Booster Map)"
 
 
 @dataclass(frozen=True)
 class Settings:
     data_dir: Path
     catalog_dir: Path
+    overrides_path: Path
 
     @classmethod
     def from_env(cls, load_env_files: bool = True) -> Settings:
+        home = Path(os.environ.get("MLBOOSTER_HOME", Path.home() / ".mlbooster")).expanduser()
         if load_env_files:
-            # Önce çalışma dizinindeki .env, sonra ~/.mlbooster/.env. Mevcut değişkenler ezilmez.
+            # Önce çalışma dizinindeki .env, sonra $MLBOOSTER_HOME/.env. Mevcut değişkenler ezilmez.
             load_dotenv(find_dotenv(usecwd=True), override=False)
-            load_dotenv(Path.home() / ".mlbooster" / ".env", override=False)
+            load_dotenv(home / ".env", override=False)
         return cls(
+            overrides_path=Path(
+                os.environ.get("MLBOOSTER_OVERRIDES", home / "catalog" / "overrides.yaml")
+            ).expanduser(),
             data_dir=Path(os.environ.get("MLBOOSTER_DATA_DIR", Path.home() / ".mlbooster" / "data")).expanduser(),
             catalog_dir=Path(os.environ.get("MLBOOSTER_CATALOG_DIR", PACKAGE_DIR / "catalog_data")).expanduser(),
         )

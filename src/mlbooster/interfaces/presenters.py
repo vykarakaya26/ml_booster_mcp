@@ -2,9 +2,12 @@
 
 from __future__ import annotations
 
+import math
 from dataclasses import asdict
 
 from mlbooster.domain.model import HealthResult, Source
+from mlbooster.domain.services.backtest import BacktestResult
+from mlbooster.domain.services.quality import QualityReport
 from mlbooster.domain.services.sector_map import SectorMap
 
 
@@ -82,3 +85,62 @@ def sector_map_markdown(m: SectorMap) -> str:
 
 def health_dict(r: HealthResult) -> dict:
     return asdict(r) | {"status": r.status.value, "checked": list(r.checked)}
+
+
+def _clean(value):
+    """JSON için: NaN/inf → None, tarih → ISO metin."""
+    if isinstance(value, float) and not math.isfinite(value):
+        return None
+    if hasattr(value, "isoformat"):
+        return value.isoformat()[:10]
+    return value
+
+
+def quality_dict(report: QualityReport, skipped: dict[str, str] | None = None) -> dict:
+    return {
+        "as_of": report.as_of.isoformat(),
+        "months": report.months,
+        "counts": report.counts,
+        "skipped_features": skipped or {},
+        "issues": [
+            {"severity": i.severity.value, "feature": i.feature, "check": i.check, "message": i.message}
+            for i in report.issues
+        ],
+        "series": [
+            {
+                "feature": s.feature,
+                "first": _clean(s.first),
+                "last": _clean(s.last),
+                "observations": s.observations,
+                "missing_ratio": s.missing_ratio,
+                "months_since_last": s.months_since_last,
+                "outliers": [d.isoformat() for d in s.outliers],
+                "breaks": [{"date": b.date.isoformat(), "t_stat": b.t_stat, "event": b.event} for b in s.breaks],
+            }
+            for s in report.series
+        ],
+        "correlated_pairs": [{"a": a, "b": b, "corr": c} for a, b, c in report.correlated_pairs],
+        "diagnostics": [{k: _clean(v) for k, v in asdict(d).items()} for d in report.diagnostics],
+        "notable_pairs": [{"a": a, "b": b, "corr": c, "note": n} for a, b, c, n in report.notable_pairs],
+    }
+
+
+def backtest_dict(result: BacktestResult, sector_id: str, max_predictions: int | None = None) -> dict:
+    preds = result.predictions
+    if max_predictions is not None:
+        last_dates = sorted(preds["date"].unique())[-max_predictions:]
+        preds = preds[preds["date"].isin(last_dates)]
+    c = result.config
+    return {
+        "sector": sector_id,
+        "config": {
+            "target": c.target, "horizon": c.horizon, "min_train": c.min_train, "lags": list(c.lags),
+            "alpha": c.alpha, "models": list(c.models), "exogenous": c.exogenous, "anchor": c.anchor,
+        },
+        "best_model": result.best_model,
+        "common_origins": result.common_origins,
+        "metrics": [{k: _clean(v) for k, v in row.items()} for row in result.metrics.to_dict(orient="records")],
+        "regime_metrics": [{k: _clean(v) for k, v in row.items()} for row in result.regime_metrics.to_dict(orient="records")],
+        "features_used": list(result.features_used),
+        "predictions": [{k: _clean(v) for k, v in row.items()} for row in preds.to_dict(orient="records")],
+    }  # fmt: skip

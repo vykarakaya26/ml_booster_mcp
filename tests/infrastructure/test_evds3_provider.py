@@ -179,8 +179,36 @@ def test_healthcheck_fails_on_stale_series(evds):
     assert result.status is HealthStatus.FAIL and "durmuş" in result.detail
 
 
-@pytest.mark.parametrize(("label", "freq"), [("İŞ GÜNÜ", "B"), ("İŞGÜNÜ", "B"), ("ÜÇ AYLIK", "Q"), ("aylık", "M"), ("GÜNLÜK", "D")])
+@pytest.mark.parametrize(("label", "freq"), [("İŞ GÜNÜ", "B"), ("İŞGÜNÜ", "B"), ("ÜÇ AYLIK", "Q"), ("aylık", "M"), ("GÜNLÜK", "D"),
+     ("HAFTALIK(CUMA)", "W"), ("HAFTALIK(ÇARŞAMBA)", "W"), ("AYDA İKİ KEZ", "SM")])
 def test_freq_labels_normalized(label, freq):
     from mlbooster.infrastructure.providers.evds3 import normalize_freq_label
 
     assert normalize_freq_label(label) == freq
+
+
+@respx.mock
+def test_search_is_turkish_insensitive_and_ranks_archives_last(evds):
+    respx.get(url__startswith=BASE + "datagroups/").mock(
+        return_value=httpx.Response(200, json=[
+            {"DATAGROUP_CODE": "bie_old", "DATAGROUP_NAME": "Tüketici Kredi Faizleri (Arşiv)", "FREQUENCY_STR": "AYLIK", "END_DATE": "01-01-2020"},
+            {"DATAGROUP_CODE": "bie_new", "DATAGROUP_NAME": "Tüketici Kredi Faiz Oranları", "FREQUENCY_STR": "HAFTALIK", "END_DATE": "24-10-2026"},
+            {"DATAGROUP_CODE": "bie_fx", "DATAGROUP_NAME": "Döviz Kurları", "FREQUENCY_STR": "GÜNLÜK", "END_DATE": "30-10-2026"},
+        ])  # fmt: skip
+    )
+    df = evds.search("TUKETICI kredi faizi")
+    assert list(df["datagroup"]) == ["bie_new", "bie_old"]
+    assert df.iloc[0]["freq"] == "W" and bool(df.iloc[1]["archived"])
+
+
+def test_infer_dmy_frequency():
+    from datetime import timedelta
+
+    from mlbooster.infrastructure.providers.evds3 import infer_dmy_frequency
+
+    start = date(2026, 1, 2)  # Cuma
+    assert infer_dmy_frequency([start + timedelta(weeks=i) for i in range(10)]) is Frequency.WEEKLY
+    bdays = [d for d in (start + timedelta(days=i) for i in range(30)) if d.weekday() < 5]
+    assert infer_dmy_frequency(bdays) is Frequency.BUSINESS
+    assert infer_dmy_frequency([start + timedelta(days=i) for i in range(30)]) is Frequency.DAILY
+    assert infer_dmy_frequency([date(2026, m, d) for m in range(1, 7) for d in (1, 16)]) is Frequency.SEMI_MONTHLY

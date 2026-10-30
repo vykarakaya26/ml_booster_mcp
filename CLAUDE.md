@@ -26,13 +26,20 @@ src/mlbooster/
                      # catalog_yaml.py (pydantic → domain), secret_store.py, settings.py, storage/
   interfaces/        # cli.py (typer), mcp_server.py (MCPServer), presenters.py — yalnızca use case çağırır
   bootstrap.py       # composition root: tek bağlama noktası
-  catalog_data/      # sources/*.yaml, sectors/*.yaml (package-data)
+  catalog_data/      # sources/*.yaml, sectors/*.yaml (package-data); kullanıcı override: ~/.mlbooster/catalog/overrides.yaml
+skills/              # Claude Code plugin skill'leri (sector-analysis, evds-series-discovery, data-quality-audit,
+                     # forecast-baseline); _shared/ = stdlib-only rapor kütüphanesi + bin/mlb CLI sarmalayıcısı
+.claude-plugin/      # plugin.json + marketplace.json; .mcp.json MCP sunucusunu uvx ile başlatır
 tests/               # domain/, application/ (fakes.py ile), infrastructure/ (respx), interfaces/, test_architecture.py
 ```
 Kurallar:
 - Domain/application içine httpx, duckdb, pyarrow, yaml, pydantic, mcp, typer, dotenv import ETME.
 - Interfaces altyapıyı doğrudan import ETMEZ; `bootstrap.build_container()` kullanır.
 - Dış dünyadan gelen her kimlik/kod `domain.validation` ile doğrulanır (FetchRequest.create, use case girişleri).
+- Analiz mantığı (kalite denetimi, backtest) pakette ve testli; skill script'leri yalnızca sunum yapar,
+  stdlib dışında import etmez (tests/skills zorlar), HTML'e her değeri kaçışlayarak yazar.
+- Sürüm yükseltmede üçü birlikte: pyproject `version`, `.claude-plugin/plugin.json` `version`, `.mcp.json` ve
+  `skills/_shared/bin/mlb` içindeki git ref (`@vX.Y.Z`) — ardından aynı adla git tag.
 - Hatalar: beklenenler `DomainError` alt sınıfları (kullanıcıya gösterilebilir, sır/yol içermez);
   sağlayıcı hataları `application.errors` içinde; altyapı kendi hatalarını bunlara çevirir.
 

@@ -5,6 +5,7 @@ macro_features:
   - {name: eurtry_logdiff, source: evds3, series: TP.DK.EUR.A, transform: log_diff, agg: avg}
   - {name: tufe_yoy, source: evds3, series: TP.TUKFIY2025.GENEL, transform: yoy_pct}
   - {name: aofm, source: evds3, series: TP.APIFON4, transform: level, agg: avg}
+  - {name: aofm_son, source: evds3, series: TP.APIFON4, transform: level, agg: last}
   - {name: tasit_kredisi_faizi, source: evds3, discover_hint: "Taşıt kredisi faiz oranı"}
   - {name: tuketici_guveni, source: evds3, discover_hint: "Tüketici güven endeksi"}
 sector_sources: [odmd]

@@ -1,0 +1,4 @@
+schema_version: "1.1"
+name: bankacilik-aofm-baseline
+expected_outcome: |
+  Look-ahead korumalı backtest ile referans modeller karşılaştırılır; en iyi referans ve naive'e göre fark ile HTML rapor verilir.

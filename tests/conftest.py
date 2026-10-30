@@ -37,4 +37,7 @@ def _no_dotenv(request, monkeypatch):
     if request.node.get_closest_marker("live"):
         return
     monkeypatch.setattr("mlbooster.infrastructure.settings.load_dotenv", lambda *a, **k: False)
+    home = request.getfixturevalue("tmp_path") / "mlbooster-home"
+    monkeypatch.setenv("MLBOOSTER_HOME", str(home))  # override'lar gerçek ~/.mlbooster'a yazılmasın
+    monkeypatch.delenv("MLBOOSTER_OVERRIDES", raising=False)
     monkeypatch.delenv("EVDS_API_KEY", raising=False)

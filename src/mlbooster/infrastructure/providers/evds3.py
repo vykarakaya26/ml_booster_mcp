@@ -88,11 +88,39 @@ def parse_evds_date(raw: str) -> tuple[date, Frequency]:
     raise UnexpectedResponse(f"Tanınmayan EVDS tarih biçimi: {raw[:40]!r}")
 
 
+def infer_dmy_frequency(dates: list[date]) -> Frequency:
+    """gg-aa-yyyy biçimi günlük, iş günü, haftalık ve ayda iki kez için ortaktır; aralıklardan ayırt et."""
+    unique = sorted(set(dates))
+    if len(unique) < 3:
+        return Frequency.DAILY
+    gaps = sorted((b - a).days for a, b in zip(unique, unique[1:]))
+    median = gaps[len(gaps) // 2]
+    if median >= 12:
+        return Frequency.SEMI_MONTHLY
+    if median >= 6:
+        return Frequency.WEEKLY
+    return Frequency.DAILY if any(d.weekday() >= 5 for d in unique) else Frequency.BUSINESS
+
+
 def normalize_freq_label(label: object) -> str | None:
     if not isinstance(label, str) or not label.strip():
         return None
     key = "".join(label.split()).upper()  # "İŞ GÜNÜ" / "ÜÇ AYLIK" gibi boşluklu varyantlar
-    return _FREQ_LABELS.get(key, label.strip())
+    if key in _FREQ_LABELS:
+        return _FREQ_LABELS[key]
+    if key.startswith(("HAFTALIK", "WEEKLY")):  # "HAFTALIK(CUMA)", "HAFTALIK(ÇARŞAMBA)"
+        return "W"
+    if key in {"AYDAİKİKEZ", "AYDAIKIKEZ"}:
+        return "SM"
+    return label.strip()
+
+
+_TR_FOLD = str.maketrans({"ı": "i", "ş": "s", "ğ": "g", "ü": "u", "ö": "o", "ç": "c", "â": "a", "î": "i", "û": "u"})
+
+
+def _fold(text: str) -> str:
+    """Türkçe büyük/küçük harf ve aksan duyarsız karşılaştırma için normalleştirir (İ→i, I→ı→i)."""
+    return text.replace("İ", "i").replace("I", "ı").lower().translate(_TR_FOLD)
 
 
 def _fmt(d: date) -> str:
@@ -188,6 +216,43 @@ class Evds3Provider:
             columns=columns,
         )
 
+    def search(self, text: str, limit: int = 20) -> pd.DataFrame:
+        """Veri gruplarını Türkçe/İngilizce adlarında anahtar kelimeyle arar.
+        Her kelime kökü (ilk ≥4 harf) eşleşmeli; arşiv grupları sona atılır."""
+        columns = ["datagroup", "name", "name_eng", "freq", "start", "end", "archived", "score"]
+        payload = self._get_json(self.build_url("datagroups/", mode=0, type="json"))
+        if not isinstance(payload, list):
+            raise UnexpectedResponse("datagroups yanıtı liste değil")
+        tokens = [_fold(tok) for tok in text.split() if tok.strip()]
+        stems = [tok[: max(4, len(tok) - 2)] for tok in tokens]
+        rows = []
+        for g in payload:
+            if not isinstance(g, dict) or not g.get("DATAGROUP_CODE"):
+                continue
+            haystack = _fold(f"{g.get('DATAGROUP_NAME', '')} {g.get('DATAGROUP_NAME_ENG', '')} {g['DATAGROUP_CODE']}")
+            score = sum(stem in haystack for stem in stems)
+            if score == 0:
+                continue
+            name = str(g.get("DATAGROUP_NAME", ""))
+            rows.append(
+                {
+                    "datagroup": g["DATAGROUP_CODE"],
+                    "name": name,
+                    "name_eng": g.get("DATAGROUP_NAME_ENG"),
+                    "freq": normalize_freq_label(g.get("FREQUENCY_STR")),
+                    "start": g.get("START_DATE"),
+                    "end": g.get("END_DATE"),
+                    "archived": "arşiv" in name.lower() or "archive" in str(g.get("DATAGROUP_NAME_ENG", "")).lower(),
+                    "score": score / len(stems),
+                }
+            )
+        df = pd.DataFrame(rows, columns=columns)
+        if df.empty:
+            return df
+        df["_end"] = pd.to_datetime(df["end"], format="%d-%m-%Y", errors="coerce")
+        df = df.sort_values(["score", "archived", "_end"], ascending=[False, True, False])
+        return df.drop(columns="_end").head(limit).reset_index(drop=True)
+
     # --- Veri ----------------------------------------------------------------------------
 
     def fetch(self, request: FetchRequest) -> pd.DataFrame:
@@ -249,6 +314,9 @@ class Evds3Provider:
                 raise UnexpectedResponse(f"{code} için kolon bulunamadı; kolonlar: {list(raw.columns)[:20]}")
             seed = self.source.seed(code)
             freq = request.freq or (seed.freq if seed else inferred)
+            if freq is Frequency.DAILY and not request.freq and not seed:
+                observed = [d for d, v in zip(dates, pd.to_numeric(raw[column], errors="coerce")) if pd.notna(v)]
+                freq = infer_dmy_frequency(observed)
             frame = pd.DataFrame(
                 {
                     "source_id": self.source.id,

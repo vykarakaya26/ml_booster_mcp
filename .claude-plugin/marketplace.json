@@ -1,0 +1,12 @@
+{
+  "name": "ml-booster-tools",
+  "owner": { "name": "Yağız Karakaya" },
+  "description": "ML Booster Map plugin'i",
+  "plugins": [
+    {
+      "name": "ml-booster",
+      "source": "./",
+      "description": "Türkiye makro/sektör verisi için MCP sunucusu ve otonom analiz skill'leri"
+    }
+  ]
+}

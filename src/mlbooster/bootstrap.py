@@ -8,9 +8,19 @@ from __future__ import annotations
 from dataclasses import dataclass
 from functools import cached_property
 
-from mlbooster.application.ports import CatalogRepository, ObservationStore, PanelStore, ProviderFactory
+from mlbooster.application.ports import (
+    CatalogOverrides,
+    CatalogRepository,
+    ObservationStore,
+    PanelStore,
+    ProviderFactory,
+)
 from mlbooster.application.use_cases import (
+    AuditPanel,
     BuildPanel,
+    RunBacktest,
+    SearchSeries,
+    SetFeatureSeries,
     DiscoverSeries,
     FetchSeries,
     GetSectorMap,
@@ -33,6 +43,7 @@ class Container:
     providers: ProviderFactory
     observations: ObservationStore
     panels: PanelStore
+    overrides: CatalogOverrides
 
     @cached_property
     def list_sectors(self) -> ListSectors:
@@ -62,11 +73,29 @@ class Container:
     def health(self) -> RunHealthChecks:
         return RunHealthChecks(self.catalog, self.providers)
 
+    @cached_property
+    def search_series(self) -> SearchSeries:
+        return SearchSeries(self.catalog, self.providers)
+
+    @cached_property
+    def set_feature_series(self) -> SetFeatureSeries:
+        return SetFeatureSeries(self.catalog, self.providers, self.overrides)
+
+    @cached_property
+    def audit_panel(self) -> AuditPanel:
+        return AuditPanel(self.build_panel)
+
+    @cached_property
+    def run_backtest(self) -> RunBacktest:
+        return RunBacktest(self.build_panel)
+
 
 def build_container(settings: Settings | None = None) -> Container:
     settings = settings or Settings.from_env()
+    catalog = YamlCatalogRepository(settings.catalog_dir, settings.overrides_path)
     return Container(
-        catalog=YamlCatalogRepository(settings.catalog_dir),
+        catalog=catalog,
+        overrides=catalog,
         providers=ProviderRegistry(EnvSecretProvider(), RawStore(settings.data_dir / "bronze")),
         observations=ParquetObservationStore(settings.data_dir / "silver"),
         panels=ParquetPanelStore(settings.data_dir / "gold"),

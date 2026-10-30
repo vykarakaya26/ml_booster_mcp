@@ -1,0 +1,12 @@
+#!/bin/sh
+# mlbooster CLI'yı bulur: kuruluysa onu, değilse uvx ile repodan çalıştırır.
+# Skill'ler bu sarmalayıcıyı çağırır; böylece plugin kullanıcısının ayrıca pip install yapması gerekmez.
+set -eu
+if command -v mlbooster >/dev/null 2>&1; then
+  exec mlbooster "$@"
+fi
+if command -v uvx >/dev/null 2>&1; then
+  exec uvx --quiet --from "git+https://github.com/vykarakaya26/ml_booster_mcp.git@${MLBOOSTER_REF:-v0.3.0}" mlbooster "$@"
+fi
+echo "mlbooster bulunamadı. Kurulum: pip install \"git+https://github.com/vykarakaya26/ml_booster_mcp.git\" (veya uv kurun: https://docs.astral.sh/uv/)" >&2
+exit 127

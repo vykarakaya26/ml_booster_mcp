@@ -1,0 +1,4 @@
+schema_version: "1.1"
+name: sigorta-pre-model-check
+expected_outcome: |
+  Önem sırasına göre bulgular ve her biri için aksiyon içeren bir HTML kalite raporu ve özet.

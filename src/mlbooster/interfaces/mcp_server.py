@@ -24,7 +24,8 @@ from mlbooster.application.dto import FetchRequest
 from mlbooster.application.use_cases.panel import DEFAULT_START
 from mlbooster.bootstrap import Container, build_container
 from mlbooster.domain.errors import DomainError, InvalidInput
-from mlbooster.interfaces.presenters import health_dict, sector_map_markdown, source_dict
+from mlbooster.domain.services.backtest import MODELS, BacktestConfig
+from mlbooster.interfaces.presenters import backtest_dict, health_dict, quality_dict, sector_map_markdown, source_dict
 
 log = logging.getLogger(__name__)
 F = TypeVar("F", bound=Callable[..., Any])
@@ -140,6 +141,75 @@ def build_panel(sector: str, start: str = DEFAULT_START.isoformat(), end: str | 
 def health(source: str | None = None) -> list[dict]:
     """Kanarya testleri: sağlayıcıların kritik serilerden son gözlemleri çekip çekemediği."""
     return [health_dict(r) for r in container().health(source)]
+
+
+@server.tool(annotations=READ_REMOTE)
+@safe_tool
+def search_series(text: str, source: str = "evds3", limit: int = 20) -> list[dict]:
+    """Kaynakta veri grubu arar (Türkçe karakter duyarsız, ör. 'kredi faiz', 'tüketici güven').
+    Dönen `datagroup` ile discover_series çağrılarak içindeki seri kodları listelenir. Arşiv grupları sondadır."""
+    return container().search_series(text, source, limit).to_dict(orient="records")
+
+
+@server.tool(annotations=WRITES_LOCAL)
+@safe_tool
+def set_feature_series(
+    sector: str,
+    feature: str,
+    series: str,
+    name: str | None = None,
+    kind: str = "level",
+    publication_lag_days: int | None = None,
+    datagroup: str | None = None,
+    create: bool = False,
+    transform: str = "level",
+    agg: str | None = None,
+) -> dict:
+    """Bir sektör feature'ına seri kodu bağlar; create=True ise yeni feature ekler (transform: level, diff,
+    log_diff, yoy_pct; agg: avg, last, sum). Kod önce canlı doğrulanır (son 2 yılda veri, seri durmamış).
+    Kullanıcının yerel override dosyasına yazar; paket kataloğu değişmez."""
+    b = container().set_feature_series(
+        sector, feature, series, name, kind, publication_lag_days, datagroup,
+        create=create, transform=transform, agg=agg,
+    )  # fmt: skip
+    return {
+        "sector": b.sector_id, "feature": b.feature, "series": b.seed.code, "freq": b.seed.freq.value,
+        "publication_lag_days": b.seed.publication_lag_days, "last_observation": b.last_observation.isoformat(),
+    }  # fmt: skip
+
+
+@server.tool(annotations=WRITES_LOCAL)
+@safe_tool
+def audit_panel(sector: str, start: str = DEFAULT_START.isoformat(), end: str | None = None) -> dict:
+    """Sektör panelinin veri kalitesini denetler: bayat/durmuş seri, eksik oranı, aykırı değer (robust z),
+    yapısal kırılma (bilinen TR şoklarıyla eşleştirilmiş), aşırı korelasyon."""
+    report, result = container().audit_panel(sector, _iso(start, "start"), _iso(end, "end") if end else None)
+    return quality_dict(report, result.skipped)
+
+
+@server.tool(annotations=WRITES_LOCAL)
+@safe_tool
+def run_backtest(
+    sector: str,
+    target: str,
+    horizon: int = 1,
+    min_train: int = 48,
+    models: list[str] | None = None,
+    exogenous: bool = True,
+    anchor: str | None = None,
+    start: str = DEFAULT_START.isoformat(),
+    end: str | None = None,
+) -> dict:
+    """Panel hedef kolonu için rolling-origin backtest (look-ahead korumalı). Modeller: naive, seasonal_naive,
+    drift, ridge (gecikmeli; exogenous=True ise diğer feature'larla). Metrikler: MAE, RMSE, sMAPE, MASE.
+    anchor: hedefin daha güncel versiyonu (ör. aofm_son); verilirse anchor_naive modeli eklenir — aylık
+    ortalama hedeflerde gerçek çıta budur. Son 24 tahmin noktası döner."""
+    config = BacktestConfig(
+        target=target, horizon=horizon, min_train=min_train, models=tuple(models or MODELS), exogenous=exogenous,
+        anchor=anchor,
+    )
+    result, _ = container().run_backtest(sector, config, _iso(start, "start"), _iso(end, "end") if end else None)
+    return backtest_dict(result, sector, max_predictions=24)
 
 
 def main() -> None:

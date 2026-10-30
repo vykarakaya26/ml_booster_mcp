@@ -21,9 +21,12 @@ class ParquetPanelStore:
 
     @staticmethod
     def export(panel: pd.DataFrame, path: Path) -> str:
-        """Kullanıcının açıkça verdiği yola dışa aktarım (yalnızca yerel CLI'dan çağrılır)."""
-        if path.suffix != ".parquet":
-            raise ValueError("Çıktı dosyası .parquet uzantılı olmalı")
+        """Kullanıcının açıkça verdiği yola (.parquet / .csv) dışa aktarım; yalnızca yerel CLI'dan çağrılır."""
+        if path.suffix not in {".parquet", ".csv"}:
+            raise ValueError("Çıktı dosyası .parquet veya .csv uzantılı olmalı")
         path.parent.mkdir(parents=True, exist_ok=True)
-        panel.to_parquet(path)
+        if path.suffix == ".csv":
+            panel.to_csv(path, date_format="%Y-%m-%d")
+        else:
+            panel.to_parquet(path)
         return str(path)
