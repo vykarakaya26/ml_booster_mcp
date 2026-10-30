@@ -194,10 +194,15 @@ def catalog_set_feature(
     kind: Annotated[str, typer.Option(help="level | flow")] = "level",
     lag: Annotated[int | None, typer.Option(help="Yayın gecikmesi (gün); verilmezse frekansa göre varsayılan")] = None,
     datagroup: Annotated[str | None, typer.Option(help="Veri grubu kodu")] = None,
+    create: Annotated[bool, typer.Option("--create", help="Feature sektörde yoksa yeni feature olarak ekle")] = False,
+    transform: Annotated[str, typer.Option(help="--create ile: level | diff | log_diff | yoy_pct")] = "level",
+    agg: Annotated[str | None, typer.Option(help="--create ile, sık seriler için: avg | last | sum")] = None,
 ):
-    """Keşif bekleyen bir feature'a seri kodu bağlar (~/.mlbooster/catalog/overrides.yaml)."""
+    """Bir feature'a seri kodu bağlar ya da --create ile yeni feature ekler (~/.mlbooster/catalog/overrides.yaml)."""
     try:
-        b = container().set_feature_series(sector, feature, series, name, kind, lag, datagroup)
+        b = container().set_feature_series(
+            sector, feature, series, name, kind, lag, datagroup, create=create, transform=transform, agg=agg
+        )
     except DomainError as exc:
         _fail(exc)
     typer.echo(

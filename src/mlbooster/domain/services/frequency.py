@@ -54,9 +54,13 @@ def to_monthly(
         monthly.index = _month_end(monthly.index)
 
     if publication_lag_days and not freq.is_high:
-        available = monthly.index + pd.Timedelta(days=publication_lag_days)
-        monthly.index = _month_end(pd.DatetimeIndex(available))
-        monthly = monthly[~monthly.index.duplicated(keep="last")]
+        # Seyrek seride gecikme SABİT bir ay kaymasıdır: gözlemlerin yayın ayına uzaklıklarının en
+        # büyüğü. Gözlem başına kaydırmak, ay uzunlukları farklı olduğu için iki dönemi aynı aya
+        # düşürürdü (Ocak+30g = 2 Mart, Şubat+30g = 30 Mart → Ocak kaybolur). En büyüğü almak
+        # hiçbir değerin yayımlanmadan önce görünmemesini garanti eder.
+        available = _month_end(pd.DatetimeIndex(monthly.index + pd.Timedelta(days=publication_lag_days)))
+        shift = int(max((a.to_period("M") - p.to_period("M")).n for a, p in zip(available, monthly.index)))
+        monthly.index = _month_end(monthly.index + pd.offsets.MonthEnd(shift)) if shift else monthly.index
 
     monthly = monthly.dropna()
     if freq.is_low and len(monthly) > 0:

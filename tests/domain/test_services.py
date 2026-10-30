@@ -83,3 +83,19 @@ def test_daily_lag_applied_before_aggregation():
     m = to_monthly(s, Frequency.BUSINESS, publication_lag_days=1)
     assert m.loc["2026-09-30"] > 19.0  # yalnızca 31 Ağustos gözlemi (1 Eylül'de yayımlanan) karışır
     assert m.loc["2026-10-31"] > 29.0
+
+
+def test_monthly_lag_never_collides_or_drops_months():
+    # 30 günlük gecikme: Ocak+30g = 2 Mart, Şubat+30g = 30 Mart. Eski kod Ocak'ı kaybediyordu.
+    idx = pd.date_range("2025-01-31", "2026-06-30", freq="ME")
+    s = pd.Series(range(len(idx)), index=idx, dtype=float)
+    m = to_monthly(s, Frequency.MONTHLY, publication_lag_days=30)
+    assert len(m) == len(s) and m.is_unique  # hiçbir ay kaybolmadı
+    assert m.loc["2025-03-31"] == 0.0  # Ocak değeri Mart'ta (yayımlandığı ay), Şubat'ta değil
+    assert m.index.to_series().diff().dropna().dt.days.max() <= 31  # boşluk yok
+
+
+def test_quarterly_lag_shift_is_exact():
+    s = pd.Series([1.0, 2.0, 3.0, 4.0], index=pd.to_datetime(["2025-03-31", "2025-06-30", "2025-09-30", "2025-12-31"]))
+    m = to_monthly(s, Frequency.QUARTERLY, publication_lag_days=90)
+    assert m.loc["2025-06-30"] == 1.0 and m.loc["2026-03-31"] == 4.0  # 3 ay kayma, 4 değil

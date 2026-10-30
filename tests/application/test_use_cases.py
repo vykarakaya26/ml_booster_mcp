@@ -166,3 +166,27 @@ def test_audit_and_backtest_use_cases(deps):
     assert report.months == len(result.panel)
     bt, _ = RunBacktest(build)("telekom", BacktestConfig(target="usdtry_logdiff", min_train=24), date(2024, 1, 1), date(2026, 9, 30))
     assert not bt.metrics.empty
+
+
+def test_set_feature_create_adds_new_feature_and_unknown_override_fails(tmp_path, deps):
+    from mlbooster.application.use_cases import SetFeatureSeries
+    from mlbooster.domain.errors import InconsistentCatalog
+    from mlbooster.infrastructure.catalog_yaml import YamlCatalogRepository
+    from mlbooster.infrastructure.settings import PACKAGE_DIR
+
+    _, providers, *_ = deps
+    overrides = tmp_path / "overrides.yaml"
+    repo = YamlCatalogRepository(PACKAGE_DIR / "catalog_data", overrides)
+    providers.series["TP.URETIM.X"] = pd.Series([1.0, 2.0], index=pd.to_datetime(["2026-08-31", "2026-09-30"]))
+    with pytest.raises(InvalidInput, match="create"):
+        SetFeatureSeries(repo, providers, repo)("otomotiv", "binek_uretim", "TP.URETIM.X")
+    SetFeatureSeries(repo, providers, repo)(
+        "otomotiv", "binek_uretim", "TP.URETIM.X", create=True, transform="yoy_pct", kind="flow"
+    )
+    feature = next(f for f in YamlCatalogRepository(PACKAGE_DIR / "catalog_data", overrides).load().sector("otomotiv").macro_features if f.name == "binek_uretim")
+    assert feature.series == "TP.URETIM.X" and feature.transform.value == "yoy_pct"
+
+    bad = tmp_path / "bad.yaml"
+    bad.write_text("version: 1\nfeatures:\n  bankacilik:\n    yok_boyle: TP.X\n")
+    with pytest.raises(InconsistentCatalog, match="yok_boyle"):
+        YamlCatalogRepository(PACKAGE_DIR / "catalog_data", bad).load()

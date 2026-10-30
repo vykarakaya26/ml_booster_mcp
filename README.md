@@ -74,7 +74,9 @@ Veriler varsayılan olarak `~/.mlbooster/data` altında tutulur. Bu dizin `MLBOO
 
 ## Panel kuralları
 
-- **Nokta-zamanlı hizalama:** Her gözlem, `dönem sonu + publication_lag_days` tarihinin düştüğü ayın satırına yazılır. Böylece panelde look-ahead sızıntısı olmaz. Örneğin Eylül TÜFE'si Ekim satırında görünür.
+- **Nokta-zamanlı hizalama:** Paneldeki tarih, verinin referans ayını değil **kullanılabilir hale geldiği ayı** gösterir. Böylece look-ahead sızıntısı olmaz. Örneğin Eylül TÜFE'si (3 Ekim'de yayımlanır) Ekim satırındadır. Hedef değişkeni panelle birleştirirken bu kuralı göz önünde bulundurun.
+  - Günlük ve haftalık serilerde gecikme her gözleme aylığa toplamadan önce uygulanır, yani t satırı t içinde yayımlanan gözlemlerin ortalamasıdır.
+  - Aylık ve çeyreklik serilerde sabit bir ay kayması uygulanır; hiçbir ay kaybolmaz ve çakışmaz.
 - **Frekans dönüşümü:** Günlükten aylığa geçerken seviye serilerinde `avg` (veya `last`), akım serilerinde `sum` kullanılır; tamamlanmamış son ay atılır. Çeyreklik ve yıllık seriler yalnızca ileriye doldurulur.
 - **Reel dönüşüm:** Deflatör, TÜFE'nin aylık % değişimlerinden zincirlenerek kurulur. Bu yüzden 2003=100 → 2025=100 baz değişikliği seviyede kırılma yaratmaz.
 

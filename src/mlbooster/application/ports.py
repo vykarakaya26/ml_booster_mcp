@@ -9,7 +9,7 @@ from typing import Protocol
 import pandas as pd
 
 from mlbooster.application.dto import FetchRequest
-from mlbooster.domain.model import Catalog, HealthResult, SeedSeries, Source
+from mlbooster.domain.model import Catalog, HealthResult, MacroFeature, SeedSeries, Source
 
 
 class CatalogRepository(Protocol):
@@ -19,8 +19,16 @@ class CatalogRepository(Protocol):
 class CatalogOverrides(Protocol):
     """Kullanıcının keşfettiği seri kodlarını paket kataloğuna dokunmadan kalıcılaştırır."""
 
-    def set_feature(self, sector_id: str, feature: str, seed: SeedSeries, source_id: str) -> str:
-        """Override'ı yazar, konumunu döner; sonraki `load()` yeni değeri görür."""
+    def set_feature(
+        self,
+        sector_id: str,
+        feature: str,
+        seed: SeedSeries,
+        source_id: str,
+        new_feature: MacroFeature | None = None,
+    ) -> str:
+        """Override'ı yazar, konumunu döner; sonraki `load()` yeni değeri görür.
+        `new_feature` verilirse sektöre yeni bir feature eklenir."""
         ...
 
 

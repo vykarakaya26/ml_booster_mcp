@@ -222,7 +222,8 @@ class OverridesSchema(_Strict):
 
     version: Literal[1] = 1
     seeds: dict[str, list[OverrideSeedSchema]] = Field(default_factory=dict)  # kaynak → tohum seriler
-    features: dict[str, dict[str, str]] = Field(default_factory=dict)  # sektör → feature → seri kodu
+    features: dict[str, dict[str, str]] = Field(default_factory=dict)  # sektör → mevcut feature → seri kodu
+    new_features: dict[str, list[FeatureSchema]] = Field(default_factory=dict)  # sektör → eklenen feature'lar
 
     @field_validator("features")
     @classmethod
@@ -261,13 +262,27 @@ class YamlCatalogRepository:
                 extra = {s.code: SeedSeries(**s.model_dump(exclude={"verified_at"})) for s in seeds}
                 kept = tuple(s for s in source_map[source_id].series if s.code not in extra)
                 source_map[source_id] = replace(source_map[source_id], series=kept + tuple(extra.values()))
+        for sector_id, added in overrides.new_features.items():
+            if sector_id not in sector_map:
+                raise InconsistentCatalog(f"Override: bilinmeyen sektör {sector_id}")
+            sector = sector_map[sector_id]
+            existing = {f.name for f in sector.macro_features}
+            extra = tuple(f.to_domain() for f in added if f.name not in existing)
+            sector_map[sector_id] = replace(sector, macro_features=sector.macro_features + extra)
         for sector_id, mapping in overrides.features.items():
-            if sector_id in sector_map:
-                sector = sector_map[sector_id]
-                features = tuple(
-                    replace(f, series=mapping[f.name]) if f.name in mapping else f for f in sector.macro_features
+            if sector_id not in sector_map:
+                raise InconsistentCatalog(f"Override: bilinmeyen sektör {sector_id}")
+            sector = sector_map[sector_id]
+            unknown = set(mapping) - {f.name for f in sector.macro_features}
+            if unknown:  # sessizce yok saymak yerine açıkça hata ver
+                raise InconsistentCatalog(
+                    f"Override: {sector_id} sektöründe olmayan feature(lar): {sorted(unknown)}. "
+                    "Yeni feature için `catalog set-feature --create` kullanın."
                 )
-                sector_map[sector_id] = replace(sector, macro_features=features)
+            features = tuple(
+                replace(f, series=mapping[f.name]) if f.name in mapping else f for f in sector.macro_features
+            )
+            sector_map[sector_id] = replace(sector, macro_features=features)
         return Catalog(sources=source_map, sectors=sector_map)
 
     def _read_overrides(self) -> OverridesSchema:
@@ -275,7 +290,14 @@ class YamlCatalogRepository:
             return OverridesSchema()
         return OverridesSchema.model_validate(_read_yaml(self._overrides_path))
 
-    def set_feature(self, sector_id: str, feature: str, seed: SeedSeries, source_id: str) -> str:
+    def set_feature(
+        self,
+        sector_id: str,
+        feature: str,
+        seed: SeedSeries,
+        source_id: str,
+        new_feature: MacroFeature | None = None,
+    ) -> str:
         if self._overrides_path is None:
             raise InconsistentCatalog("Override dosyası yapılandırılmamış")
         current = self._read_overrides().model_dump(mode="json")
@@ -289,7 +311,19 @@ class YamlCatalogRepository:
             }
         )  # fmt: skip
         current["seeds"][source_id] = seeds
-        current["features"].setdefault(sector_id, {})[feature] = seed.code
+        if new_feature is not None:
+            added = [f for f in current["new_features"].get(sector_id, []) if f["name"] != feature]
+            added.append(
+                {
+                    "name": new_feature.name, "source": new_feature.source, "series": seed.code,
+                    "transform": new_feature.transform.value,
+                    "agg": new_feature.agg.value if new_feature.agg else None,
+                    "real": new_feature.real, "discover_hint": None,
+                }
+            )  # fmt: skip
+            current["new_features"][sector_id] = added
+        else:
+            current["features"].setdefault(sector_id, {})[feature] = seed.code
         OverridesSchema.model_validate(current)  # yazmadan önce doğrula
         _atomic_write_yaml(self._overrides_path, current)
         self._cache = None  # sonraki load() yeni değeri görsün

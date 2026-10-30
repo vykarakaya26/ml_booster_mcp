@@ -161,10 +161,17 @@ def set_feature_series(
     kind: str = "level",
     publication_lag_days: int | None = None,
     datagroup: str | None = None,
+    create: bool = False,
+    transform: str = "level",
+    agg: str | None = None,
 ) -> dict:
-    """Keşif bekleyen bir sektör feature'ına seri kodu bağlar. Kod önce canlı doğrulanır (son 2 yılda veri,
-    seri durmamış). Kullanıcının yerel override dosyasına yazar; paket kataloğu değişmez."""
-    b = container().set_feature_series(sector, feature, series, name, kind, publication_lag_days, datagroup)
+    """Bir sektör feature'ına seri kodu bağlar; create=True ise yeni feature ekler (transform: level, diff,
+    log_diff, yoy_pct; agg: avg, last, sum). Kod önce canlı doğrulanır (son 2 yılda veri, seri durmamış).
+    Kullanıcının yerel override dosyasına yazar; paket kataloğu değişmez."""
+    b = container().set_feature_series(
+        sector, feature, series, name, kind, publication_lag_days, datagroup,
+        create=create, transform=transform, agg=agg,
+    )  # fmt: skip
     return {
         "sector": b.sector_id, "feature": b.feature, "series": b.seed.code, "freq": b.seed.freq.value,
         "publication_lag_days": b.seed.publication_lag_days, "last_observation": b.last_observation.isoformat(),

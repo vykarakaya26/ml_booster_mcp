@@ -12,7 +12,7 @@ from mlbooster.application.errors import ProviderError, ProviderNotImplemented
 from mlbooster.application.ports import CatalogOverrides, CatalogRepository, ProviderFactory
 from mlbooster.application.use_cases._providers import open_provider
 from mlbooster.domain.errors import InvalidInput
-from mlbooster.domain.model import Frequency, SeedSeries, SeriesKind
+from mlbooster.domain.model import Aggregation, Frequency, MacroFeature, SeedSeries, SeriesKind, Transform
 from mlbooster.domain.validation import series_code, slug
 
 MAX_QUERY_LEN = 80
@@ -65,12 +65,32 @@ class SetFeatureSeries:
         kind: str = "level",
         publication_lag_days: int | None = None,
         datagroup: str | None = None,
+        create: bool = False,
+        transform: str = "level",
+        agg: str | None = None,
+        source_id: str = "evds3",
     ) -> FeatureBinding:
         catalog = self._catalog.load()
         sector = catalog.sector(slug(sector_id, "sektör"))
         match = next((f for f in sector.macro_features if f.name == feature), None)
+        new_feature = None
         if match is None:
-            raise InvalidInput(f"{sector.id} sektöründe '{feature}' feature'ı yok: {[f.name for f in sector.macro_features]}")
+            if not create:
+                raise InvalidInput(
+                    f"{sector.id} sektöründe '{feature}' feature'ı yok: {[f.name for f in sector.macro_features]}. "
+                    "Yeni feature eklemek için create=True (CLI: --create) kullanın."
+                )
+            try:
+                new_feature = MacroFeature(
+                    name=slug(feature, "feature"),
+                    source=catalog.source(slug(source_id, "kaynak")).id,
+                    transform=Transform(transform),
+                    agg=Aggregation(agg) if agg else None,
+                    discover_hint="kullanıcı tarafından eklendi",
+                )
+            except ValueError as exc:
+                raise InvalidInput(f"Geçersiz transform/agg: {exc}") from None
+            match = new_feature
         code = series_code(code)
         try:
             kind_v = SeriesKind(kind)
@@ -101,5 +121,5 @@ class SetFeatureSeries:
                 publication_lag_days if publication_lag_days is not None else freq.default_publication_lag_days
             ),
         )
-        location = self._overrides.set_feature(sector.id, feature, seed, source.id)
+        location = self._overrides.set_feature(sector.id, feature, seed, source.id, new_feature)
         return FeatureBinding(sector.id, feature, seed, last, location)

@@ -31,6 +31,20 @@
 | Tüketici kredisi faizi (TL, akım) | `TP.KTFTUK` | bie_kt100h | Haftalık (Cuma) | |
 | Tüketici güven endeksi | `TP.TG2.Y01` | bie_mbgven2 | Aylık | 100 eşiği iyimserlik ayrımı |
 
+## Bilinen yayın gecikmeleri (`--lag`, gün; dönem sonuna göre)
+Gecikme, değerin **dönem sonundan kaç gün sonra** yayımlandığıdır. Ay içinde yayımlanan seriler için
+0 verilir. Gecikme verilmezse varsayılan muhafazakârdır (aylık 30 gün → 2 ay kayma) ve feature'ı
+gereksiz yere bir ay geç gösterir. Biliniyorsa mutlaka verin.
+
+| Seri | Yayın | `--lag` |
+|---|---|---|
+| TÜFE (TÜİK/EVDS) | İzleyen ayın 3'ü | 3 |
+| Tüketici güven endeksi (TP.TG2.*) | Aynı ayın ~20'si | 0 |
+| Reel kesim güven, kapasite kullanımı | Aynı ayın ~25'i | 0 |
+| Haftalık kredi/mevduat faizleri (bie_kt100h, bie_mt100h) | İzleyen hafta | 7 |
+| Kur, AOFM (günlük) | Ertesi iş günü | 1 |
+| Dış borç (çeyreklik) | ~3 ay | 90 |
+
 ## Bilinen tuzaklar
 - `TP.FG.J0` 2026-01'de durdu ama hâlâ eski veri döndürür. Hata vermez, yalnızca `stale` olarak
   görünür.

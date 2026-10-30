@@ -46,9 +46,18 @@ Bir kodu seçmeden önce şunları kontrol et:
 - Son 2 yılda veri yoksa.
 - Son gözlem frekansına göre çok eskiyse.
 
-Yayın gecikmesini biliyorsan `--lag` ile ver (ör. TÜFE ayın 3'ü → 3; haftalık kredi faizleri ≈ 7).
-Bilmiyorsan verme: varsayılan muhafazakârdır (aylık 30, çeyreklik 90 gün) ve look-ahead'i önler.
+Yayın gecikmesini `references/search-tips.md` dosyasındaki tablodan bul ve `--lag` ile ver. Ay içinde
+yayımlanan seriler için (ör. güven endeksleri) bu değer 0'dır. Bilmiyorsan verme: varsayılan
+muhafazakârdır (aylık 30 gün → 2 ay kayma) ve look-ahead'i önler, ama feature'ı geç gösterir. Bu
+durumda raporda belirt.
 Override `~/.mlbooster/catalog/overrides.yaml` dosyasına yazılır, paket dosyaları değişmez.
+
+### Yeni feature eklemek
+Kullanıcı sektörde olmayan bir değişken istiyorsa (ör. otomotiv için binek üretimi ya da ithalat
+hedef adayı) `--create` ver. Sık seriler için dönüşüm ve agregasyonu da belirt:
+`--create --transform yoy_pct --kind flow` (akım: aylık toplam) ya da
+`--create --transform level --agg last`. Override'da sektörde olmayan bir feature adı geçerse hata
+alınır; sessizce yok sayılmaz.
 
 ### 4. Teslim
 Her bağlanan feature için şunları raporla: kod, veri grubu, frekans, son gözlem, gecikme ve neden
