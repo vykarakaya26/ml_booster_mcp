@@ -22,16 +22,19 @@ verification_status: verified
 verification_notes: >-
   2026-10-30: uç canlı denendi. Anahtarsız → 403 JSON "Required request header 'key' is not present",
   geçersiz anahtar → 401 text/plain, evds2.tcmb.gov.tr/service/evds → 302 (kapalı).
-  Geçerli anahtarla veri biçimi henüz canlı doğrulanmadı (pytest -m live).
+  Geçerli anahtarla veri biçimi (items/Tarih/KOD-<formül>, 2026-1, 2025-Q1, gg-aa-yyyy) canlı doğrulandı.
 known_breaks:
   - "2024-04-05: API anahtarı URL'den header'a taşındı"
   - "2025 sonu: evds2 REST ucu kapandı (302 → SPA)"
-  - "2026-01: TÜFE 2025=100 bazına ve ECOICOP v2'ye geçti"
+  - "2026-01: TÜFE 2025=100 bazına ve ECOICOP v2'ye geçti; TP.FG.J0 (2003=100) 2026-01'de bitti → TP.TUKFIY2025.GENEL"
+  - "2026: TP.DB.B01 / bie_dbdborc kaldırıldı (HTTP 400) → TP.BRUTDBORCLU.G1"
+  - "2026: TP.DK.*.YTL kodları takma ada dönüştü; kanonik kod TP.DK.USD.A"
 adapter: evds3
 priority: 1
 series:
-  - {code: TP.DK.USD.A.YTL, name: "USD/TRY döviz alış", freq: B, kind: level, unit: TRY, currency: TRY, datagroup: bie_dkdovizgn, publication_lag_days: 0, canary: true}
-  - {code: TP.DK.EUR.A.YTL, name: "EUR/TRY döviz alış", freq: B, kind: level, unit: TRY, currency: TRY, datagroup: bie_dkdovizgn, publication_lag_days: 0}
-  - {code: TP.FG.J0, name: "TÜFE genel endeksi", freq: M, kind: level, unit: index, publication_lag_days: 3, canary: true}
-  - {code: TP.APIFON4, name: "TCMB ağırlıklı ortalama fonlama maliyeti", freq: B, kind: level, unit: percent, publication_lag_days: 1}
-  - {code: TP.DB.B01, name: "Brüt dış borç stoku", freq: Q, kind: level, unit: million_usd, currency: USD, datagroup: bie_dbdborc, publication_lag_days: 90}
+  # Kodlar 2026-10-30'da canlı /serieList ile doğrulandı.
+  - {code: TP.DK.USD.A, name: "USD/TRY döviz alış", freq: B, kind: level, unit: TRY, currency: TRY, datagroup: bie_dkdovizgn, publication_lag_days: 0, canary: true}
+  - {code: TP.DK.EUR.A, name: "EUR/TRY döviz alış", freq: B, kind: level, unit: TRY, currency: TRY, datagroup: bie_dkdovizgn, publication_lag_days: 0}
+  - {code: TP.TUKFIY2025.GENEL, name: "TÜFE genel endeksi (2025=100)", freq: M, kind: level, unit: index, datagroup: bie_tukfiy2025, publication_lag_days: 3, canary: true}
+  - {code: TP.APIFON4, name: "TCMB ağırlıklı ortalama fonlama maliyeti", freq: B, kind: level, unit: percent, datagroup: bie_apifon, publication_lag_days: 1}
+  - {code: TP.BRUTDBORCLU.G1, name: "Brüt dış borç stoku, toplam", freq: Q, kind: level, unit: million_usd, currency: USD, datagroup: bie_brutdbborclu, publication_lag_days: 90}

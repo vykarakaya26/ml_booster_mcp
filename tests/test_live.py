@@ -5,28 +5,44 @@ from datetime import date, timedelta
 
 import pytest
 
-from mlbooster.adapters.evds3 import Evds3Adapter
+from mlbooster.application.dto import FetchRequest
+from mlbooster.domain.model import HealthStatus
+from mlbooster.infrastructure.http_client import SecureHttpClient
+from mlbooster.infrastructure.providers.evds3 import Evds3Provider
+from mlbooster.infrastructure.secret_store import EnvSecretProvider
+from dotenv import dotenv_values, find_dotenv
 
-pytestmark = [
-    pytest.mark.live,
-    pytest.mark.skipif(not os.environ.get("EVDS_API_KEY"), reason="EVDS_API_KEY yok"),
-]
+# os.environ'u değiştirmeden oku: offline testler anahtarı görmemeli.
+API_KEY = os.environ.get("EVDS_API_KEY") or dotenv_values(find_dotenv(usecwd=True)).get("EVDS_API_KEY")
+
+pytestmark = [pytest.mark.live, pytest.mark.skipif(not API_KEY, reason="EVDS_API_KEY yok")]
 
 
-def test_evds3_healthcheck(catalog):
-    adapter = Evds3Adapter(catalog.source("evds3"))
-    result = adapter.healthcheck()
-    assert result.status == "ok", result.detail
+@pytest.fixture
+def evds(catalog, monkeypatch):
+    monkeypatch.setenv("EVDS_API_KEY", API_KEY)
+    provider = Evds3Provider(catalog.source("evds3"), http=SecureHttpClient(), secrets=EnvSecretProvider())
+    yield provider
+    provider.close()
 
 
-def test_evds3_seed_series_return_data(catalog):
-    adapter = Evds3Adapter(catalog.source("evds3"))
+def test_healthcheck(evds):
+    result = evds.healthcheck()
+    assert result.status is HealthStatus.OK, result.detail
+
+
+def test_seed_series_return_data(evds, catalog):
     for seed in catalog.source("evds3").series:
-        df = adapter.fetch([seed.code], date.today() - timedelta(days=800), date.today())
+        df = evds.fetch(FetchRequest.create("evds3", [seed.code], date.today() - timedelta(days=800)))
         assert not df.empty, seed.code
-        assert set(df["freq"]) == {seed.freq}, seed.code
+        assert set(df["freq"]) == {seed.freq.value}, seed.code
 
 
-def test_evds3_serielist_schema(catalog):
-    df = Evds3Adapter(catalog.source("evds3")).list_series("bie_dkdovizgn")
-    assert "TP.DK.USD.A.YTL" in set(df["series_id"])
+@pytest.mark.parametrize("seed_index", range(5))
+def test_seed_codes_listed_in_their_datagroup(evds, catalog, seed_index):
+    """Katalogdaki kod EVDS'nin güncel /serieList'inde mi? (kod değişikliklerini yakalar)"""
+    seed = catalog.source("evds3").series[seed_index]
+    listed = evds.list_series(seed.datagroup)
+    row = listed[listed["series_id"] == seed.code]
+    assert not row.empty, f"{seed.code} {seed.datagroup} içinde yok"
+    assert row.iloc[0]["freq"] in {seed.freq.value, "D"}  # EVDS kur gruplarını 'GÜNLÜK' etiketler
