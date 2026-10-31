@@ -38,7 +38,7 @@ def test_seed_series_return_data(evds, catalog):
         assert set(df["freq"]) == {seed.freq.value}, seed.code
 
 
-@pytest.mark.parametrize("seed_index", range(5))
+@pytest.mark.parametrize("seed_index", range(6))
 def test_seed_codes_listed_in_their_datagroup(evds, catalog, seed_index):
     """Katalogdaki kod EVDS'nin güncel /serieList'inde mi? (kod değişikliklerini yakalar)"""
     seed = catalog.source("evds3").series[seed_index]

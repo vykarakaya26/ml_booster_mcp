@@ -38,12 +38,22 @@ class Flag:
 
 
 @dataclass
+class Band:
+    """Tahmin aralığı (ör. %10–%90): alt ve üst sınır arasında yarı saydam alan, ilgili serinin renginde."""
+    label: str
+    lower: Sequence[float | None]
+    upper: Sequence[float | None]
+    slot: int = 2
+
+
+@dataclass
 class LineChart:
     dates: Sequence[date]
     series: list[Series]
     title: str
     markers: list[Marker] = field(default_factory=list)
     flags: list[Flag] = field(default_factory=list)
+    bands: list[Band] = field(default_factory=list)
     y_format: Callable[[float], str] | None = None  # None: ondalık sayısı tick aralığından
     height: int = H
 
@@ -80,6 +90,7 @@ def line_chart(chart: LineChart) -> str:
     dates = list(chart.dates)
     h = chart.height
     values = [v for s in chart.series for v in s.values if v is not None] + [f.value for f in chart.flags]
+    values += [v for b in chart.bands for v in (*b.lower, *b.upper) if v is not None]
     if not dates or not values:
         return f'<p class="muted">{html.escape(chart.title)}: veri yok.</p>'
     yt = _ticks(min(values), max(values))
@@ -122,6 +133,18 @@ def line_chart(chart: LineChart) -> str:
             x = sx(m.when)
             out.append(f'<line class="marker" x1="{x:.1f}" x2="{x:.1f}" y1="{PAD_T}" y2="{PAD_T + plot_h}"/>')
             out.append(f'<text class="marker-label" x="{x + 3:.1f}" y="{PAD_T - 6}">{html.escape(m.label)}</text>')
+    # Bantlar (çizgilerin altında): kesintisiz parçalar için ayrı çokgenler
+    for b in chart.bands:
+        segment: list[tuple[date, float, float]] = []
+        for d, lo, hi in [*zip(dates, b.lower, b.upper), (None, None, None)]:
+            if d is not None and lo is not None and hi is not None:
+                segment.append((d, lo, hi))
+                continue
+            if len(segment) >= 2:
+                top = " ".join(f"{sx(x):.1f},{sy(h):.1f}" for x, _, h in segment)
+                bottom = " ".join(f"{sx(x):.1f},{sy(lo_):.1f}" for x, lo_, _ in reversed(segment))
+                out.append(f'<polygon class="band s{b.slot}" points="{top} {bottom}"><title>{html.escape(b.label)}</title></polygon>')
+            segment = []
     # Seriler: boşluklarda çizgi kesilir
     for s in chart.series:
         path, pen = [], False
@@ -149,10 +172,14 @@ def line_chart(chart: LineChart) -> str:
     }
     data_attr = html.escape(json.dumps(payload, ensure_ascii=False, allow_nan=False), quote=True)
     legend = ""
-    if len(chart.series) >= 2:
+    if len(chart.series) >= 2 or chart.bands:
         items = "".join(
             f'<span class="legend-item"><span class="swatch s{s.slot}"></span>{html.escape(s.label)}</span>'
             for s in chart.series
+        )
+        items += "".join(
+            f'<span class="legend-item"><span class="swatch band-swatch s{b.slot}"></span>{html.escape(b.label)}</span>'
+            for b in chart.bands
         )
         legend = f'<div class="legend">{items}</div>'
     return (

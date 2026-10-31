@@ -92,6 +92,10 @@ python3 "${CLAUDE_SKILL_DIR}/scripts/render_sector_report.py" \
 Kullanıcıya şunları ver: rapor yolu, 3–5 satırlık özet (en önemli bulgu, veri durumu, en iyi
 referans model) ve somut sonraki adımlar (keşif bekleyen feature'lar, hedef için daha iyi model).
 `panel.csv` ML'e hazır çıktıdır; bunu da belirt.
+Kur, enflasyon ya da faiz görünümü sektör için kritikse (ör. otomotivde kur geçişkenliği),
+`${CLAUDE_SKILL_DIR}/../_shared/references/external-forecasts.md` dosyasına göre kurumların yıl sonu
+tahminlerini derle ve rapora `--external` ile ekle. Bunlar varsayımdır; konsensüs kuralı ve bayatlık
+otomatik uygulanır.
 
 ## Kalite çıtası
 - **Hedef değişken var mı?** Sektörün asıl hedefi (satış, prim, abone vb.) panelde yoksa, örneğin

@@ -6,7 +6,7 @@ Amaç güçlendirici şeffaflıktır. Okur her yorumun hangi veriye, hangi varsa
 Şema (anahtarlar İngilizce, değerler Türkçe):
 {
   "context": {"purpose", "decision", "audience", "target", "horizon", "units", "period"},
-  "assumptions": [{"id": "A1", "topic", "statement", "kind": "user|sector|default|data",
+  "assumptions": [{"id": "A1", "topic", "statement", "kind": "user|sector|default|data|external",
                    "confirmed": bool, "source", "as_of": "YYYY-AA-GG", "confidence": "low|medium|high",
                    "impact", "check"}],
   "scenarios": [{"name", "description"}],          # opsiyonel
@@ -28,6 +28,7 @@ KINDS = {
     "sector": ("info", "◆", "Sektör varsayımı"),
     "default": ("serious", "▲", "Varsayılan"),
     "data": ("info", "≡", "Veriden"),
+    "external": ("info", "↗", "Dış tahmin"),
 }
 CONTEXT_LABELS = [
     ("purpose", "Amaç"), ("decision", "Desteklenen karar"), ("audience", "Okur"),
@@ -79,12 +80,12 @@ def stale(data: dict, today: date | None = None) -> list[dict]:
     today = today or date.today()
     return [
         a for a in data["assumptions"]
-        if a.get("as_of") and a["kind"] in {"sector", "default"} and (today - date.fromisoformat(a["as_of"])).days > STALE_DAYS
+        if a.get("as_of") and a["kind"] in {"sector", "default", "external"} and (today - date.fromisoformat(a["as_of"])).days > STALE_DAYS
     ]  # fmt: skip
 
 
 def unconfirmed(data: dict) -> list[dict]:
-    return [a for a in data["assumptions"] if not a["confirmed"] and a["kind"] in {"default", "sector"}]
+    return [a for a in data["assumptions"] if not a["confirmed"] and a["kind"] in {"default", "sector", "external"}]
 
 
 def _kind_badge(kind: str, confirmed: bool) -> str:

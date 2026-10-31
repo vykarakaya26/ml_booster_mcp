@@ -139,6 +139,7 @@ def backtest_dict(result: BacktestResult, sector_id: str, max_predictions: int |
         },
         "best_model": result.best_model,
         "common_origins": result.common_origins,
+        "robust_share": result.robust_share,
         "metrics": [{k: _clean(v) for k, v in row.items()} for row in result.metrics.to_dict(orient="records")],
         "regime_metrics": [{k: _clean(v) for k, v in row.items()} for row in result.regime_metrics.to_dict(orient="records")],
         "features_used": list(result.features_used),

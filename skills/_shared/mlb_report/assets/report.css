@@ -65,6 +65,8 @@ svg .bar-value { fill: var(--text-primary); font-size: 12px; }
 svg .line { fill: none; stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
 svg .line.s1 { stroke: var(--series-1); } svg .line.s2 { stroke: var(--series-2); } svg .line.s3 { stroke: var(--series-3); }
 svg .marker { stroke: var(--text-muted); stroke-width: 1; }
+svg .band { stroke: none; opacity: .18; } svg .band.s1 { fill: var(--series-1); } svg .band.s2 { fill: var(--series-2); } svg .band.s3 { fill: var(--series-3); }
+.swatch.band-swatch { height: 10px; opacity: .35; }
 svg .flag { fill: var(--serious); stroke: var(--surface-1); stroke-width: 2; }
 svg .crosshair { stroke: var(--text-muted); stroke-width: 1; }
 svg .bar { fill: var(--series-1); } svg .bar.muted-bar { fill: var(--axis); }

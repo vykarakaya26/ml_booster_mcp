@@ -7,7 +7,7 @@
 | Mevduat faizi | "mevduat faiz", "mevduat faiz oranları akım" | Vadeye göre alt seriler var; "toplam" ya da 1–3 ay vadeyi tercih et |
 | Tüketici güveni | "tüketici güven" | `bie_mbgven2` güncel grup, `bie_mbgven` arşivdir |
 | Reel kesim güveni | "reel kesim güven" | `bie_rkgey2` |
-| Enflasyon beklentisi | "beklenti", "sektörel enflasyon beklentileri", "hanehalkı beklenti" | PKA'nın eski grupları arşivde; güncel beklentiler başka adlarla geçiyor |
+| Enflasyon beklentisi | "beklenti", "sektörel enflasyon beklentileri" | Güncel PKA beklentisi `bie_enfbek` grubunda; `bie_bekodtufe` arşivdir |
 | TÜFE | "tüketici fiyat endeksi 2025" | 2003=100 grupları arşivde ya da durmuş durumda |
 | Dış borç | "brüt dış borç" | `bie_dbdborc` kaldırıldı |
 | Politika faizi / fonlama | "fonlama", "apifon" | `TP.APIFON4` = AOFM |
@@ -30,6 +30,7 @@
 | Ticari kredi faizi (TL, akım) | `TP.KTF17` | bie_kt100h | Haftalık (Cuma) | |
 | Tüketici kredisi faizi (TL, akım) | `TP.KTFTUK` | bie_kt100h | Haftalık (Cuma) | |
 | Tüketici güven endeksi | `TP.TG2.Y01` | bie_mbgven2 | Aylık | 100 eşiği iyimserlik ayrımı |
+| PKA 12 ay sonrası TÜFE beklentisi | `TP.ENFBEK.PKA12ENF` | bie_enfbek | Aylık | Aynı grupta reel kesim (IYA12ENF) ve hanehalkı (HBA12ENF) beklentileri |
 
 ## Bilinen yayın gecikmeleri (`--lag`, gün; dönem sonuna göre)
 Gecikme, değerin **dönem sonundan kaç gün sonra** yayımlandığıdır. Ay içinde yayımlanan seriler için

@@ -19,6 +19,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "_shared"))
 
 from mlb_report import html as H  # noqa: E402
 from mlb_report import assumptions as A  # noqa: E402
+from mlb_report import external as X  # noqa: E402
 from mlb_report.data import read_json, read_panel_csv  # noqa: E402
 from mlb_report.svg import LineChart, Series, line_chart  # noqa: E402
 
@@ -45,7 +46,7 @@ def _fmt(v: float | None, transform: str | None = None) -> str:
     return f"{v:,.1f}" if a >= 100 else f"{v:,.2f}" if a >= 1 else f"{v:,.4f}"
 
 
-def build(m: dict, dates: list[date], columns: dict, audit: dict, backtests: list[dict], narrative: str, assumptions: dict | None = None) -> str:
+def build(m: dict, dates: list[date], columns: dict, audit: dict, backtests: list[dict], narrative: str, assumptions: dict | None = None, external: dict | None = None, latest: dict | None = None) -> str:
     sector = m["sector"]
     features = {f["name"]: f for f in m["macro_features"]}
     sections = [H.section("Yönetici özeti", f'<div class="narrative">{H.markdown(narrative)}</div>', "ozet")]
@@ -108,6 +109,8 @@ def build(m: dict, dates: list[date], columns: dict, audit: dict, backtests: lis
         body += '<p class="muted">Referans modeller: naive, mevsimsel naive, drift, ridge (değişim). Üretim modelinin bunları geçmesi beklenir.</p>'
         sections.append(H.section("Tahmin referansları", body, "tahmin"))
 
+    if external:
+        sections.append(X.section(external, latest=latest))
     method = (ASSETS / "methodology.md").read_text(encoding="utf-8")
     sections.append(H.section("Metodoloji ve sınırlar", f'<div class="narrative">{H.markdown(method)}</div>', "metodoloji"))
     licenses = [(s["name"], s["license"] or "—") for s in m["sources"]]
@@ -116,6 +119,7 @@ def build(m: dict, dates: list[date], columns: dict, audit: dict, backtests: lis
     nav = [("ozet", "Özet")] + ([("varsayimlar", "Varsayımlar")] if assumptions else [])
     nav += [("gorunum", "Görünüm"), ("harita", "Kaynak haritası"), ("kalite", "Kalite")]
     nav += [("tahmin", "Tahmin")] if backtests else []
+    nav += [("dis-tahminler", "Dış tahminler")] if external else []
     nav += [("metodoloji", "Metodoloji")]
     period = f"{dates[0]:%Y-%m} → {dates[-1]:%Y-%m}" if dates else ""
     return H.page(
@@ -127,6 +131,18 @@ def build(m: dict, dates: list[date], columns: dict, audit: dict, backtests: lis
     )
 
 
+def _parse_latest(items: list[str]) -> dict[str, tuple[str, float]]:
+    out = {}
+    for item in items:
+        try:
+            var, rest = item.split("=", 1)
+            month, value = rest.split(":", 1)
+            out[var.strip()] = (month.strip(), float(value))
+        except ValueError:
+            raise SystemExit(f"--latest biçimi değişken=YYYY-AA:değer olmalı: {item}") from None
+    return out
+
+
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--map", required=True, type=Path)
@@ -136,14 +152,17 @@ def main() -> None:
     ap.add_argument("--backtest", type=Path, action="append", default=[])
     ap.add_argument("--out", required=True, type=Path)
     ap.add_argument("--assumptions", type=Path, help="Girdi/varsayım kaydı (assumptions.json)")
+    ap.add_argument("--external", type=Path, help="Kurumsal tahminler (external_forecasts.json)")
+    ap.add_argument("--latest", action="append", default=[], help="Son gerçekleşen: değişken=YYYY-AA:değer (ör. usdtry=2026-10:49.70)")
     args = ap.parse_args()
     assumptions = A.load(args.assumptions) if args.assumptions else None
+    external = X.load(args.external) if args.external else None
     if assumptions is None:
         print("Uyarı: --assumptions verilmedi; raporda girdiler ve varsayımlar bölümü olmayacak.", file=sys.stderr)
     dates, columns = read_panel_csv(args.panel)
     html = build(
         read_json(args.map), dates, columns, read_json(args.audit),
-        [read_json(p) for p in args.backtest], args.narrative.read_text(encoding="utf-8"), assumptions,
+        [read_json(p) for p in args.backtest], args.narrative.read_text(encoding="utf-8"), assumptions, external, _parse_latest(args.latest),
     )  # fmt: skip
     args.out.parent.mkdir(parents=True, exist_ok=True)
     args.out.write_text(html, encoding="utf-8")

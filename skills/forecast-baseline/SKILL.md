@@ -1,6 +1,6 @@
 ---
 name: forecast-baseline
-description: Türkiye makro/sektör panelindeki bir hedef seri (enflasyon, kur, faiz, kredi faizi, güven endeksi…) için look-ahead korumalı rolling-origin backtest yapar. Naive, mevsimsel naive, drift ve ridge referans modellerini MAE/RMSE/sMAPE/MASE ile karşılaştırır ve grafikli HTML rapor üretir. Kullanıcı "tahmin", "forecast", "baseline", "backtest", "hangi model", "bu seriyi tahmin edebilir miyiz", "modelim iyi mi, neyle kıyaslayayım" dediğinde ya da bir ML modelinin geçmesi gereken çıtayı belirlemek istediğinde kullan. Also: "baseline forecast / backtest for Turkish macro series".
+description: Türkiye makro/sektör panelindeki bir hedef seri (enflasyon, kur, faiz, kredi faizi, güven endeksi…) için look-ahead korumalı rolling-origin backtest yapar. Naive/çapa, drift, son 12 ay ortalama/medyan, ridge, kantil regresyon (%10–%90 aralık) ve ortalama/medyan kombinasyonlarını (sapma yüksekse medyana geçen otomatik kural dahil) MAE, RMSE, aralık kapsaması ve pinball kaybıyla karşılaştırır. Büyük bankaların ve TCMB anketinin yıl sonu tahminlerini konsensüs olarak yanına koyar ve fan chart'lı HTML rapor üretir. Kullanıcı "tahmin", "forecast", "baseline", "backtest", "hangi model", "bu seriyi tahmin edebilir miyiz", "modelim iyi mi, neyle kıyaslayayım" dediğinde ya da bir ML modelinin geçmesi gereken çıtayı belirlemek istediğinde kullan. Also: "baseline forecast / backtest for Turkish macro series".
 allowed-tools:
   - Bash(${CLAUDE_SKILL_DIR}/../_shared/bin/mlb *)
   - Bash(python3 ${CLAUDE_SKILL_DIR}/scripts/render_backtest_report.py *)
@@ -29,17 +29,29 @@ SECTOR=otomotiv; OUT="mlbooster-reports/${SECTOR}-forecast-$(date +%Y%m%d)"; mkd
    `evds-series-discovery` skill'iyle önce bağla.
 2. **Ufuk**: kullanıcı belirtmediyse kararın sıklığına göre seç. Fiyatlama ve likidite için 1 ay,
    bütçe ve planlama için 3–6 ay. Gerekirse birkaç ufku ayrı JSON'larla koş.
-3. **Varyantlar** (gerekirse): `--no-exog` ile ridge'i yalnızca hedefin geçmişiyle dene. Dış
+3. **Model seçimi ve sapma.** Varsayılan set şunları içerir: naive, drift, drift_recent, mean12,
+   median12, ridge, qr (kantil regresyon), combo_mean, combo_median, auto_robust. Denetimde ya da
+   `diagnostics` alanında kalın kuyruk veya çok aykırı değer varsa medyan temelli sonuçları öne çıkar
+   (`references/methodology.md` → "Sapmalı veride ortalama mı medyan mı?"). Kur gibi `managed_path`
+   işaretli serilerde kontrollü rejimi ve kuyruk riskini ayrıca yaz.
+4. **Dış tahminler (kullanıcı yıl sonu görüşü istiyorsa ya da hedef kur/enflasyon/faizse).**
+   `${CLAUDE_SKILL_DIR}/../_shared/references/external-forecasts.md` dosyasına göre güncel kurum
+   tahminlerini WebSearch ile derle ve `$OUT/external_forecasts.json` dosyasına kaynak ve tarihle
+   yaz; uydurma rakam koyma. Rapora `--external "$OUT/external_forecasts.json"` ile, gerekirse
+   `--latest usdtry=YYYY-AA:değer` ile ekle. Bu tahminleri `assumptions.json` içine
+   `kind: external, confirmed: false` olarak da kaydet.
+5. **Varyantlar** (gerekirse): `--no-exog` ile ridge'i yalnızca hedefin geçmişiyle dene. Dış
    değişkenler fayda sağlamıyorsa raporda bunu söyle. Tek modeli görmek için `--models naive,ridge`
    kullan.
-4. **Yorum** → `$OUT/notes.md` (kısa Markdown): en iyi model, çıtaya göre MAE farkı, ortak nokta
+6. **Yorum** → `$OUT/notes.md` (kısa Markdown): en iyi model, çıtaya göre MAE farkı, ortak nokta
    sayısı, `regime_metrics` alanına göre rejim bazında sonuçlar (2021 öncesi, 2021-12–2023, 2024+;
    sıralama rejime göre değişiyorsa bunu söyle) ve üretim modeli için çıta. Ayrıntı
    `references/methodology.md` dosyasında.
-5. **Rapor**:
+7. **Rapor**:
    ```bash
    python3 "${CLAUDE_SKILL_DIR}/scripts/render_backtest_report.py" --backtest "$OUT/bt.json" --notes "$OUT/notes.md" \
-     --assumptions "$OUT/assumptions.json" --out "$OUT/backtest.html"
+     --assumptions "$OUT/assumptions.json" [--external "$OUT/external_forecasts.json" --latest usdtry=YYYY-AA:değer] \
+     --out "$OUT/backtest.html"
    ```
 
 ### 1. Girdileri ve varsayımları al → `$OUT/assumptions.json`
@@ -56,6 +68,9 @@ Yorum içeren her çıktı, okurun dayanağı ayırt edebileceği biçimde varsa
   `--assumptions "$OUT/assumptions.json"` ver; dosya şema doğrulamasından geçmezse script hata verir.
 
 ## Yorum ilkeleri
+- **Nokta ve aralık ayrı değerlendirilir.** En düşük MAE'yi veren model ile en düşük pinball kaybını
+  veren model farklı olabilir; ikisini de raporla. %80 kapsama belirgin biçimde düşükse aralıkların
+  belirsizliği olduğundan dar gösterdiğini yaz.
 - **Çıta en güçlü naive'dir.** Çapa verildiyse çapa naive, verilmediyse naive. Bir model yalnızca
   bu çıtayı ortak örneklemde geçtiğinde "çıtayı geçti" denebilir.
 - **Naive kazanırsa** bu bir bulgudur. Kısa vadede kur ya da YoY enflasyon için olağandır. "Model
