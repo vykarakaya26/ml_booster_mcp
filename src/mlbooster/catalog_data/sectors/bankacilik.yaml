@@ -13,6 +13,8 @@ macro_features:
   - {name: m2_yoy, source: evds3, series: TP.HPBITABLO1.11, transform: yoy_pct, agg: last}
   - {name: rezerv_logdiff, source: evds3, series: TP.AB.TOPLAM, transform: log_diff, agg: last}
   - {name: bist100_logdiff, source: evds3, series: TP.MK.F.BILESIK, transform: log_diff, agg: last}
+  - {name: politika_faizi, source: bis, series: BIS.CBPOL.TR.D, transform: level, agg: last}
+  - {name: kredi_gsyh, source: bis, series: BIS.KREDI.GSYH.TR, transform: level}
 sector_sources: [bddk, tbb]
 market_share_sources:
   - {source: tbb, metric: "aktif / nakdi kredi / mevduat / şube payı (banka bazlı)"}

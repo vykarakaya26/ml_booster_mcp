@@ -15,6 +15,10 @@ macro_features:
   - {name: sanayi_uretim_yoy, source: evds3, series: TP.TSANAYMT2021.BCD, transform: yoy_pct}
   - {name: kapasite_kullanim, source: evds3, series: TP.KKO.MA, transform: level}
   - {name: tuketici_guveni, source: evds3, series: TP.TG2.Y01, transform: level}
+  - {name: politika_faizi, source: bis, series: BIS.CBPOL.TR.D, transform: level, agg: last}
+  - {name: reel_efektif_kur, source: bis, series: BIS.REER.TR, transform: level}
+  - {name: oecd_oncu_gosterge, source: oecd, series: OECD.CLI.TR, transform: level}
+  - {name: oecd_is_guveni, source: oecd, series: OECD.BCI.TR, transform: level}
 sector_sources: []
 market_share_sources: []
 ml_use_cases: ["Makro nowcasting", "Rejim tespiti", "Feature havuzu"]

@@ -123,9 +123,10 @@ def fetch_series(
 
 @server.tool(annotations=WRITES_LOCAL)
 @safe_tool
-def build_panel(sector: str, start: str = DEFAULT_START.isoformat(), end: str | None = None) -> dict:
-    """Sektörün makro feature'larından aylık panel üretir ve yerel veri dizinine Parquet olarak yazar."""
-    result = container().build_panel(sector, _iso(start, "start"), _iso(end, "end") if end else None)
+def build_panel(sector: str, start: str = DEFAULT_START.isoformat(), end: str | None = None, freq: str = "M") -> dict:
+    """Sektörün feature'larından nokta-zamanlı panel üretir (freq: M aylık, W haftalık-Cuma, B iş günü) ve
+    yerel veri dizinine Parquet olarak yazar. Kalite denetimi ve backtest aylık panelde çalışır."""
+    result = container().build_panel(sector, _iso(start, "start"), _iso(end, "end") if end else None, freq=freq)
     tail = result.panel.tail(6).round(4).reset_index()
     return {
         "path": result.location,

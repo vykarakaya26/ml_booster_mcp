@@ -14,7 +14,7 @@ from mlbooster.domain.errors import InvalidInput
 from mlbooster.domain.model import Catalog, Frequency, MacroFeature, SeriesKind
 from mlbooster.domain.services.deflation import deflate, index_from_pct_changes
 from mlbooster.domain.services.features import apply_transform
-from mlbooster.domain.services.frequency import to_monthly
+from mlbooster.domain.services.frequency import to_frequency, to_monthly
 from mlbooster.domain.validation import DateRange, slug
 
 DEFAULT_START = date(2010, 1, 1)
@@ -42,7 +42,10 @@ class BuildPanel:
         end: date | None = None,
         refresh: bool = False,
         save: bool = True,
+        freq: str = "M",
     ) -> PanelResult:
+        if freq not in {"M", "W", "B"}:
+            raise InvalidInput(f"Panel frekansı M (aylık), W (haftalık) ya da B (iş günü) olmalı: {freq}")
         period = DateRange(start, end or date.today())
         catalog = self._catalog.load()
         sector = catalog.sector(slug(sector_id, "sektör"))
@@ -59,14 +62,14 @@ class BuildPanel:
                 result.skipped[feature.name] = f"{feature.source} sağlayıcısı henüz yok"
                 continue
             try:
-                monthly = self._monthly(catalog, feature, period, refresh)
+                monthly = self._monthly(catalog, feature, period, refresh, freq)
                 if feature.real:
-                    cpi = cpi if cpi is not None else self._cpi_index(catalog, period, refresh)
+                    cpi = cpi if cpi is not None else self._cpi_index(catalog, period, refresh, freq)
                     monthly = deflate(monthly, cpi)
             except (ProviderError, InvalidInput) as exc:
                 result.skipped[feature.name] = f"{type(exc).__name__}: {exc}"
                 continue
-            columns[feature.name] = apply_transform(monthly, feature.transform)
+            columns[feature.name] = apply_transform(monthly, feature.transform, freq)
 
         panel = pd.DataFrame(columns)
         if not panel.empty:
@@ -74,7 +77,7 @@ class BuildPanel:
             panel.index.name = "date"
         result.panel = panel
         if save and not panel.empty:
-            result.location = self._panels.save(sector.id, panel)
+            result.location = self._panels.save(sector.id if freq == "M" else f"{sector.id}_{freq.lower()}", panel)
         return result
 
     def sector(self, sector_id: str):
@@ -96,24 +99,26 @@ class BuildPanel:
             raise ProviderError(f"{code}: veri yok")
         return df
 
-    def _monthly(self, catalog: Catalog, feature: MacroFeature, period: DateRange, refresh: bool) -> pd.Series:
+    def _monthly(self, catalog: Catalog, feature: MacroFeature, period: DateRange, refresh: bool, freq: str = "M") -> pd.Series:
         df = self._observations(catalog, feature.source, feature.series, period, "level", 0, refresh)
         seed = catalog.source(feature.source).seed(feature.series)
         s = pd.Series(df["value"].astype(float).to_numpy(), index=pd.to_datetime(df["date"]))
-        return to_monthly(
+        return to_frequency(
             s,
             Frequency(df["freq"].iloc[0]),
+            freq,
             feature.agg,
             seed.kind if seed else SeriesKind.LEVEL,
             int(df["publication_lag_days"].iloc[0] or 0),
         )
 
-    def _cpi_index(self, catalog: Catalog, period: DateRange, refresh: bool) -> pd.Series:
+    def _cpi_index(self, catalog: Catalog, period: DateRange, refresh: bool, freq: str = "M") -> pd.Series:
         source_id, code = CPI
         df = self._observations(catalog, source_id, code, period, "pct_change", 1, refresh)
         pct = pd.Series(df["value"].astype(float).to_numpy(), index=pd.to_datetime(df["date"]))
         lag = int(df["publication_lag_days"].iloc[0] or 0)
-        return index_from_pct_changes(to_monthly(pct, Frequency.MONTHLY, publication_lag_days=lag))
+        index = index_from_pct_changes(to_monthly(pct, Frequency.MONTHLY, publication_lag_days=lag))
+        return index if freq == "M" else to_frequency(index, Frequency.MONTHLY, freq)  # zaten gecikmeli
 
 
 def _single_series(df: pd.DataFrame, metric: str, freq: str | None) -> pd.DataFrame:

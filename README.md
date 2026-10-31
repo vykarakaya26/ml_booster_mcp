@@ -6,7 +6,17 @@ Türkiye için ücretsiz veri kaynaklarını sektör bazında haritalayan ve ML'
 - **MCP sunucusu**: Claude Code ya da Claude Desktop'tan araç olarak.
 - **CLI / Python paketi**: `mlbooster`.
 
-> **Durum (v0.3):** Katalog 10 kaynak ve 5 sektör içeriyor. Uçtan uca çalışan sağlayıcı şimdilik **TCMB EVDS3**. TÜİK, BDDK, TBB, EPİAŞ, EPDK, BTK, TSB, ODMD ve BKM katalogda yer alıyor; bu kaynakların sağlayıcıları yol haritasında.
+> **Durum (v0.4):** Katalog 12 kaynak ve 9 sektör içeriyor (bankacılık, sigorta, telekom, otomotiv, akaryakıt, perakende, turizm, konut, makro_genel). Veri çeken sağlayıcılar **TCMB EVDS3**, **BIS** ve **OECD**; hepsi canlı doğrulandı. TÜİK, BDDK, TBB, EPİAŞ, EPDK, BTK, TSB, ODMD ve BKM haritada yer alıyor ama henüz veri çekmiyor; bu kaynakların bağlantıları yol haritasında.
+
+### Veri kapsamı
+| Frekans | Seriler (örnekler) | Kaynak |
+|---|---|---|
+| Günlük (iş günü) | USD/TRY, EUR/TRY, BIST 100, TLREF, AOFM, politika faizi | EVDS, BIS |
+| Haftalık | Sektörel kartlı harcamalar (toplam ve 14 sektör: market, giyim, yakıt, konaklama, havayolu, internet…), TCMB rezervleri, M2, kredi ve mevduat faizleri | EVDS |
+| Aylık | TÜFE (2025=100), ÜFE, PKA enflasyon beklentisi, sanayi üretimi, kapasite kullanımı, konut fiyat endeksi ve satışları, OSD üretimi, güven endeksleri, BKM kartlı ödeme endeksi, reel/nominal efektif kur, OECD öncü göstergesi ve güven endeksleri | EVDS, BIS, OECD |
+| Çeyreklik | Brüt dış borç, konut fiyatları (BIS), özel sektör kredisi/GSYH | EVDS, BIS |
+
+Paneller aylık (varsayılan), haftalık (`--freq W`, Cuma) ya da iş günlük (`--freq B`) üretilebilir. Her frekansta nokta-zamanlı kural geçerlidir.
 
 ## 1. EVDS API anahtarı
 
@@ -33,7 +43,7 @@ Claude Code içinden de kurulabilir: `/plugin install ml-booster --marketplace v
 | `sector-analysis` | Kaynak haritası, panel, kalite özeti ve tahmin referanslarını yorumlu bir HTML raporda birleştirir | "Otomotiv sektörü için veri analizi ve rapor hazırla" |
 | `evds-series-discovery` | EVDS'de güncel seri kodunu bulur, canlı doğrular ve feature'a bağlar | "Bankacılıkta kredi faizi feature'ı eksik, EVDS'den bul" |
 | `data-quality-audit` | Bayat seri, eksik, aykırı değer, yapısal kırılma ve kolineerlik denetimi yapar (HTML) | "Sigorta panelindeki veriler temiz mi?" |
-| `forecast-baseline` | Look-ahead korumalı backtest ile naive, drift ve ridge referans modellerini karşılaştırır (HTML) | "Taşıt kredisi faizini 1 ay ileri tahmin etmenin çıtası ne?" |
+| `forecast-baseline` | Look-ahead korumalı backtest yapar. Karşılaştırılan modeller:<br>• çapa/naive, drift ve son dönem eğimi<br>• son 12 ay ortalaması ve medyanı<br>• ridge<br>• kantil regresyon (%10–%90 aralık)<br>• ortalama/medyan kombinasyonları (sapma yüksekse medyana geçen otomatik kural dahil)<br>Ölçütler: aralık kapsaması ve pinball kaybı. Kurumların yıl sonu tahminlerinin konsensüsünü yanına koyar (fan chart'lı HTML) | "Dolar/TL için yenmemiz gereken çıta ne, bankalar yıl sonu ne diyor?" |
 
 Raporlar çalışma dizininde `mlbooster-reports/<sektör>-<tarih>/` altına yazılır. Raporlar tek dosyadır, açık/koyu temayı destekler ve dış kaynak yüklemez.
 
@@ -77,8 +87,9 @@ mlbooster catalog series --datagroup bie_kt100h
 mlbooster catalog set-feature --sector otomotiv --feature tasit_kredisi_faizi --series TP.KTF11
 mlbooster fetch --series TP.TUKFIY2025.GENEL --start 2015-01 --formula 3
 mlbooster build-panel --sector otomotiv --out otomotiv.csv  # .parquet veya .csv
+mlbooster build-panel --sector makro_genel --freq W --out makro_haftalik.csv  # haftalık (Cuma) panel
 mlbooster audit --sector otomotiv --json audit.json
-mlbooster backtest --sector otomotiv --target tasit_kredisi_faizi --horizon 1 --json bt.json
+mlbooster backtest --sector bankacilik --target aofm --anchor aofm_son --json bt.json  # kantil/kombinasyon dahil
 mlbooster health
 ```
 

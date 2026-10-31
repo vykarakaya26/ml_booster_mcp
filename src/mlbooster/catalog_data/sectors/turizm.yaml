@@ -7,6 +7,7 @@ macro_features:
   - {name: kart_seyahat_reel_yoy, source: evds3, series: TP.KKHARTUT.KT20, transform: yoy_pct, agg: avg, real: true}
   - {name: tufe_yoy, source: evds3, series: TP.TUKFIY2025.GENEL, transform: yoy_pct}
   - {name: yabanci_ziyaretci, source: evds3, discover_hint: "Kültür ve Turizm Bakanlığı sınır istatistikleri EVDS'de bulunamadı; turizm gelirleri ödemeler dengesinde (cari işlemler alt kalemi)"}
+  - {name: reel_efektif_kur, source: bis, series: BIS.REER.TR, transform: level}
 sector_sources: [bkm]
 market_share_sources:
   - {source: bkm, metric: "konaklama/havayolu/seyahat kart harcaması (talep vekili)", is_proxy: true}

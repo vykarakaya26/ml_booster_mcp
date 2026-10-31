@@ -32,6 +32,26 @@
 | Tüketici güven endeksi | `TP.TG2.Y01` | bie_mbgven2 | Aylık | 100 eşiği iyimserlik ayrımı |
 | PKA 12 ay sonrası TÜFE beklentisi | `TP.ENFBEK.PKA12ENF` | bie_enfbek | Aylık | Aynı grupta reel kesim (IYA12ENF) ve hanehalkı (HBA12ENF) beklentileri |
 
+### Ek kodlar (2026-10-31)
+
+| Kavram | Kod | Grup | Frekans |
+|---|---|---|---|
+| Kartlı harcama, toplam / sektörler | `TP.KKHARTUT.KT1` … `KT26`, internet `KT50` | bie_kkhartut | Haftalık |
+| BKM kartlı ödeme endeksi (reel) | `TP.KARTMETRE.D2` | bie_kartmetre | Aylık |
+| TCMB rezervleri, toplam | `TP.AB.TOPLAM` | bie_abres2 | Haftalık |
+| M2 / M3 | `TP.HPBITABLO1.11` / `.18` | bie_hpbitablo1 | Haftalık |
+| BIST 100 | `TP.MK.F.BILESIK` | bie_mkbrgn | İş günü |
+| TLREF | `TP.BISTTLREF.ORAN` | bie_bisttlref | İş günü |
+| Sanayi üretimi (MTA), toplam | `TP.TSANAYMT2021.BCD` | bie_tsanaymt2021 | Aylık |
+| Kapasite kullanımı (MA) | `TP.KKO.MA` | bie_kkoisma | Aylık |
+| Konut fiyat endeksi | `TP.KFE.TR` (+ bölgeler) | bie_kfe | Aylık |
+| Konut satışları | `TP.AKONUTSAT1.KTRTOPLAM` (+ iller) | bie_akonutsat1 | Aylık |
+| OSD üretimi (binek) | `TP.UR.S08` | bie_uroto | Aylık |
+| Yurt içi ÜFE | `TP.TUFE1YI.T1` | bie_tufe1yi | Aylık |
+
+Bulunamayanlar: işsizlik oranı ve yabancı ziyaretçi sayısı EVDS aramasında çıkmadı (TÜİK ve Kültür
+ve Turizm Bakanlığı kaynakları).
+
 ## Bilinen yayın gecikmeleri (`--lag`, gün; dönem sonuna göre)
 Gecikme, değerin **dönem sonundan kaç gün sonra** yayımlandığıdır. Ay içinde yayımlanan seriler için
 0 verilir. Gecikme verilmezse varsayılan muhafazakârdır (aylık 30 gün → 2 ay kayma) ve feature'ı

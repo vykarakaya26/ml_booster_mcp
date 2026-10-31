@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import re
 from dataclasses import replace
 from datetime import date
 from pathlib import Path
@@ -35,6 +36,7 @@ from mlbooster.domain.validation import series_code, slug
 from mlbooster.infrastructure.settings import ensure_private_dir
 
 MAX_YAML_BYTES = 256 * 1024
+_REMOTE = re.compile(r"^[A-Za-z0-9_.@,+\-]{1,120}/[A-Za-z0-9_.+\-]{0,120}$")
 
 
 class _Strict(BaseModel):
@@ -76,6 +78,16 @@ class SeedSchema(_Strict):
     datagroup: str | None = None
     publication_lag_days: int | None = Field(default=None, ge=0, le=730)
     canary: bool = False
+    remote: str | None = None
+
+    @field_validator("remote")
+    @classmethod
+    def _remote(cls, v: str | None) -> str | None:
+        # SDMX yolu: "<dataflow>/<anahtar>"; tek '/', hiçbir segment '.' ya da '..' değil (yol geçişi engellenir).
+        # Not: OECD anahtarlarında '...' boş boyutları gösterir ve meşrudur.
+        if v is not None and (not _REMOTE.fullmatch(v) or any(seg in {".", ".."} for seg in v.split("/"))):
+            raise ValueError(f"Geçersiz remote yolu: {v!r}")
+        return v
 
     @field_validator("code", "datagroup")
     @classmethod
@@ -306,7 +318,7 @@ class YamlCatalogRepository:
             {
                 "code": seed.code, "name": seed.name, "freq": seed.freq.value, "kind": seed.kind.value,
                 "unit": seed.unit, "currency": seed.currency, "datagroup": seed.datagroup,
-                "publication_lag_days": seed.publication_lag_days, "canary": False,
+                "publication_lag_days": seed.publication_lag_days, "canary": False, "remote": seed.remote,
                 "verified_at": date.today().isoformat(),
             }
         )  # fmt: skip

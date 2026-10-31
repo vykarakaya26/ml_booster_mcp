@@ -8,6 +8,7 @@ macro_features:
   - {name: kart_yapi_reel_yoy, source: evds3, series: TP.KKHARTUT.KT23, transform: yoy_pct, agg: avg, real: true}
   - {name: kart_mobilya_reel_yoy, source: evds3, series: TP.KKHARTUT.KT17, transform: yoy_pct, agg: avg, real: true}
   - {name: ufe_yoy, source: evds3, series: TP.TUFE1YI.T1, transform: yoy_pct}
+  - {name: bis_konut_fiyat_yoy, source: bis, series: BIS.SPP.TR, transform: yoy_pct}
 sector_sources: [tuik]
 market_share_sources:
   - {source: tuik, metric: "il bazında konut satış payı", is_proxy: false}

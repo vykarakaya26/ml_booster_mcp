@@ -30,6 +30,30 @@ kaydedilir.
 5. **Uydurma yok.** Bulunamayan kurum için satır ekleme; "bulunamadı" de. Rakamı yalnızca kaynağında
    gördüğün haliyle yaz.
 
+## Örnek anlık görüntü (2026-10-31)
+`../assets/external_forecasts.example.json` dosyasında 33 kayıt var: TCMB PKA (Ekim), Matriks anketi,
+TCMB Enflasyon Raporu, IMF WEO, JPMorgan, Deutsche Bank, ING, Garanti BBVA Yatırım ve Bloomberg kur
+derlemesi. Değerler ikincil kaynaklıdır; yalnızca Garanti BBVA Yatırım notu birincildir.
+
+Konsensüs çıktısı:
+
+| Değişken | Ufuk | Konsensüs | Hesap yöntemi |
+|---|---|---|---|
+| TÜFE | 2026 yıl sonu | %29,3 | ortalama |
+| TÜFE | 2027 yıl sonu | %23,6 | medyan: TCMB'nin %15'i aykırı, ortalama %21,8'e iner |
+| Politika faizi | 2026 yıl sonu | %35 | |
+| USD/TRY | 2026 yıl sonu | 51,4 | |
+
+Bu dosya hızla bayatlar; her analizde güncellenmelidir.
+
+Bilinen tuzaklar:
+- Haziran 2026 tarihli bazı Bloomberg derlemelerinde, aynı gün spot kurun altında kalan yıl sonu
+  tahminleri var (ör. 43–45). Bunlar eski girişlerdir; kullanma.
+- PKA'da yıl sonu 2027 TÜFE ve kur sorusu yoktur, yalnızca 12 ve 24 ay sonrası vardır. Yaklaşık 2 aylık
+  ufuk farkını not et.
+- Repo ihaleleri durdurulduğundan beri efektif fonlama (AOFM) politika faizinin üstündedir. Hangi
+  faizi tahmin ettiğini açıkça yaz.
+
 ## Raporda nasıl özetlenir
 - Değişken ve ufuk başına kurum sayısı, medyan, ortalama, en düşük ve en yüksek.
 - **Konsensüs kuralı:** çeyrekler arası açıklık medyanın %10'unu aşıyorsa ya da 3'ten az tahmin

@@ -9,7 +9,7 @@ from pathlib import Path
 from dotenv import find_dotenv, load_dotenv
 
 PACKAGE_DIR = Path(__file__).resolve().parents[1]
-USER_AGENT = "mlbooster/0.3 (ML Booster Map)"
+USER_AGENT = "mlbooster/0.4 (ML Booster Map)"
 
 
 @dataclass(frozen=True)

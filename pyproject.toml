@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "mlbooster"
-version = "0.3.0"
+version = "0.4.0"
 description = "ML Booster Map: Türkiye için ücretsiz veri kaynakları haritası ve ML'e hazır panel üretici"
 requires-python = ">=3.12"
 license = "MIT"

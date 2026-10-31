@@ -6,7 +6,7 @@ if command -v mlbooster >/dev/null 2>&1; then
   exec mlbooster "$@"
 fi
 if command -v uvx >/dev/null 2>&1; then
-  exec uvx --quiet --from "git+https://github.com/vykarakaya26/ml_booster_mcp.git@${MLBOOSTER_REF:-v0.3.0}" mlbooster "$@"
+  exec uvx --quiet --from "git+https://github.com/vykarakaya26/ml_booster_mcp.git@${MLBOOSTER_REF:-v0.4.0}" mlbooster "$@"
 fi
 echo "mlbooster bulunamadı. Kurulum: pip install \"git+https://github.com/vykarakaya26/ml_booster_mcp.git\" (veya uv kurun: https://docs.astral.sh/uv/)" >&2
 exit 127

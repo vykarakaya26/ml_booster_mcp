@@ -1,0 +1,27 @@
+id: bis
+name: BIS (Bank for International Settlements) istatistikleri
+owner: BIS
+base_url: https://stats.bis.org/api/v1/data/
+access: rest_api
+auth: {type: none}
+rate_limit: {rps: 1, backoff: exponential}
+license:
+  commercial: true
+  redistribution: true
+  attribution: required
+  notes: "BIS istatistikleri kaynak gösterilerek kullanılabilir (BIS kullanım koşulları); orijinal kaynak kurum (TCMB vb.) ayrıca belirtilmeli."
+frequency: [D, M, Q]
+formats: [csv]
+sectors: ["*"]
+publication_lag_days: 30
+verification_status: verified
+verification_notes: "2026-10-31: SDMX-CSV uçları canlı denendi (WS_CBPOL, WS_EER, WS_SPP, WS_TC)."
+adapter: sdmx
+priority: 11
+series:
+  - {code: BIS.CBPOL.TR.D, name: "Politika faizi (günlük, BIS)", freq: D, kind: level, unit: percent, remote: WS_CBPOL/D.TR, publication_lag_days: 1, canary: true}
+  - {code: BIS.CBPOL.TR.M, name: "Politika faizi (aylık, BIS)", freq: M, kind: level, unit: percent, remote: WS_CBPOL/M.TR, publication_lag_days: 1}
+  - {code: BIS.REER.TR, name: "Reel efektif döviz kuru, geniş sepet (2020=100)", freq: M, kind: level, unit: index, remote: WS_EER/M.R.B.TR, publication_lag_days: 20}
+  - {code: BIS.NEER.TR, name: "Nominal efektif döviz kuru, geniş sepet (2020=100)", freq: M, kind: level, unit: index, remote: WS_EER/M.N.B.TR, publication_lag_days: 20}
+  - {code: BIS.SPP.TR, name: "Konut fiyatları, nominal (BIS)", freq: Q, kind: level, unit: index, remote: WS_SPP/Q.TR.N.628, publication_lag_days: 100}
+  - {code: BIS.KREDI.GSYH.TR, name: "Özel sektöre toplam kredi / GSYH (%)", freq: Q, kind: level, unit: percent, remote: WS_TC/Q.TR.P.A.M.770.A, publication_lag_days: 180}

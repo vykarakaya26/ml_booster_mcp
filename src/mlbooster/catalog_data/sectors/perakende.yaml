@@ -10,6 +10,7 @@ macro_features:
   - {name: kartli_odeme_endeksi_reel, source: evds3, series: TP.KARTMETRE.D2, transform: yoy_pct}
   - {name: tuketici_guveni, source: evds3, series: TP.TG2.Y01, transform: level}
   - {name: usdtry_logdiff, source: evds3, series: TP.DK.USD.A, transform: log_diff, agg: avg}
+  - {name: oecd_tuketici_guveni, source: oecd, series: OECD.CCI.TR, transform: level}
 sector_sources: [bkm, tuik]
 market_share_sources:
   - {source: bkm, metric: "sektörel kart harcaması (talep vekili; firma payı değil)", is_proxy: true}
