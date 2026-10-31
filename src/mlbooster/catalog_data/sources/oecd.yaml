@@ -1,0 +1,24 @@
+id: oecd
+name: OECD Data Explorer (SDMX)
+owner: OECD
+base_url: https://sdmx.oecd.org/public/rest/data/
+access: rest_api
+auth: {type: none}
+rate_limit: {rps: 0.5, backoff: exponential, notes: "OECD anonim kullanımda dakikalık istek sınırı uygular; yavaş çek."}
+license:
+  commercial: true
+  redistribution: true
+  attribution: required
+  notes: "OECD verileri kaynak gösterilerek kullanılabilir (OECD kullanım koşulları, CC BY 4.0)."
+frequency: [M, Q]
+formats: [csv]
+sectors: ["*"]
+publication_lag_days: 15
+verification_status: verified
+verification_notes: "2026-10-31: DF_CLI (CLI, CCI, BCI; Türkiye) canlı denendi."
+adapter: sdmx
+priority: 12
+series:
+  - {code: OECD.CLI.TR, name: "Bileşik öncü gösterge (CLI, genlik ayarlı)", freq: M, kind: level, unit: index, remote: "OECD.SDD.STES,DSD_STES@DF_CLI,4.1/TUR.M.LI...AA...H", publication_lag_days: 15, canary: true}
+  - {code: OECD.CCI.TR, name: "Tüketici güveni (OECD standardize)", freq: M, kind: level, unit: index, remote: "OECD.SDD.STES,DSD_STES@DF_CLI,4.1/TUR.M.CCICP...AA...H", publication_lag_days: 15}
+  - {code: OECD.BCI.TR, name: "İş dünyası güveni (OECD standardize)", freq: M, kind: level, unit: index, remote: "OECD.SDD.STES,DSD_STES@DF_CLI,4.1/TUR.M.BCICP...AA...H", publication_lag_days: 15}

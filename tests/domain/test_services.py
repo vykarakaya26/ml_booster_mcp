@@ -99,3 +99,28 @@ def test_quarterly_lag_shift_is_exact():
     s = pd.Series([1.0, 2.0, 3.0, 4.0], index=pd.to_datetime(["2025-03-31", "2025-06-30", "2025-09-30", "2025-12-31"]))
     m = to_monthly(s, Frequency.QUARTERLY, publication_lag_days=90)
     assert m.loc["2025-06-30"] == 1.0 and m.loc["2026-03-31"] == 4.0  # 3 ay kayma, 4 değil
+
+
+def test_to_frequency_weekly_and_daily_point_in_time():
+    from mlbooster.domain.services.frequency import to_frequency
+
+    days = pd.bdate_range("2026-09-01", "2026-10-30")
+    daily = pd.Series(np.arange(len(days), dtype=float), index=days)
+    weekly = to_frequency(daily, Frequency.BUSINESS, "W", Aggregation.LAST, publication_lag_days=1)
+    assert all(d.weekday() == 4 for d in weekly.index)  # Cuma
+    # 1 gün gecikme: Cuma satırı Perşembe'ye kadarki son değeri taşır (Cuma verisi Pazartesi yayımlanır)
+    assert weekly.loc["2026-09-11"] == daily.loc["2026-09-10"]
+    monthly = pd.Series([1.0, 2.0], index=pd.to_datetime(["2026-08-31", "2026-09-30"]))
+    w = to_frequency(monthly, Frequency.MONTHLY, "W", publication_lag_days=3)
+    assert w.loc["2026-09-04"] == 1.0  # Ağustos değeri 3 Eylül'de yayımlandı
+    assert w.loc["2026-10-02"] == 1.0 and w.loc["2026-10-09"] == 2.0  # Eylül değeri 3 Ekim'de
+    b = to_frequency(monthly, Frequency.MONTHLY, "B", publication_lag_days=3)
+    assert b.loc["2026-10-02"] == 1.0 and b.loc["2026-10-05"] == 2.0
+    with pytest.raises(ValueError):
+        to_frequency(monthly, Frequency.MONTHLY, "X")
+
+
+def test_yoy_uses_periods_per_year():
+    idx = pd.date_range("2024-01-05", periods=60, freq="W-FRI")
+    s = pd.Series(np.arange(1, 61, dtype=float), index=idx)
+    assert apply_transform(s, Transform.YOY_PCT, "W").iloc[-1] == pytest.approx((60 / 8 - 1) * 100)

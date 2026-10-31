@@ -1,0 +1,17 @@
+id: perakende
+name: Perakende / FMCG
+macro_features:
+  - {name: tufe_yoy, source: evds3, series: TP.TUKFIY2025.GENEL, transform: yoy_pct}
+  - {name: kart_toplam_reel_yoy, source: evds3, series: TP.KKHARTUT.KT1, transform: yoy_pct, agg: avg, real: true}
+  - {name: kart_market_reel_yoy, source: evds3, series: TP.KKHARTUT.KT16, transform: yoy_pct, agg: avg, real: true}
+  - {name: kart_giyim_reel_yoy, source: evds3, series: TP.KKHARTUT.KT9, transform: yoy_pct, agg: avg, real: true}
+  - {name: kart_yemek_reel_yoy, source: evds3, series: TP.KKHARTUT.KT24, transform: yoy_pct, agg: avg, real: true}
+  - {name: kart_internet_reel_yoy, source: evds3, series: TP.KKHARTUT.KT50, transform: yoy_pct, agg: avg, real: true}
+  - {name: kartli_odeme_endeksi_reel, source: evds3, series: TP.KARTMETRE.D2, transform: yoy_pct}
+  - {name: tuketici_guveni, source: evds3, series: TP.TG2.Y01, transform: level}
+  - {name: usdtry_logdiff, source: evds3, series: TP.DK.USD.A, transform: log_diff, agg: avg}
+  - {name: oecd_tuketici_guveni, source: oecd, series: OECD.CCI.TR, transform: level}
+sector_sources: [bkm, tuik]
+market_share_sources:
+  - {source: bkm, metric: "sektörel kart harcaması (talep vekili; firma payı değil)", is_proxy: true}
+ml_use_cases: ["Satış tahmini", "Enflasyon geçişkenliği", "Sepet/kategori talebi"]

@@ -151,6 +151,7 @@ class SeedSeries:
     datagroup: str | None = None
     publication_lag_days: int | None = None
     canary: bool = False
+    remote: str | None = None  # SDMX gibi kaynaklarda gerçek yol; kullanıcı yalnız güvenli `code` takma adını görür
 
 
 @dataclass(frozen=True)

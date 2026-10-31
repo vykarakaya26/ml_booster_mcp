@@ -40,7 +40,9 @@ MLB="${CLAUDE_SKILL_DIR}/../_shared/bin/mlb"
 "$MLB" catalog sectors
 SECTOR=otomotiv; OUT="mlbooster-reports/${SECTOR}-$(date +%Y%m%d)"; mkdir -p "$OUT"
 ```
-Kullanıcının sektörü katalogda yoksa en yakın sektörü öner ve farkı açıkça söyle (ör. "beyaz eşya"
+Sektörler: bankacilik, sigorta, telekom, otomotiv, akaryakit, perakende, turizm, konut ve
+makro_genel (günlük, haftalık ve aylık geniş makro havuzu). Kullanıcının sektörü katalogda yoksa
+en yakın sektörü öner ve farkı açıkça söyle (ör. "beyaz eşya"
 için otomotiv + perakende proxy'leri). Yoksa bir sektör uydurma.
 
 ### 1b. Girdileri ve varsayımları al → `$OUT/assumptions.json`
@@ -70,6 +72,8 @@ skill'iyle kodları bağla.
 "$MLB" audit --sector "$SECTOR" --start 2012-01 --json "$OUT/audit.json"
 "$MLB" backtest --sector "$SECTOR" --target <hedef> --horizon <h> --start 2012-01 --json "$OUT/bt-<hedef>.json"
 ```
+- Kullanıcı haftalık ya da günlük panel isterse `build-panel --freq W` ya da `--freq B` ile ayrıca
+  üret. Denetim ve backtest aylık panelde çalışır.
 - Başlangıç 2012-01'dir, çünkü EVDS serilerinin çoğu bu tarihte ortaklaşır. Kullanıcı daha uzun
   geçmiş isterse değiştir.
 - Backtest hedefini ve ufkunu `references/targets.md` tablosundan sektöre göre seç (1–2 hedef yeterli).
@@ -92,6 +96,10 @@ python3 "${CLAUDE_SKILL_DIR}/scripts/render_sector_report.py" \
 Kullanıcıya şunları ver: rapor yolu, 3–5 satırlık özet (en önemli bulgu, veri durumu, en iyi
 referans model) ve somut sonraki adımlar (keşif bekleyen feature'lar, hedef için daha iyi model).
 `panel.csv` ML'e hazır çıktıdır; bunu da belirt.
+Kur, enflasyon ya da faiz görünümü sektör için kritikse (ör. otomotivde kur geçişkenliği),
+`${CLAUDE_SKILL_DIR}/../_shared/references/external-forecasts.md` dosyasına göre kurumların yıl sonu
+tahminlerini derle ve rapora `--external` ile ekle. Bunlar varsayımdır; konsensüs kuralı ve bayatlık
+otomatik uygulanır.
 
 ## Kalite çıtası
 - **Hedef değişken var mı?** Sektörün asıl hedefi (satış, prim, abone vb.) panelde yoksa, örneğin

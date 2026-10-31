@@ -2,7 +2,7 @@
   "mcpServers": {
     "mlbooster": {
       "command": "uvx",
-      "args": ["--quiet", "--from", "git+https://github.com/vykarakaya26/ml_booster_mcp.git@v0.3.0", "mlbooster-mcp"]
+      "args": ["--quiet", "--from", "git+https://github.com/vykarakaya26/ml_booster_mcp.git@v0.4.0", "mlbooster-mcp"]
     }
   }
 }

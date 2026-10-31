@@ -200,6 +200,8 @@ def audit_panel(
             issues.append(Issue(Severity.INFO, d.feature, "nonstationary", f"ADF t={d.adf_t}, KPSS={d.kpss_stat}: birim kök (seviye durağan değil)."))
         elif d.stationarity == "kırılma_şüphesi":
             issues.append(Issue(Severity.INFO, d.feature, "nonstationary", f"ADF ve KPSS ikisi de reddediyor (t={d.adf_t}, KPSS={d.kpss_stat}): kırılma/rejim şüphesi."))
+        if d.managed_path:
+            issues.append(Issue(Severity.INFO, d.feature, "managed_path", "Kontrollü patika: son 12 ayda değişim pozitif ve istikrarlı, oynaklık düşük — rastgele yürüyüş değil, ani kırılma riski kuyrukta."))
         if d.excess_kurtosis is not None and d.excess_kurtosis > 3:
             issues.append(Issue(Severity.INFO, d.feature, "heavy_tails", f"Fazla basıklık {d.excess_kurtosis:.1f}: kalın kuyruk (şoklar)."))
 

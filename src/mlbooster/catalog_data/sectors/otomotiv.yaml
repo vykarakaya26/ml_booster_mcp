@@ -8,6 +8,9 @@ macro_features:
   - {name: aofm_son, source: evds3, series: TP.APIFON4, transform: level, agg: last}
   - {name: tasit_kredisi_faizi, source: evds3, discover_hint: "Taşıt kredisi faiz oranı"}
   - {name: tuketici_guveni, source: evds3, discover_hint: "Tüketici güven endeksi"}
+  - {name: osd_binek_uretim_yoy, source: evds3, series: TP.UR.S08, transform: yoy_pct}
+  - {name: kart_arac_reel_yoy, source: evds3, series: TP.KKHARTUT.KT3, transform: yoy_pct, agg: avg, real: true}
+  - {name: kapasite_kullanim, source: evds3, series: TP.KKO.MA, transform: level}
 sector_sources: [odmd]
 market_share_sources:
   - {source: odmd, metric: "marka / model / segment satış adedi payı"}

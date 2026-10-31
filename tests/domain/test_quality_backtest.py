@@ -46,8 +46,10 @@ def test_audit_handles_empty_and_constant():
 def test_backtest_ranks_models_and_has_no_lookahead():
     panel = _panel()[["trend", "shifted"]]
     result = rolling_origin_backtest(panel, BacktestConfig(target="trend", horizon=3, min_train=36))
-    assert set(result.metrics["model"]) == {"naive", "seasonal_naive", "drift", "mean12", "ridge"}
-    assert result.best_model in {"drift", "ridge"}  # trendli seride naive'den iyi olmalı
+    from mlbooster.domain.services.backtest import MODELS
+
+    assert set(result.metrics["model"]) == set(MODELS)
+    assert result.best_model in {"drift", "drift_recent", "ridge", "qr", "combo_mean", "combo_median", "auto_robust"}
     p = result.predictions
     assert ((p["date"] - p["origin"]).dt.days > 0).all()
     # Her tahmin noktası için hedef, başlangıçtan tam horizon ay sonrası.
@@ -57,7 +59,7 @@ def test_backtest_ranks_models_and_has_no_lookahead():
 
 def test_backtest_future_values_do_not_change_past_predictions():
     panel = _panel()[["trend", "shifted"]]
-    config = BacktestConfig(target="trend", horizon=1, min_train=36, models=("ridge",))
+    config = BacktestConfig(target="trend", horizon=1, min_train=36, models=("ridge", "qr", "combo_median", "auto_robust"))
     base = rolling_origin_backtest(panel, config).predictions
     tampered = panel.copy()
     tampered.loc["2024-01-31":, :] = 1e6  # gelecek verisini boz
@@ -65,6 +67,8 @@ def test_backtest_future_values_do_not_change_past_predictions():
     early = base["date"] < pd.Timestamp("2024-01-31")
     merged = base[early].merge(after, on=["origin", "date", "model"], suffixes=("", "_t"))
     assert np.allclose(merged["y_pred"], merged["y_pred_t"])
+    both = merged.dropna(subset=["lower", "lower_t"])
+    assert np.allclose(both["lower"], both["lower_t"]) and np.allclose(both["upper"], both["upper_t"])
 
 
 @pytest.mark.parametrize("kwargs", [{"horizon": 0}, {"min_train": 10}, {"models": ("xgb",)}, {"lags": (-1,)}])
@@ -140,3 +144,65 @@ def test_regime_metrics_and_notable_pairs():
     p = pd.DataFrame({"a": np.arange(100.0), "b": np.arange(100.0) + np.random.default_rng(3).normal(0, 14, 100)}, index=IDX[:100])
     report = audit_panel(p, date(2026, 10, 30))
     assert report.notable_pairs and not report.correlated_pairs
+
+
+def test_quantile_regression_recovers_sample_quantiles():
+    from mlbooster.domain.services.backtest import quantile_fit_predict
+
+    rng = np.random.default_rng(7)
+    y = rng.standard_t(3, 400)
+    x = np.zeros((400, 1))  # bilgi taşımayan feature: çözüm sabit = örneklem kantili
+    for tau in (0.1, 0.5, 0.9):
+        assert quantile_fit_predict(x, y, np.zeros(1), tau) == pytest.approx(np.quantile(y, tau), abs=0.05)
+    # Eğim: y = 2x + gürültü → medyan eğimi ~2
+    xs = rng.normal(0, 1, (400, 1))
+    ys = 2 * xs[:, 0] + rng.normal(0, 0.5, 400)
+    assert quantile_fit_predict(xs, ys, np.array([1.0]), 0.5, alpha=0.0) == pytest.approx(2.0, abs=0.15)
+
+
+def test_intervals_and_quantile_model_are_reported():
+    panel = _panel()[["trend", "shifted"]]
+    result = rolling_origin_backtest(panel, BacktestConfig(target="trend", min_train=36))
+    m = result.metrics.set_index("model")
+    assert m.loc["qr", "n_interval"] > 0 and 0.4 <= m.loc["qr", "coverage80"] <= 1.0
+    assert m.loc["naive", "n_interval"] > 0  # ampirik aralık
+    p = result.predictions.dropna(subset=["lower", "upper"])
+    assert (p["lower"] <= p["upper"]).all()
+
+
+def test_auto_robust_prefers_median_on_heavy_tails():
+    rng = np.random.default_rng(11)
+    heavy = pd.Series(np.cumsum(rng.standard_t(1.5, len(IDX))), index=IDX)
+    result = rolling_origin_backtest(heavy.to_frame("x"), BacktestConfig(target="x", min_train=36, models=("naive", "mean12", "drift", "auto_robust")))
+    assert result.robust_share is not None and result.robust_share > 0.8
+
+
+def test_drift_recent_tracks_managed_crawl():
+    # Kontrollü kur: her ay ~%2 sabit değer kaybı + küçük gürültü → son eğim naive'i yener
+    rng = np.random.default_rng(5)
+    level = pd.Series(np.exp(np.cumsum(0.02 + rng.normal(0, 0.002, len(IDX)))), index=IDX)
+    result = rolling_origin_backtest(level.to_frame("usdtry"), BacktestConfig(target="usdtry", min_train=36, models=("naive", "drift_recent")))
+    m = result.metrics.set_index("model")
+    assert m.loc["drift_recent", "mae"] < 0.5 * m.loc["naive", "mae"]
+
+
+def test_managed_path_detected_for_crawling_fx():
+    from mlbooster.domain.services.distribution import diagnose
+
+    rng = np.random.default_rng(9)
+    n = len(IDX)
+    early = rng.normal(0.02, 0.05, n - 36)  # serbest dönem: oynak
+    late = rng.normal(0.02, 0.002, 36)  # yönetilen dönem: sabit hızlı değer kaybı
+    s = pd.Series(np.concatenate([early, late]), index=IDX)
+    assert diagnose(s, "usdtry_logdiff", "log_diff").managed_path
+    assert not diagnose(pd.Series(rng.normal(0.02, 0.05, n), index=IDX), "x", "log_diff").managed_path
+    assert not diagnose(s, "level_series", "level").managed_path
+
+
+def test_late_starting_feature_does_not_delay_ridge():
+    panel = _panel()[["trend", "shifted"]].copy()
+    panel["late"] = panel["shifted"]
+    panel.loc[:"2018-12-31", "late"] = np.nan  # 4 yıl geç başlayan feature
+    result = rolling_origin_backtest(panel, BacktestConfig(target="trend", min_train=36, models=("naive", "ridge")))
+    counts = result.predictions.groupby("model").size()
+    assert counts["ridge"] == counts["naive"]

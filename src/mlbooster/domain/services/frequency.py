@@ -68,3 +68,52 @@ def to_monthly(
         monthly = monthly.reindex(full).ffill()
     monthly.index.name = "date"
     return monthly
+
+
+# --- Haftalık / iş günlük panel ----------------------------------------------------------------
+
+PANEL_FREQS = {"M": "ME", "W": "W-FRI", "B": "B"}
+PERIODS_PER_YEAR = {"M": 12, "W": 52, "B": 252}
+
+
+def to_frequency(
+    s: pd.Series,
+    freq: Frequency,
+    target: str = "M",
+    agg: Aggregation | None = None,
+    kind: SeriesKind = SeriesKind.LEVEL,
+    publication_lag_days: int = 0,
+) -> pd.Series:
+    """Seriyi hedef panel frekansına (M aylık, W haftalık-Cuma, B iş günü) nokta-zamanlı taşır.
+
+    Her gözlem önce yayın tarihine kaydırılır (gözlem/dönem sonu + gecikme). Hedeften sık seriler bu
+    tarihe göre hedef dönemlere toplanır; seyrek seriler yalnızca yayımlandıkları günden itibaren ileriye
+    doldurulur. Böylece bir satırda yalnızca o satırın tarihinde yayımlanmış veri bulunur."""
+    if target == "M":
+        return to_monthly(s, freq, agg, kind, publication_lag_days)
+    if target not in PANEL_FREQS:
+        raise ValueError(f"Panel frekansı {list(PANEL_FREQS)} olmalı: {target}")
+    s = s.dropna().sort_index()
+    if s.empty:
+        return s
+    rule = PANEL_FREQS[target]
+    s.index = pd.DatetimeIndex(s.index) + pd.Timedelta(days=publication_lag_days)  # yayın tarihi
+    finer = (target == "W" and freq in {Frequency.DAILY, Frequency.BUSINESS, Frequency.HOURLY}) or (
+        target == "B" and freq is Frequency.HOURLY
+    )
+    if finer:
+        default = Aggregation.SUM if kind is SeriesKind.FLOW else Aggregation.AVG
+        out = s.resample(rule).agg(_PANDAS_AGG[agg or default])
+        last = s.index.max()
+        if target == "W" and last < (last + pd.offsets.Week(weekday=4, n=0)).normalize():
+            out = out.iloc[:-1]  # tamamlanmamış son hafta
+    else:
+        # Aynı ya da daha seyrek: yayın tarihinden itibaren ileriye doldur (as-of birleştirme).
+        # Son değer, bir sonraki dönemin yayımına kadar geçerlidir: ileriye doldurma ufku ≈ bir dönem.
+        horizon = pd.Timedelta(days=max(7, int(freq.min_period_days * 1.15)))
+        grid = pd.date_range(s.index.min().normalize(), s.index.max().normalize() + horizon, freq=rule)
+        s = s[~s.index.duplicated(keep="last")]
+        out = s.reindex(s.index.union(grid)).ffill().reindex(grid)
+    out = out.dropna()
+    out.index.name = "date"
+    return out

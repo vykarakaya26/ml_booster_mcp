@@ -40,6 +40,7 @@ class Diagnostics:
     volatility_ratio: float | None  # son 36 ayın değişim std'si / tüm dönem değişim std'si
     acf12: float | None
     recommendations: tuple[str, ...] = field(default_factory=tuple)
+    managed_path: bool = False  # kontrollü/sabit hızlı patika (ör. TCMB'nin kur yönetimi)
 
 
 # MacKinnon (2010) yanıt yüzeyi, sabitli tek değişken: CV(n) = b0 + b1/n + b2/n² + b3/n³
@@ -152,6 +153,17 @@ def _recommend(d: dict, transform: str | None) -> list[str]:
     return recs
 
 
+def _managed_path(y: np.ndarray, transform: str | None, vol: float | None) -> bool:
+    """Değişim serisinde (log_diff/diff) son 12 ay: pozitif ve istikrarlı ortalama (değişim katsayısı < 0,5)
+    ve oynaklık geçmişe göre düşük (oran < 0,5). TR'de TCMB'nin kuru belirli bir patikada tuttuğu dönemlerin
+    tipik izi; rastgele yürüyüş varsayımı burada zayıftır, ani kırılma (devalüasyon) riski ise kuyruktadır."""
+    if transform not in {"log_diff", "diff"} or len(y) < 24 or vol is None:
+        return False
+    last = y[-12:]
+    mean, std = float(last.mean()), float(last.std(ddof=1))
+    return mean > 0 and std / mean < 0.5 and vol < 0.5
+
+
 def diagnose(series: pd.Series, name: str, transform: str | None = None) -> Diagnostics:
     s = series.dropna().astype(float)
     y = s.to_numpy()
@@ -181,7 +193,13 @@ def diagnose(series: pd.Series, name: str, transform: str | None = None) -> Diag
         kpss_stat=round(kpss, 3) if kpss is not None else None, stationarity=stationarity,
         volatility_ratio=round(vol, 3) if vol is not None else None,
         acf12=round(acf12, 3) if acf12 is not None and not math.isnan(acf12) else None,
-        recommendations=tuple(_recommend(facts, transform)),
+        recommendations=tuple(_recommend(facts, transform) + (
+            ["Kontrollü patika: son 12 ayda değişim pozitif ve istikrarlı, oynaklık düşük (ör. yönetilen kur). "
+             "Çıta olarak son dönem ortalama değişim (naive/drift_recent) kullanın; kuyruk riski (ani kırılma) için "
+             "kantil aralığa ve geçmiş kırılma dönemlerine (2018-08, 2021-12, 2023-06, 2025-03) bakın."]
+            if _managed_path(y, transform, vol) else []
+        )),
+        managed_path=_managed_path(y, transform, vol),
     )  # fmt: skip
 
 

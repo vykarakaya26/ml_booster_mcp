@@ -5,6 +5,8 @@ macro_features:
   - {name: usdtry_logdiff, source: evds3, series: TP.DK.USD.A, transform: log_diff, agg: avg}
   - {name: eurtry_logdiff, source: evds3, series: TP.DK.EUR.A, transform: log_diff, agg: avg}
   - {name: tasit_kredisi_hacmi, source: evds3, discover_hint: "Sektörel / taşıt kredisi hacmi"}
+  - {name: kart_sigorta_reel_yoy, source: evds3, series: TP.KKHARTUT.KT21, transform: yoy_pct, agg: avg, real: true}
+  - {name: osd_binek_uretim_yoy, source: evds3, series: TP.UR.S08, transform: yoy_pct}
 sector_sources: [tsb, odmd]
 market_share_sources:
   - {source: tsb, metric: "prim üretimi payı (şirket × branş: trafik, kasko, sağlık, hayat)"}

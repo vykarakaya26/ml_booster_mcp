@@ -1,0 +1,24 @@
+id: makro_genel
+name: Makro (genel, günlük/haftalık/aylık)
+macro_features:
+  - {name: usdtry_logdiff, source: evds3, series: TP.DK.USD.A, transform: log_diff, agg: avg}
+  - {name: usdtry_son, source: evds3, series: TP.DK.USD.A, transform: level, agg: last}
+  - {name: bist100_logdiff, source: evds3, series: TP.MK.F.BILESIK, transform: log_diff, agg: last}
+  - {name: tlref, source: evds3, series: TP.BISTTLREF.ORAN, transform: level, agg: avg}
+  - {name: aofm, source: evds3, series: TP.APIFON4, transform: level, agg: avg}
+  - {name: rezerv_logdiff, source: evds3, series: TP.AB.TOPLAM, transform: log_diff, agg: last}
+  - {name: m2_yoy, source: evds3, series: TP.HPBITABLO1.11, transform: yoy_pct, agg: last}
+  - {name: kart_toplam_reel_yoy, source: evds3, series: TP.KKHARTUT.KT1, transform: yoy_pct, agg: avg, real: true}
+  - {name: tufe_yoy, source: evds3, series: TP.TUKFIY2025.GENEL, transform: yoy_pct}
+  - {name: ufe_yoy, source: evds3, series: TP.TUFE1YI.T1, transform: yoy_pct}
+  - {name: pka_enflasyon_beklentisi, source: evds3, series: TP.ENFBEK.PKA12ENF, transform: level}
+  - {name: sanayi_uretim_yoy, source: evds3, series: TP.TSANAYMT2021.BCD, transform: yoy_pct}
+  - {name: kapasite_kullanim, source: evds3, series: TP.KKO.MA, transform: level}
+  - {name: tuketici_guveni, source: evds3, series: TP.TG2.Y01, transform: level}
+  - {name: politika_faizi, source: bis, series: BIS.CBPOL.TR.D, transform: level, agg: last}
+  - {name: reel_efektif_kur, source: bis, series: BIS.REER.TR, transform: level}
+  - {name: oecd_oncu_gosterge, source: oecd, series: OECD.CLI.TR, transform: level}
+  - {name: oecd_is_guveni, source: oecd, series: OECD.BCI.TR, transform: level}
+sector_sources: []
+market_share_sources: []
+ml_use_cases: ["Makro nowcasting", "Rejim tespiti", "Feature havuzu"]

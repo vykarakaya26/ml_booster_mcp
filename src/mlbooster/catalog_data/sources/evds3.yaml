@@ -38,3 +38,33 @@ series:
   - {code: TP.TUKFIY2025.GENEL, name: "TÜFE genel endeksi (2025=100)", freq: M, kind: level, unit: index, datagroup: bie_tukfiy2025, publication_lag_days: 3, canary: true}
   - {code: TP.APIFON4, name: "TCMB ağırlıklı ortalama fonlama maliyeti", freq: B, kind: level, unit: percent, datagroup: bie_apifon, publication_lag_days: 1}
   - {code: TP.BRUTDBORCLU.G1, name: "Brüt dış borç stoku, toplam", freq: Q, kind: level, unit: million_usd, currency: USD, datagroup: bie_brutdbborclu, publication_lag_days: 90}
+  - {code: TP.ENFBEK.PKA12ENF, name: "Piyasa katılımcılarının 12 ay sonrası yıllık enflasyon beklentisi", freq: M, kind: level, unit: percent, datagroup: bie_enfbek, publication_lag_days: 0}
+  # --- Günlük (iş günü)
+  - {code: TP.MK.F.BILESIK, name: "BIST 100 endeksi (kapanış)", freq: B, kind: level, unit: index, datagroup: bie_mkbrgn, publication_lag_days: 1}
+  - {code: TP.BISTTLREF.ORAN, name: "TLREF gecelik referans faiz", freq: B, kind: level, unit: percent, datagroup: bie_bisttlref, publication_lag_days: 1}
+  # --- Haftalık (Cuma)
+  - {code: TP.KKHARTUT.KT1, name: "Kartlı harcama tutarı, toplam", freq: W, kind: flow, unit: thousand_try, datagroup: bie_kkhartut, publication_lag_days: 14}
+  - {code: TP.KKHARTUT.KT3, name: "Kartlı harcama: araç kiralama/satış/servis/yedek parça", freq: W, kind: flow, unit: thousand_try, datagroup: bie_kkhartut, publication_lag_days: 14}
+  - {code: TP.KKHARTUT.KT4, name: "Kartlı harcama: benzin ve yakıt istasyonları", freq: W, kind: flow, unit: thousand_try, datagroup: bie_kkhartut, publication_lag_days: 14}
+  - {code: TP.KKHARTUT.KT8, name: "Kartlı harcama: elektrik-elektronik, bilgisayar", freq: W, kind: flow, unit: thousand_try, datagroup: bie_kkhartut, publication_lag_days: 14}
+  - {code: TP.KKHARTUT.KT9, name: "Kartlı harcama: giyim ve aksesuar", freq: W, kind: flow, unit: thousand_try, datagroup: bie_kkhartut, publication_lag_days: 14}
+  - {code: TP.KKHARTUT.KT10, name: "Kartlı harcama: havayolları", freq: W, kind: flow, unit: thousand_try, datagroup: bie_kkhartut, publication_lag_days: 14}
+  - {code: TP.KKHARTUT.KT12, name: "Kartlı harcama: konaklama", freq: W, kind: flow, unit: thousand_try, datagroup: bie_kkhartut, publication_lag_days: 14}
+  - {code: TP.KKHARTUT.KT16, name: "Kartlı harcama: market ve AVM", freq: W, kind: flow, unit: thousand_try, datagroup: bie_kkhartut, publication_lag_days: 14}
+  - {code: TP.KKHARTUT.KT17, name: "Kartlı harcama: mobilya ve dekorasyon", freq: W, kind: flow, unit: thousand_try, datagroup: bie_kkhartut, publication_lag_days: 14}
+  - {code: TP.KKHARTUT.KT20, name: "Kartlı harcama: seyahat acenteleri/taşımacılık", freq: W, kind: flow, unit: thousand_try, datagroup: bie_kkhartut, publication_lag_days: 14}
+  - {code: TP.KKHARTUT.KT21, name: "Kartlı harcama: sigorta", freq: W, kind: flow, unit: thousand_try, datagroup: bie_kkhartut, publication_lag_days: 14}
+  - {code: TP.KKHARTUT.KT22, name: "Kartlı harcama: telekomünikasyon", freq: W, kind: flow, unit: thousand_try, datagroup: bie_kkhartut, publication_lag_days: 14}
+  - {code: TP.KKHARTUT.KT23, name: "Kartlı harcama: yapı malzemeleri/hırdavat", freq: W, kind: flow, unit: thousand_try, datagroup: bie_kkhartut, publication_lag_days: 14}
+  - {code: TP.KKHARTUT.KT24, name: "Kartlı harcama: yemek", freq: W, kind: flow, unit: thousand_try, datagroup: bie_kkhartut, publication_lag_days: 14}
+  - {code: TP.KKHARTUT.KT50, name: "Kartlı harcama: internet üzerinden (bilgi kalemi)", freq: W, kind: flow, unit: thousand_try, datagroup: bie_kkhartut, publication_lag_days: 14}
+  - {code: TP.AB.TOPLAM, name: "TCMB rezervleri, toplam (altın + döviz)", freq: W, kind: level, unit: million_usd, currency: USD, datagroup: bie_abres2, publication_lag_days: 8}
+  - {code: TP.HPBITABLO1.11, name: "M2 para arzı", freq: W, kind: level, unit: thousand_try, datagroup: bie_hpbitablo1, publication_lag_days: 14}
+  # --- Aylık
+  - {code: TP.KARTMETRE.D2, name: "BKM kartlı ödeme endeksi (reel)", freq: M, kind: level, unit: index, datagroup: bie_kartmetre, publication_lag_days: 30}
+  - {code: TP.TSANAYMT2021.BCD, name: "Sanayi üretim endeksi, toplam (mevsim ve takvim etkisinden arındırılmış)", freq: M, kind: level, unit: index, datagroup: bie_tsanaymt2021, publication_lag_days: 45}
+  - {code: TP.KKO.MA, name: "İmalat sanayi kapasite kullanım oranı (MA)", freq: M, kind: level, unit: percent, datagroup: bie_kkoisma, publication_lag_days: 0}
+  - {code: TP.KFE.TR, name: "Konut fiyat endeksi, Türkiye", freq: M, kind: level, unit: index, datagroup: bie_kfe, publication_lag_days: 25}
+  - {code: TP.AKONUTSAT1.KTRTOPLAM, name: "Konut satışları, Türkiye toplam", freq: M, kind: flow, unit: count, datagroup: bie_akonutsat1, publication_lag_days: 20}
+  - {code: TP.UR.S08, name: "Otomotiv üretimi, binek (OSD)", freq: M, kind: flow, unit: count, datagroup: bie_uroto, publication_lag_days: 15}
+  - {code: TP.TUFE1YI.T1, name: "Yurt içi ÜFE, genel", freq: M, kind: level, unit: index, datagroup: bie_tufe1yi, publication_lag_days: 3}

@@ -23,6 +23,8 @@ class FakeProvider:
         self.calls.append(request)
         frames = []
         for code in request.series_ids:
+            if code not in self.series:  # gerçek sağlayıcı gibi: veri yoksa boş döner
+                continue
             s = self.series[code]
             seed = self.source.seed(code)
             frames.append(

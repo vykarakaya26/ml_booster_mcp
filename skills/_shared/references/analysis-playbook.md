@@ -40,6 +40,26 @@ MacKinnon (2010) sonlu örneklem kritik değerleri. KPSS kritik değerleri: %10 
 - **Efektif politika duruşu ≠ politika faizi.** TCMB'nin repo ihalesine ara verdiği dönemlerde
   AOFM politika faizinin üstünde kalır. Efektif gösterge olarak AOFM'yi kullan ve farkı işaretle.
 - **KKM (2021-12 → 2025-08)** mevduat faizi ve kompozisyon serilerini bozar; bu dönemi işaretle.
+  KKM stoku 2023-08'de 3,4 trilyon TL iken 2025-08'de 478 milyar TL'ye indi; yeni hesaplar
+  2025-08-23'te kapandı ([AGBI](https://www.agbi.com/banking-finance/2025/08/turkey-terminates-fx-protected-deposit-scheme/)).
+- **Dolarizasyon.** Döviz mevduatının toplam mevduattaki payı 2026'nın ilk yarısında yaklaşık %37,9'du
+  ve sıkı politikayla yavaş düşüyor (BDDK verisi, [hisse.net](https://www.hisse.net/haber/doviz-zengini-anadolu-sehirleri-belli-oldu-87298)).
+  Hanehalkının "dolar tutma" davranışı, kur şoklarında TL mevduattan dövize kaçış biçiminde görülür.
+  Haftalık YP mevduat serileri EVDS'de (`bie_hpbitablo4`) yalnızca 2024'ten itibaren var; uzun
+  panelde kısa seri olarak kullan.
+- **Kontrollü kur ("TCMB doları tutuyor").** 2023 ortasından beri USD/TRY, TCMB ve kamu bankası
+  müdahaleleriyle yönetilen bir patikada ilerliyor. Commerzbank bu patikayı yıllık yaklaşık %20 değer
+  kaybı (ayda ~%1,5) olarak tanımlıyor; %30–35 enflasyonla birlikte bu, TL'nin reel değer kazanması
+  anlamına geliyor ([Tradingpedia, 2026-10-15](https://www.tradingpedia.com/2026/10/15/commerzbank-warns-of-ongoing-devaluation-risks-for-lira/)).
+  2026 Mart stresinde (İran savaşı) kur sıçramadı; maliyet rezervlerden karşılandı ve haftalık repo
+  ihaleleri durduruldu. Modelleme sonuçları:
+  1. Rejim içinde saf rastgele yürüyüş yanlış çıtadır; yaklaşık sabit hızlı değer kaybı (naive
+     log-fark ya da `drift_recent`) daha iyi uyar. mlbooster denetimi bunu `managed_path` olarak işaretler.
+  2. Kalan oynaklık çok küçüktür; normal varsayımlı aralıklar kuyruklarda fazla dardır.
+  3. Kuyruk riskini sıçrama/rejim değişimi olarak ele al. Kalibrasyon kümesi: 2018-08, 2021-12,
+     2023-06, 2025-03. Rezerv erimesi sıçrama olasılığını artırır; haftalık rezerv serisini
+     (`TP.AB.TOPLAM`) izle.
+  4. Üst kantilleri ufukla birlikte merkezden daha hızlı genişleyen kantil tahminleri kullan (`qr`).
 - **Olay takvimi** (rejim dummy'si; adım = rejim, dürtü = tek ay sıçrama): 2014-01 olağanüstü faiz
   artırımı · 2018-08 kur krizi · 2020-03 COVID · 2021-09/12 faiz indirimleri, kur şoku, KKM · 2023-06
   normalleşme · 2024-03 sıkılaştırma zirvesi · 2025-03 piyasa stresi · 2026-01 TÜFE 2025=100 baz değişikliği.

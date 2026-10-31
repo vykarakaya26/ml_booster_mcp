@@ -123,10 +123,11 @@ def build_panel(
     start: Annotated[str, typer.Option(help="YYYY-AA[-GG]")] = DEFAULT_START.isoformat(),
     end: Annotated[str | None, typer.Option(help="YYYY-AA[-GG]")] = None,
     refresh: Annotated[bool, typer.Option(help="Yerel önbelleği yok sayıp yeniden çek")] = False,
+    freq: Annotated[str, typer.Option(help="Panel frekansı: M (aylık), W (haftalık, Cuma), B (iş günü)")] = "M",
 ):
-    """Sektörün makro feature'larından aylık gold panel üretir."""
+    """Sektörün feature'larından nokta-zamanlı gold panel üretir (aylık, haftalık ya da iş günlük)."""
     try:
-        result = container().build_panel(sector, _date(start), _date(end), refresh)
+        result = container().build_panel(sector, _date(start), _date(end), refresh, freq=freq)
         for name, reason in result.skipped.items():
             typer.secho(f"atlandı  {name}: {reason}", fg=typer.colors.YELLOW)
         if result.panel.empty:
@@ -136,7 +137,8 @@ def build_panel(
             location = container().panels.export(result.panel, out)
     except (DomainError, ValueError) as exc:
         _fail(exc)
-    typer.echo(f"{result.panel.shape[0]} ay × {result.panel.shape[1]} feature → {location}")
+    unit = {"M": "ay", "W": "hafta", "B": "iş günü"}.get(freq, "dönem")
+    typer.echo(f"{result.panel.shape[0]} {unit} × {result.panel.shape[1]} feature → {location}")
 
 
 @app.command()

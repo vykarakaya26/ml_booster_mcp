@@ -154,3 +154,36 @@ def test_stale_assumptions_flagged():
     data["assumptions"][0]["as_of"] = "2025-01-01"
     assert [a["id"] for a in stale(data, _d(2026, 10, 30))] == ["A1"]
     assert "bayat — doğrula" in section(data)
+
+
+def _external(values, published="2026-10-01"):
+    return {
+        "retrieved": "2026-10-30",
+        "forecasts": [
+            {"institution": f"Banka{i}", "variable": "usdtry", "horizon": "2026-12", "value": v, "unit": "TRY",
+             "published": published, "source_url": "https://example.com/n", "primary": False}
+            for i, v in enumerate(values)
+        ],
+    }
+
+
+def test_external_consensus_rule_and_validation():
+    sys.path.insert(0, str(SKILLS / "_shared"))
+    from mlb_report.external import ExternalForecastError, consensus, section, validate
+
+    tight = consensus([50.0, 50.5, 51.0, 51.2])
+    assert tight["rule"] == "ortalama" and tight["consensus"] == pytest.approx(50.675)
+    wide = consensus([45.0, 50.0, 52.0, 70.0])  # tek aykırı görüş ortalamayı sürükler
+    assert wide["dispersed"] and wide["consensus"] == pytest.approx(51.0) and wide["mean"] > 54
+    assert consensus([50.0, 60.0])["rule"].startswith("medyan")
+    for bad in ({"forecasts": []}, _external([1.0]) | {"forecasts": [{"institution": "x"}]}):
+        with pytest.raises(ExternalForecastError):
+            validate(bad)
+    evil = _external([50.0])
+    evil["forecasts"][0]["source_url"] = "javascript:alert(1)"
+    with pytest.raises(ExternalForecastError):
+        validate(evil)
+    old = _external([50.0, 51.0, 52.0], published="2026-01-01")
+    old["forecasts"][0]["institution"] = EVIL
+    html = section(old, latest={"usdtry": ("2026-10", 49.7)})
+    assert "bayat" in html and EVIL not in html and "Son değere göre" in html
