@@ -18,6 +18,11 @@ SERIES = {
 }
 
 
+def _known_calls(providers) -> int:
+    """Verisi olan serilere yapılan çağrılar (verisi olmayanlar önbelleğe girmez, her seferinde yeniden denenir)."""
+    return sum(1 for p in providers.created for r in p.calls if r.series_ids[0] in SERIES)
+
+
 @pytest.fixture
 def deps(catalog_repo):
     return catalog_repo, FakeProviderFactory(SERIES), InMemoryObservationStore(), InMemoryPanelStore()
@@ -36,9 +41,9 @@ def test_build_panel_point_in_time_and_caching(deps):
     assert result.location == "memory://telekom"
     assert all(p.closed for p in providers.created)
 
-    calls = sum(len(p.calls) for p in providers.created)
+    calls = _known_calls(providers)
     build("telekom", date(2024, 1, 1), date(2026, 9, 30))
-    assert sum(len(p.calls) for p in providers.created) == calls  # ikinci çalışma depodan
+    assert _known_calls(providers) == calls  # ikinci çalışma depodan
 
 
 def test_build_panel_validates_sector(deps):
@@ -87,13 +92,13 @@ def test_build_panel_refetches_when_cache_misses_requested_start(deps):
     catalog, providers, store, panels = deps
     build = BuildPanel(catalog, providers, store, panels)
     build("telekom", date(2025, 6, 1), date(2026, 9, 30))
-    narrow_calls = sum(len(p.calls) for p in providers.created)
+    narrow_calls = _known_calls(providers)
     # Önceki çağrının depoya yazdığı veri 2024'ten başlıyor (sahte sağlayıcı tam seriyi döner);
     # bu yüzden 2024 başlangıcı önbellekten karşılanır, 2015 başlangıcı ise yeniden çekmeyi tetikler.
     build("telekom", date(2024, 1, 1), date(2026, 9, 30))
-    assert sum(len(p.calls) for p in providers.created) == narrow_calls
+    assert _known_calls(providers) == narrow_calls
     build("telekom", date(2015, 1, 1), date(2026, 9, 30))
-    assert sum(len(p.calls) for p in providers.created) > narrow_calls
+    assert _known_calls(providers) > narrow_calls
 
 
 def test_cached_rows_of_other_frequency_are_ignored(deps):
