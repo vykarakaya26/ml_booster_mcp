@@ -15,5 +15,16 @@
     "feature-engineering",
     "forecasting",
     "mcp"
-  ]
+  ],
+  "mcpServers": {
+    "mlbooster": {
+      "command": "uvx",
+      "args": [
+        "--quiet",
+        "--from",
+        "${CLAUDE_PLUGIN_ROOT}",
+        "mlbooster-mcp"
+      ]
+    }
+  }
 }
