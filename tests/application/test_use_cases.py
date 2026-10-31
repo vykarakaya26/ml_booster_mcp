@@ -195,3 +195,20 @@ def test_set_feature_create_adds_new_feature_and_unknown_override_fails(tmp_path
     bad.write_text("version: 1\nfeatures:\n  bankacilik:\n    yok_boyle: TP.X\n")
     with pytest.raises(InconsistentCatalog, match="yok_boyle"):
         YamlCatalogRepository(PACKAGE_DIR / "catalog_data", bad).load()
+
+
+def test_stale_cache_triggers_refetch(deps):
+    from datetime import UTC, datetime, timedelta
+
+    from mlbooster.application.use_cases.panel import _is_stale
+
+    catalog, providers, store, panels = deps
+    build = BuildPanel(catalog, providers, store, panels)
+    build("telekom", date(2024, 1, 1), date(2026, 9, 30))
+    calls = _known_calls(providers)
+    for frame in store.frames:  # önbelleği 4 gün yaşlandır: günlük (12s) ve aylık (72s) TTL aşılır
+        frame["vintage_ts"] = datetime.now(UTC) - timedelta(days=4)
+    build("telekom", date(2024, 1, 1), date(2026, 9, 30))
+    assert _known_calls(providers) > calls
+    fresh = store.frames[-1]
+    assert not _is_stale(fresh) and _is_stale(fresh, datetime.now(UTC) + timedelta(days=4))

@@ -1,10 +1,19 @@
 {
   "name": "ml-booster",
-  "version": "0.4.0",
   "description": "Türkiye ücretsiz veri kaynakları haritası → ML'e hazır aylık panel. MCP sunucusu + sektör analizi, seri keşfi, kalite denetimi ve tahmin backtest skill'leri.",
-  "author": { "name": "Yağız Karakaya" },
+  "author": {
+    "name": "Yağız Karakaya"
+  },
   "homepage": "https://github.com/vykarakaya26/ml_booster_mcp",
   "repository": "https://github.com/vykarakaya26/ml_booster_mcp",
   "license": "MIT",
-  "keywords": ["turkey", "evds", "tcmb", "macro", "feature-engineering", "forecasting", "mcp"]
+  "keywords": [
+    "turkey",
+    "evds",
+    "tcmb",
+    "macro",
+    "feature-engineering",
+    "forecasting",
+    "mcp"
+  ]
 }

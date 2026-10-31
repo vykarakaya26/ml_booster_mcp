@@ -1,12 +1,18 @@
 #!/bin/sh
-# mlbooster CLI'yı bulur: kuruluysa onu, değilse uvx ile repodan çalıştırır.
-# Skill'ler bu sarmalayıcıyı çağırır; böylece plugin kullanıcısının ayrıca pip install yapması gerekmez.
+# mlbooster CLI'yı bulur. Öncelik sırası:
+#   1) Plugin'in kendi kopyası (uvx --from <plugin kökü>): skill'ler ve MCP her zaman aynı, güncel kodu kullanır.
+#   2) Sistemde kurulu `mlbooster` (pip ile kurulmuşsa).
+#   3) uvx ile GitHub'daki main dalı.
 set -eu
+ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/../../.." && pwd)
+if command -v uvx >/dev/null 2>&1 && [ -f "$ROOT/pyproject.toml" ]; then
+  exec uvx --quiet --from "$ROOT" mlbooster "$@"
+fi
 if command -v mlbooster >/dev/null 2>&1; then
   exec mlbooster "$@"
 fi
 if command -v uvx >/dev/null 2>&1; then
-  exec uvx --quiet --from "git+https://github.com/vykarakaya26/ml_booster_mcp.git@${MLBOOSTER_REF:-v0.4.0}" mlbooster "$@"
+  exec uvx --quiet --from "git+https://github.com/vykarakaya26/ml_booster_mcp.git@${MLBOOSTER_REF:-main}" mlbooster "$@"
 fi
-echo "mlbooster bulunamadı. Kurulum: pip install \"git+https://github.com/vykarakaya26/ml_booster_mcp.git\" (veya uv kurun: https://docs.astral.sh/uv/)" >&2
+echo "mlbooster bulunamadı. uv kurun (https://docs.astral.sh/uv/) ya da: pip install \"git+https://github.com/vykarakaya26/ml_booster_mcp.git\"" >&2
 exit 127

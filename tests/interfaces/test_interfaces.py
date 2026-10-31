@@ -19,7 +19,7 @@ def test_mcp_tools_registered_with_annotations():
     tools = {t.name: t for t in asyncio.run(mcp_server.server.list_tools())}
     assert set(tools) == {
         "list_sectors", "list_sources", "show_map", "discover_series", "fetch_series", "build_panel", "health",
-        "search_series", "set_feature_series", "audit_panel", "run_backtest",
+        "search_series", "set_feature_series", "audit_panel", "run_backtest", "check_updates",
     }  # fmt: skip
     assert tools["show_map"].annotations.read_only_hint is True
     assert tools["fetch_series"].annotations.destructive_hint is False

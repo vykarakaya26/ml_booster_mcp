@@ -14,10 +14,12 @@ from mlbooster.application.ports import (
     ObservationStore,
     PanelStore,
     ProviderFactory,
+    UpdateSource,
 )
 from mlbooster.application.use_cases import (
     AuditPanel,
     BuildPanel,
+    CheckForUpdates,
     RunBacktest,
     SearchSeries,
     SetFeatureSeries,
@@ -35,6 +37,7 @@ from mlbooster.infrastructure.settings import Settings
 from mlbooster.infrastructure.storage.observation_store import ParquetObservationStore
 from mlbooster.infrastructure.storage.panel_store import ParquetPanelStore
 from mlbooster.infrastructure.storage.raw_store import RawStore
+from mlbooster.infrastructure.update_check import GitHubReleaseSource
 
 
 @dataclass
@@ -44,6 +47,7 @@ class Container:
     observations: ObservationStore
     panels: PanelStore
     overrides: CatalogOverrides
+    updates: UpdateSource | None = None
 
     @cached_property
     def list_sectors(self) -> ListSectors:
@@ -86,8 +90,19 @@ class Container:
         return AuditPanel(self.build_panel)
 
     @cached_property
+    def check_updates(self) -> CheckForUpdates:
+        from mlbooster import __version__
+
+        return CheckForUpdates(__version__, self.updates or _NoUpdates())
+
+    @cached_property
     def run_backtest(self) -> RunBacktest:
         return RunBacktest(self.build_panel)
+
+
+class _NoUpdates:
+    def latest_version(self) -> str | None:
+        return None
 
 
 def build_container(settings: Settings | None = None) -> Container:
@@ -99,4 +114,5 @@ def build_container(settings: Settings | None = None) -> Container:
         providers=ProviderRegistry(EnvSecretProvider(), RawStore(settings.data_dir / "bronze")),
         observations=ParquetObservationStore(settings.data_dir / "silver"),
         panels=ParquetPanelStore(settings.data_dir / "gold"),
+        updates=GitHubReleaseSource(settings.data_dir / "update_check.json"),
     )

@@ -25,3 +25,27 @@ class RunHealthChecks:
             except ProviderError as exc:  # ör. sağlayıcı kurulamadı (host sabitleme)
                 results.append(HealthResult(source.id, HealthStatus.FAIL, f"{type(exc).__name__}: {exc}"))
         return results
+
+
+class CheckForUpdates:
+    """Kurulu sürümü yayımlanan en son sürümle karşılaştırır; güncelleme komutunu söyler."""
+
+    def __init__(self, current: str, source):
+        self._current = current
+        self._source = source
+
+    def __call__(self) -> dict:
+        latest = self._source.latest_version()
+        def key(v: str) -> tuple[int, ...]:
+            return tuple(int(x) for x in v.split(".")[:3] if x.isdigit())
+        available = bool(latest) and key(latest) > key(self._current)
+        return {
+            "current": self._current,
+            "latest": latest,
+            "update_available": available,
+            "how": (
+                "Claude Code: `claude plugin update ml-booster` (ya da /plugin → Marketplaces → ml-booster-tools → "
+                "otomatik güncellemeyi aç). pip kurulumunda: "
+                "`pip install -U \"git+https://github.com/vykarakaya26/ml_booster_mcp.git@v" + str(latest) + "\"`"
+            ) if available else None,
+        }

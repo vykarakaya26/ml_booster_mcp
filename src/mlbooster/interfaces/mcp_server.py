@@ -34,12 +34,16 @@ READ_ONLY = ToolAnnotations(read_only_hint=True, open_world_hint=False)
 READ_REMOTE = ToolAnnotations(read_only_hint=True, open_world_hint=True)
 WRITES_LOCAL = ToolAnnotations(read_only_hint=False, destructive_hint=False, idempotent_hint=True, open_world_hint=True)
 
+from mlbooster import __version__  # noqa: E402
+
 server = MCPServer(
     "mlbooster",
+    version=__version__,
     instructions=(
         "Türkiye için ücretsiz veri kaynakları haritası ve ML'e hazır aylık panel üretici. "
         "Önce list_sectors / show_map ile kaynakları gör; EVDS serilerini discover_series ile keşfet; "
-        "fetch_series ile çek; build_panel ile sektör panelini üret. Verilerde kaynak atfı zorunludur."
+        "fetch_series ile çek; build_panel ile sektör panelini üret. Verilerde kaynak atfı zorunludur. "
+        "Oturum başında check_updates ile yeni sürüm olup olmadığını kontrol edip kullanıcıya bir kez bildir."
     ),
 )
 
@@ -211,6 +215,14 @@ def run_backtest(
     )
     result, _ = container().run_backtest(sector, config, _iso(start, "start"), _iso(end, "end") if end else None)
     return backtest_dict(result, sector, max_predictions=24)
+
+
+@server.tool(annotations=READ_REMOTE)
+@safe_tool
+def check_updates() -> dict:
+    """Kurulu mlbooster sürümünü GitHub'daki en son sürümle karşılaştırır; güncelleme varsa nasıl yapılacağını söyler.
+    Kullanıcıya oturum başında bir kez göstermek yeterlidir."""
+    return container().check_updates()
 
 
 def main() -> None:

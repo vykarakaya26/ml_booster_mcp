@@ -38,6 +38,15 @@ claude plugin install ml-booster --marketplace vykarakaya26/ml_booster_mcp
 
 Claude Code içinden de kurulabilir: `/plugin install ml-booster --marketplace vykarakaya26/ml_booster_mcp`
 
+**Kendini güncelleme.** Plugin, `main` dalındaki her merge'i yeni sürüm olarak görür; MCP sunucusu ve skill'ler plugin'in kendi kopyasından çalışır (`uvx --from ${CLAUDE_PLUGIN_ROOT}`). Otomatik güncelleme üçüncü taraf marketplace'lerde varsayılan kapalıdır ve yalnızca kullanıcı açabilir; bir kez açmanız yeterlidir:
+
+1. Claude Code'da `/plugin` → **Marketplaces** → `ml-booster-tools` → **Enable auto-update**.
+2. Güncelleme indiğinde Claude Code `Plugin updated: ml-booster · Run /reload-plugins to apply` der. `/reload-plugins` yeni sürümü hemen yükler; yazmazsanız bir sonraki oturumda yüklenir.
+
+Ek olarak:
+- `check_updates` MCP aracı ve `mlbooster version --check` yeni sürüm olup olmadığını söyler. Sonuç 24 saat önbellekte tutulur; kontrolü kapatmak için `MLBOOSTER_NO_UPDATE_CHECK=1` kullanın.
+- **Veri de kendini yeniler.** Panel kurulurken yerel önbellek serinin frekansına göre tazelik süresini aşmışsa (günlük 12 saat, haftalık 1 gün, aylık 3 gün, çeyreklik 7 gün) veri kaynaktan yeniden çekilir. Her çekim ayrı bir sürüm olarak saklanır, eski sürümler korunur.
+
 | Skill | Ne yapar | Örnek istem |
 |---|---|---|
 | `sector-analysis` | Kaynak haritası, panel, kalite özeti ve tahmin referanslarını yorumlu bir HTML raporda birleştirir | "Otomotiv sektörü için veri analizi ve rapor hazırla" |

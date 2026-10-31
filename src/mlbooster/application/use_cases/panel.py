@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import date
+from datetime import UTC, date, datetime
 
 import pandas as pd
 
@@ -92,7 +92,7 @@ class BuildPanel:
         seed = catalog.source(source_id).seed(code)
         df = pd.DataFrame() if refresh else self._store.read(source_id, [code])
         df = _single_series(df, metric, seed.freq.value if seed else None)
-        if df.empty or not _covers_start(df, period.start):  # çekerken tamponlu, önbellekte istenen başlangıç yeterli
+        if df.empty or not _covers_start(df, period.start) or _is_stale(df):  # çekerken tamponlu, önbellekte istenen başlangıç yeterli
             request = FetchRequest.create(source_id, [code], _with_history(period.start), period.end, formula=formula)
             df = _single_series(self._fetch(request), metric, seed.freq.value if seed else None)
         if df.empty:
@@ -145,3 +145,13 @@ def _with_history(start: date) -> date:
     from datetime import timedelta
 
     return max(date(1950, 1, 1), start - timedelta(days=HISTORY_DAYS))
+
+
+def _is_stale(df: pd.DataFrame, now: datetime | None = None) -> bool:
+    """Önbellekteki en yeni çekim, serinin frekansına göre tazelik süresini aştı mı? (kendini yenileme)"""
+    now = now or datetime.now(UTC)
+    last_pull = pd.Timestamp(df["vintage_ts"].max())
+    if last_pull.tzinfo is None:
+        last_pull = last_pull.tz_localize("UTC")
+    ttl = Frequency(df["freq"].iloc[0]).cache_ttl_hours
+    return (pd.Timestamp(now) - last_pull) > pd.Timedelta(hours=ttl)
