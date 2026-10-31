@@ -151,6 +151,9 @@ def health(source: Annotated[str | None, typer.Option(help="Tek kaynak")] = None
     colors = {HealthStatus.OK: typer.colors.GREEN, HealthStatus.FAIL: typer.colors.RED, HealthStatus.SKIPPED: typer.colors.YELLOW}
     for r in results:
         typer.secho(f"{r.status.value:<8} {r.source_id:<8} {r.detail}", fg=colors[r.status])
+    upd = container().check_updates()
+    if upd["update_available"]:
+        typer.secho(f"güncelleme v{upd['current']} → v{upd['latest']}: {upd['how']}", fg=typer.colors.CYAN)
     if any(r.status is HealthStatus.FAIL for r in results):
         raise typer.Exit(1)
 
@@ -261,6 +264,22 @@ def backtest(
         _write_json(backtest_dict(result, sector), json_out)
     typer.echo(f"Hedef {target}, ufuk {horizon} ay — en iyi: {result.best_model}")
     typer.echo(result.metrics.round(4).to_string(index=False))
+
+
+@app.command()
+def version(check: Annotated[bool, typer.Option("--check", help="GitHub'daki en son sürümle karşılaştır")] = False):
+    """Kurulu sürümü gösterir; --check ile yeni sürüm olup olmadığını kontrol eder."""
+    from mlbooster import __version__
+
+    typer.echo(f"mlbooster {__version__}")
+    if check:
+        upd = container().check_updates()
+        if upd["latest"] is None:
+            typer.echo("En son sürüm alınamadı (çevrimdışı ya da MLBOOSTER_NO_UPDATE_CHECK=1).")
+        elif upd["update_available"]:
+            typer.secho(f"Yeni sürüm: v{upd['latest']}. {upd['how']}", fg=typer.colors.CYAN)
+        else:
+            typer.echo("Güncel.")
 
 
 if __name__ == "__main__":

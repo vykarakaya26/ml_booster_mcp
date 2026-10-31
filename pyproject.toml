@@ -1,10 +1,11 @@
 [build-system]
-requires = ["setuptools>=69"]
-build-backend = "setuptools.build_meta"
+# hatchling kaynak ağacına (egg-info/build) yazmaz: plugin dizininden `uvx --from` ile kurulurken önemli.
+requires = ["hatchling>=1.25"]
+build-backend = "hatchling.build"
 
 [project]
 name = "mlbooster"
-version = "0.4.0"
+version = "0.5.0"
 description = "ML Booster Map: Türkiye için ücretsiz veri kaynakları haritası ve ML'e hazır panel üretici"
 requires-python = ">=3.12"
 license = "MIT"
@@ -27,14 +28,11 @@ dev = ["pytest>=8", "respx>=0.21"]
 mlbooster = "mlbooster.interfaces.cli:app"
 mlbooster-mcp = "mlbooster.interfaces.mcp_server:main"
 
-[tool.setuptools.packages.find]
-where = ["src"]
+[tool.hatch.build.targets.wheel]
+packages = ["src/mlbooster"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["tests"]
 markers = ["live: gerçek uçlara giden contract testleri (EVDS_API_KEY gerekir)"]
 addopts = "-m 'not live' --import-mode=importlib"
-
-[tool.setuptools.package-data]
-mlbooster = ["catalog_data/sources/*.yaml", "catalog_data/sectors/*.yaml"]

@@ -83,3 +83,9 @@ class PanelStore(Protocol):
     def export(self, panel: pd.DataFrame, path: Path) -> str:
         """Kullanıcının açıkça verdiği yola dışa aktarır (yalnızca yerel CLI)."""
         ...
+
+
+class UpdateSource(Protocol):
+    def latest_version(self) -> str | None:
+        """Yayımlanmış en son sürüm (ör. '0.4.0'); bilinmiyorsa None."""
+        ...

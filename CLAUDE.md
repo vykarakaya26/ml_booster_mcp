@@ -38,8 +38,11 @@ Kurallar:
 - Dış dünyadan gelen her kimlik/kod `domain.validation` ile doğrulanır (FetchRequest.create, use case girişleri).
 - Analiz mantığı (kalite denetimi, backtest) pakette ve testli; skill script'leri yalnızca sunum yapar,
   stdlib dışında import etmez (tests/skills zorlar), HTML'e her değeri kaçışlayarak yazar.
-- Sürüm yükseltmede üçü birlikte: pyproject `version`, `.claude-plugin/plugin.json` `version`, `.mcp.json` ve
-  `skills/_shared/bin/mlb` içindeki git ref (`@vX.Y.Z`) — ardından aynı adla git tag.
+- Sürüm: `.claude-plugin/plugin.json` içinde `version` YOK. Plugin kurulu kopyanın git commit'ini izler, böylece
+  her `main` merge'i otomatik güncellemeyle kullanıcıya ulaşır. MCP ve `mlb`, plugin kökünden
+  (`uvx --from ${CLAUDE_PLUGIN_ROOT}`) çalışır. pip kullanıcıları için pyproject `version` + `src/mlbooster/__init__.py`
+  `__version__` yükseltilir ve aynı adla `vX.Y.Z` tag'i atılır; `check_updates` bu tag'leri okur.
+- Build backend hatchling'dir: kaynak ağacına egg-info/build yazmaz (plugin dizinine yazılmamalı).
 - Hatalar: beklenenler `DomainError` alt sınıfları (kullanıcıya gösterilebilir, sır/yol içermez);
   sağlayıcı hataları `application.errors` içinde; altyapı kendi hatalarını bunlara çevirir.
 

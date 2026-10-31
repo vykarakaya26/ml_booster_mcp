@@ -40,6 +40,11 @@ class Frequency(StrEnum):
         return _MAX_STALENESS_DAYS[self]
 
     @property
+    def cache_ttl_hours(self) -> int:
+        """Yerel önbelleğin tazelik süresi: bu süreden eski çekimler panel kurulurken yenilenir."""
+        return _CACHE_TTL_HOURS[self]
+
+    @property
     def default_publication_lag_days(self) -> int:
         """Yayın gecikmesi bilinmeyen yeni seriler için muhafazakâr varsayılan (look-ahead'e karşı)."""
         return _DEFAULT_LAG_DAYS[self]
@@ -60,6 +65,11 @@ _MAX_STALENESS_DAYS = {
     Frequency.SEMI_ANNUAL: 380, Frequency.ANNUAL: 550,
 }  # fmt: skip
 
+_CACHE_TTL_HOURS = {
+    Frequency.HOURLY: 6, Frequency.DAILY: 12, Frequency.BUSINESS: 12, Frequency.WEEKLY: 24,
+    Frequency.SEMI_MONTHLY: 48, Frequency.MONTHLY: 72, Frequency.QUARTERLY: 168,
+    Frequency.SEMI_ANNUAL: 168, Frequency.ANNUAL: 336,
+}  # fmt: skip
 _DEFAULT_LAG_DAYS = {
     Frequency.HOURLY: 1, Frequency.DAILY: 1, Frequency.BUSINESS: 1, Frequency.WEEKLY: 7,
     Frequency.SEMI_MONTHLY: 15, Frequency.MONTHLY: 30, Frequency.QUARTERLY: 90,

@@ -40,4 +40,5 @@ def _no_dotenv(request, monkeypatch):
     home = request.getfixturevalue("tmp_path") / "mlbooster-home"
     monkeypatch.setenv("MLBOOSTER_HOME", str(home))  # override'lar gerçek ~/.mlbooster'a yazılmasın
     monkeypatch.delenv("MLBOOSTER_OVERRIDES", raising=False)
+    monkeypatch.setenv("MLBOOSTER_NO_UPDATE_CHECK", "1")  # offline testler GitHub'a gitmesin
     monkeypatch.delenv("EVDS_API_KEY", raising=False)
