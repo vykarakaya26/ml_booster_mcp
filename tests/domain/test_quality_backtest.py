@@ -197,3 +197,12 @@ def test_managed_path_detected_for_crawling_fx():
     assert diagnose(s, "usdtry_logdiff", "log_diff").managed_path
     assert not diagnose(pd.Series(rng.normal(0.02, 0.05, n), index=IDX), "x", "log_diff").managed_path
     assert not diagnose(s, "level_series", "level").managed_path
+
+
+def test_late_starting_feature_does_not_delay_ridge():
+    panel = _panel()[["trend", "shifted"]].copy()
+    panel["late"] = panel["shifted"]
+    panel.loc[:"2018-12-31", "late"] = np.nan  # 4 yıl geç başlayan feature
+    result = rolling_origin_backtest(panel, BacktestConfig(target="trend", min_train=36, models=("naive", "ridge")))
+    counts = result.predictions.groupby("model").size()
+    assert counts["ridge"] == counts["naive"]

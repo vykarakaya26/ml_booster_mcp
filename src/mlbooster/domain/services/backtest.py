@@ -151,6 +151,19 @@ def _is_dispersed(changes: np.ndarray, config: BacktestConfig) -> bool:
     return kurt > config.robust_kurtosis or outlier_share > config.robust_outlier_share
 
 
+def _usable_training(x: pd.DataFrame, change: pd.Series, train_end: int) -> tuple[pd.DataFrame, list[str]]:
+    """Geç başlayan feature'lar (ör. 2015'te başlayan bir anket) eğitim örneklemini %20'den fazla
+    küçültüyorsa o başlangıç noktasında dışarıda kalır; örneklem uzadıkça kendiliğinden devreye girer.
+    Böylece tek bir kısa seri tüm modelin başlangıcını geciktirmez."""
+    frame = pd.concat([x, change.rename("__y")], axis=1).iloc[:train_end]
+    frame = frame[frame["__y"].notna()]
+    complete = frame.dropna(axis=1, how="any").columns.drop("__y", errors="ignore").tolist()
+    rows_all = len(frame.dropna())
+    rows_core = len(frame[complete + ["__y"]].dropna())
+    cols = list(x.columns) if rows_all >= 0.8 * rows_core else complete
+    return frame[cols + ["__y"]].dropna(), cols
+
+
 # --- metrikler ------------------------------------------------------------------------------
 
 
@@ -265,8 +278,8 @@ def rolling_origin_backtest(panel: pd.DataFrame, config: BacktestConfig) -> Back
         train_end = pos + 1 - h  # s + h <= pos olan eğitim satırları
         if pd.notna(base.iloc[pos]):
             if ridge_x is not None:
-                train = pd.concat([ridge_x, change.rename("__y")], axis=1).iloc[:train_end].dropna()
-                x_new = ridge_x.iloc[[pos]]
+                train, cols = _usable_training(ridge_x, change, train_end)
+                x_new = ridge_x.iloc[[pos]][cols]
                 if len(train) >= max(24, train.shape[1]) and not x_new.isna().any(axis=None):
                     preds["ridge"] = float(base.iloc[pos]) + _ridge_fit_predict(
                         train.drop(columns="__y").to_numpy(), train["__y"].to_numpy(), x_new.to_numpy()[0], config.alpha
