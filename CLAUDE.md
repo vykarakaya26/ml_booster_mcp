@@ -29,7 +29,8 @@ src/mlbooster/
   catalog_data/      # sources/*.yaml, sectors/*.yaml (package-data); kullanıcı override: ~/.mlbooster/catalog/overrides.yaml
 skills/              # Claude Code plugin skill'leri (sector-analysis, evds-series-discovery, data-quality-audit,
                      # forecast-baseline); _shared/ = stdlib-only rapor kütüphanesi + bin/mlb CLI sarmalayıcısı
-.claude-plugin/      # plugin.json + marketplace.json; .mcp.json MCP sunucusunu uvx ile başlatır
+.claude-plugin/      # plugin.json (mcpServers: uvx --from ${CLAUDE_PLUGIN_ROOT}) + marketplace.json; kökte .mcp.json YOK —
+                     # olsaydı repo klasöründe açılan oturumlar onu proje MCP'si sanıp ${CLAUDE_PLUGIN_ROOT} olmadan çalıştırırdı
 tests/               # domain/, application/ (fakes.py ile), infrastructure/ (respx), interfaces/, test_architecture.py
 ```
 Kurallar:
