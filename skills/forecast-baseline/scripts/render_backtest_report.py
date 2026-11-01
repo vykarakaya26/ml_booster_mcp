@@ -15,11 +15,11 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "_shared"))
 
-from mlb_report import html as H  # noqa: E402
-from mlb_report import assumptions as A  # noqa: E402
-from mlb_report import external as X  # noqa: E402
-from mlb_report.data import read_json  # noqa: E402
-from mlb_report.svg import Band, LineChart, Series, bar_chart, line_chart  # noqa: E402
+from mlb_report import assumptions as A
+from mlb_report import external as X
+from mlb_report import html as H
+from mlb_report.data import read_json
+from mlb_report.svg import Band, LineChart, Series, bar_chart, line_chart
 
 DESCRIPTION = "mlbooster backtest --json çıktısından HTML backtest raporu üretir."
 MODEL_LABELS = {
@@ -119,7 +119,7 @@ def build(bt: dict, notes: str | None, assumptions: dict | None = None, external
             if p["model"] in lines:
                 lines[p["model"]][i] = p["y_pred"]
         series = [Series("Gerçekleşen", actual, 1)] + [
-            Series(MODEL_LABELS.get(m, m), lines[m], slot) for slot, m in zip((2, 3), shown)
+            Series(MODEL_LABELS.get(m, m), lines[m], slot) for slot, m in zip((2, 3), shown, strict=False)
         ]
         bands = []
         if any(p["model"] == "qr" for p in preds):

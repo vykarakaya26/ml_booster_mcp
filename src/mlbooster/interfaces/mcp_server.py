@@ -13,10 +13,11 @@ from __future__ import annotations
 
 import functools
 import logging
+import sys
 from collections.abc import Callable
 from datetime import date
 from functools import cache
-from typing import Any, TypeVar
+from typing import Any
 
 from mcp.server.mcpserver import MCPServer
 from mcp.server.mcpserver.exceptions import ToolError
@@ -41,7 +42,6 @@ from mlbooster.interfaces.presenters import (
 )
 
 log = logging.getLogger(__name__)
-F = TypeVar("F", bound=Callable[..., Any])
 
 READ_ONLY = ToolAnnotations(read_only_hint=True, open_world_hint=False)
 READ_REMOTE = ToolAnnotations(read_only_hint=True, open_world_hint=True)
@@ -74,7 +74,7 @@ def _iso(value: str, field: str) -> date:
         raise InvalidInput(f"{field} YYYY-AA-GG biçiminde olmalıdır") from None
 
 
-def safe_tool(fn: F) -> F:
+def safe_tool[F: Callable[..., Any]](fn: F) -> F:
     """Converts expected (domain/port) errors into a ToolError that can be shown to the user."""
 
     @functools.wraps(fn)
@@ -83,6 +83,11 @@ def safe_tool(fn: F) -> F:
             return fn(*args, **kwargs)
         except DomainError as exc:
             raise ToolError(str(exc)) from None
+        except Exception as exc:
+            # The SDK hides unexpected errors from the client; leave a trace on stderr (stdout is the stdio
+            # transport). Only the type is logged: messages and tracebacks may carry paths or request details.
+            log.error("tool %s failed unexpectedly: %s", fn.__name__, type(exc).__name__)
+            raise
 
     return wrapper  # type: ignore[return-value]
 
@@ -299,6 +304,7 @@ def check_updates() -> dict:
 
 
 def main() -> None:
+    logging.basicConfig(stream=sys.stderr, level=logging.WARNING, format="mlbooster-mcp %(levelname)s %(message)s")
     server.run()
 
 

@@ -8,10 +8,8 @@ provider refuses to run). Redirects are not followed and the response size is li
 
 from __future__ import annotations
 
-import calendar
 import csv
 import io
-import re
 import time
 from datetime import UTC, date, datetime, timedelta
 from urllib.parse import quote, urlencode, urlsplit
@@ -23,6 +21,7 @@ from mlbooster.application.errors import ProviderError, UnexpectedResponse
 from mlbooster.domain.errors import InvalidInput
 from mlbooster.domain.model import Frequency, HealthResult, HealthStatus, SeedSeries, Source
 from mlbooster.domain.observations import OBSERVATION_COLUMNS, empty_observations
+from mlbooster.domain.periods import parse_period as parse_domain_period
 from mlbooster.infrastructure.http_client import HttpResponse, SecureHttpClient
 from mlbooster.infrastructure.secret_store import EnvSecretProvider
 from mlbooster.infrastructure.storage.raw_store import RawStore
@@ -32,34 +31,13 @@ HOSTS = {
     "bis": ("stats.bis.org", "csv"),
     "oecd": ("sdmx.oecd.org", "csvfile"),
 }
-_DAY = re.compile(r"^(\d{4})-(\d{2})-(\d{2})$")
-_MONTH = re.compile(r"^(\d{4})-(\d{2})$")
-_QUARTER = re.compile(r"^(\d{4})-Q([1-4])$")
-_HALF = re.compile(r"^(\d{4})-[SH]([12])$")
-_YEAR = re.compile(r"^(\d{4})$")
 _LOOKBACK = {"D": 30, "B": 30, "W": 60, "M": 400, "Q": 800, "S": 1200, "A": 2200}
 
 
-def _month_end(year: int, month: int) -> date:
-    return date(year, month, calendar.monthrange(year, month)[1])
-
-
 def parse_period(raw: str) -> date:
-    raw = raw.strip()
-    try:
-        if m := _DAY.match(raw):
-            return date(int(m[1]), int(m[2]), int(m[3]))
-        if m := _MONTH.match(raw):
-            return _month_end(int(m[1]), int(m[2]))
-        if m := _QUARTER.match(raw):
-            return _month_end(int(m[1]), int(m[2]) * 3)
-        if m := _HALF.match(raw):
-            return _month_end(int(m[1]), int(m[2]) * 6)
-        if m := _YEAR.match(raw):
-            return date(int(m[1]), 12, 31)
-    except ValueError:
-        pass
-    raise UnexpectedResponse(f"Tanınmayan SDMX dönemi: {raw[:30]!r}")
+    if parsed := parse_domain_period(raw):
+        return parsed[0]
+    raise UnexpectedResponse(f"Tanınmayan SDMX dönemi: {raw.strip()[:30]!r}")
 
 
 class SdmxCsvProvider:

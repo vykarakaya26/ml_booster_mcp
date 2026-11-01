@@ -23,7 +23,7 @@ import pandas as pd
 from mlbooster.domain.errors import InvalidInput
 from mlbooster.domain.model import FeatureRecipe, SectorEvent
 from mlbooster.domain.numfmt import tr_num
-from mlbooster.domain.services.calendar_tr import month_calendar
+from mlbooster.domain.services.calendar_tr import HOLIDAY_YEARS, month_calendar, uncovered_years
 
 LAGS = (1, 2, 3, 6, 12)
 WINDOWS = (3, 6, 12)
@@ -328,6 +328,11 @@ def screen(features: pd.DataFrame, label: pd.Series, train_index: pd.Index, cfg:
 def engineer(panel: pd.DataFrame, recipes: Iterable[FeatureRecipe], cfg: FeatureConfig, sector_events: Iterable[SectorEvent] = ()) -> FeatureResult:
     features, specs, skipped = generate(panel, recipes, cfg, sector_events)
     notes: list[str] = []
+    if cfg.calendar and (missing := uncovered_years(features.index)):
+        notes.append(
+            f"Dini bayram tablosu {HOLIDAY_YEARS[0]}–{HOLIDAY_YEARS[1]} yıllarını kapsıyor; "
+            f"{', '.join(map(str, missing))} yıllarında is_gunu ve bayram kolonları boş (NaN) bırakıldı."
+        )
     if not cfg.target:
         return FeatureResult(features, specs, skipped, None, [], None, None, notes)
     if cfg.target not in panel.columns:

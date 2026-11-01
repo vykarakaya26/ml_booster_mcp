@@ -89,7 +89,7 @@ def test_formula_also_requests_level(evds):
     route = respx.get(url__startswith=BASE).mock(side_effect=responder)
     df = evds.fetch(_req(start=date(2026, 9, 1), end=date(2026, 9, 30), formula=3))
     assert route.call_count == 2
-    assert dict(zip(df["metric"], df["value"])) == {"level": 3550.2, "yoy_pct": 33.3}
+    assert dict(zip(df["metric"], df["value"], strict=True)) == {"level": 3550.2, "yoy_pct": 33.3}
 
 
 @respx.mock

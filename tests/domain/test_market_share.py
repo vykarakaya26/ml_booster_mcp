@@ -18,9 +18,9 @@ from mlbooster.domain.services.market_share import (
 
 def _monthly(players: dict[str, list[float]], start="2022-01", total: list[float] | None = None, segment=None) -> pd.DataFrame:
     months = pd.period_range(start, periods=len(next(iter(players.values()))), freq="M").astype(str)
-    rows = [{"entity": e, "date": m, "value": v} for e, vals in players.items() for m, v in zip(months, vals)]
+    rows = [{"entity": e, "date": m, "value": v} for e, vals in players.items() for m, v in zip(months, vals, strict=True)]
     if total is not None:
-        rows += [{"entity": "TOPLAM", "date": m, "value": v} for m, v in zip(months, total)]
+        rows += [{"entity": "TOPLAM", "date": m, "value": v} for m, v in zip(months, total, strict=True)]
     df = pd.DataFrame(rows)
     if segment:
         df["segment"] = segment

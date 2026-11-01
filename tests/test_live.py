@@ -4,13 +4,13 @@ import os
 from datetime import date, timedelta
 
 import pytest
+from dotenv import dotenv_values, find_dotenv
 
 from mlbooster.application.dto import FetchRequest
 from mlbooster.domain.model import HealthStatus
 from mlbooster.infrastructure.http_client import SecureHttpClient
 from mlbooster.infrastructure.providers.evds3 import Evds3Provider
 from mlbooster.infrastructure.secret_store import EnvSecretProvider
-from dotenv import dotenv_values, find_dotenv
 
 # Read without modifying os.environ: offline tests must not see the key.
 API_KEY = os.environ.get("EVDS_API_KEY") or dotenv_values(find_dotenv(usecwd=True)).get("EVDS_API_KEY")

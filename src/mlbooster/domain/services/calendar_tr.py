@@ -77,6 +77,15 @@ SOURCES: tuple[str, ...] = (
 )
 
 
+HOLIDAY_YEARS = (min(y for y, *_ in MOVING_HOLIDAYS), max(y for y, *_ in MOVING_HOLIDAYS))
+
+
+def uncovered_years(index: pd.DatetimeIndex) -> list[int]:
+    """Years in `index` that the moving-holiday table does not cover (their holiday columns are NaN)."""
+    lo, hi = HOLIDAY_YEARS
+    return sorted({y for y in index.year if not lo <= y <= hi})
+
+
 def holiday_days(start: date, end: date) -> dict[date, tuple[float, str | None]]:
     """Holidays in [start, end] → (business-day loss 0–1, religious holiday name or None)."""
     out: dict[date, tuple[float, str | None]] = {}
@@ -84,7 +93,7 @@ def holiday_days(start: date, end: date) -> dict[date, tuple[float, str | None]]
         for month, day, since, weight in FIXED_HOLIDAYS:
             if year >= since:
                 out[date(year, month, day)] = (weight, None)
-    for year, name, first, days in MOVING_HOLIDAYS:
+    for _year, name, first, days in MOVING_HOLIDAYS:
         d0 = date.fromisoformat(first)
         eve = d0 - timedelta(days=1)
         out.setdefault(eve, (0.5, None))

@@ -12,7 +12,6 @@ from mlbooster.domain.services.backtest import BacktestResult
 from mlbooster.domain.services.quality import QualityReport
 from mlbooster.domain.services.sector_map import SectorMap
 
-
 # Turkish labels for the sector map status codes (domain.services.sector_map).
 STATUS_LABELS = {"ready": "hazır", "pending_discovery": "seri kodu bekleniyor", "no_provider": "provider yok"}
 # Turkish labels for audit/market share severities and market share enums (domain.services.market_share).
@@ -189,7 +188,7 @@ def prep_dict(result, sector_id: str, skipped: dict[str, str] | None = None) -> 
         "columns": [
             {"feature": plan.feature, "is_target": plan.is_target, "before": _profile_dict(prof),
              "after": _profile_dict(after[plan.feature]), "steps": _deep(plan.steps)}
-            for prof, plan in zip(result.profiles, result.plans)
+            for prof, plan in zip(result.profiles, result.plans, strict=True)
         ],  # fmt: skip
         "added_columns": [c for c in result.panel.columns if "__" in c],
         "period": {"first": result.panel.index[0].date().isoformat(), "last": result.panel.index[-1].date().isoformat(),

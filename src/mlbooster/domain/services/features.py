@@ -7,7 +7,6 @@ import pandas as pd
 
 from mlbooster.domain.model import Transform
 
-
 _RULES = {"M": "ME", "W": "W-FRI", "B": "B"}
 _PER_YEAR = {"M": 12, "W": 52, "B": 252}
 

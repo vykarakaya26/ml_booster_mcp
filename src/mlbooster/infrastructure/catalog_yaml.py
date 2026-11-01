@@ -15,18 +15,18 @@ from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_valida
 
 from mlbooster.domain.errors import InconsistentCatalog
 from mlbooster.domain.model import (
-    FeatureRecipe,
-    SectorEvent,
     Access,
     Aggregation,
     AuthKind,
     AuthSpec,
     Catalog,
+    FeatureRecipe,
     Frequency,
     LicenseSpec,
     MacroFeature,
     RateLimitSpec,
     Sector,
+    SectorEvent,
     SeedSeries,
     SeriesKind,
     ShareSource,

@@ -2,7 +2,6 @@ import asyncio
 
 import numpy as np
 import pandas as pd
-
 import pytest
 from typer.testing import CliRunner
 
@@ -92,9 +91,9 @@ def test_cli_market_share(tmp_path):
 
 
 def test_cli_number_format_is_turkish():
-    assert cli._num(12345.6, ",.0f") == "12.346"
-    assert cli._num(31.5, ".2f") == "31,50"
-    assert cli._num(-0.25, "+.2f") == "-0,25"
+    assert cli.tr_num(12345.6, ",.0f") == "12.346"
+    assert cli.tr_num(31.5, ".2f") == "31,50"
+    assert cli.tr_num(-0.25, "+.2f") == "-0,25"
 
 
 def test_backtest_panel_file_and_reader(tmp_path):
@@ -119,3 +118,14 @@ def test_period_end_reads_months_as_month_end():
     assert cli._period_end("2024-02") == date(2024, 2, 29)
     assert cli._period_end("2022-12-15") == date(2022, 12, 15)
     assert cli._period_end(None) is None
+
+
+def test_safe_tool_logs_unexpected_errors_without_message(caplog):
+    @mcp_server.safe_tool
+    def broken():
+        raise RuntimeError("/Users/someone/secret/path")
+
+    with caplog.at_level("ERROR", logger=mcp_server.log.name), pytest.raises(RuntimeError):
+        broken()
+    assert "broken" in caplog.text and "RuntimeError" in caplog.text
+    assert "/Users/someone" not in caplog.text

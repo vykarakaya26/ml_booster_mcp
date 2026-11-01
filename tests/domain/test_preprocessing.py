@@ -62,7 +62,7 @@ def test_parameters_use_only_training_window_and_no_future_leakage():
     after = prepare(changed, cfg)
     train = slice(None, "2019-12-31")
     pd.testing.assert_frame_equal(base.panel.loc[train], after.panel.loc[train])
-    for a, b in zip(base.plans, after.plans):
+    for a, b in zip(base.plans, after.plans, strict=True):
         assert a.steps == b.steps  # λ, center and scale from training only
 
 

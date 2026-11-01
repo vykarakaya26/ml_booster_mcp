@@ -15,10 +15,10 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "_shared"))
 
-from mlb_report import assumptions as A  # noqa: E402
-from mlb_report import html as H  # noqa: E402
-from mlb_report.data import read_json, read_panel_csv  # noqa: E402
-from mlb_report.svg import LineChart, Series, line_chart  # noqa: E402
+from mlb_report import assumptions as A
+from mlb_report import html as H
+from mlb_report.data import read_json, read_panel_csv
+from mlb_report.svg import LineChart, Series, line_chart
 
 DESCRIPTION = "mlbooster prep --json çıktısından dağılıma dayalı ön işleme raporu (HTML) üretir."
 STEP_LABELS = {

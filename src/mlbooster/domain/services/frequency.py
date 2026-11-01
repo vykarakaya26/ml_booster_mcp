@@ -61,7 +61,7 @@ def to_monthly(
         # same month because month lengths differ (Jan+30d = 2 Mar, Feb+30d = 30 Mar → Jan is lost). Taking
         # the largest guarantees that no value appears before it is published.
         available = _month_end(pd.DatetimeIndex(monthly.index + pd.Timedelta(days=publication_lag_days)))
-        shift = int(max((a.to_period("M") - p.to_period("M")).n for a, p in zip(available, monthly.index)))
+        shift = int(max((a.to_period("M") - p.to_period("M")).n for a, p in zip(available, monthly.index, strict=True)))
         monthly.index = _month_end(monthly.index + pd.offsets.MonthEnd(shift)) if shift else monthly.index
 
     monthly = monthly.dropna()

@@ -6,7 +6,7 @@ Türkiye için ücretsiz veri kaynaklarını sektör bazında haritalayan ve ML'
 - **MCP sunucusu**: Claude Code ya da Claude Desktop'tan araç olarak.
 - **CLI / Python paketi**: `mlbooster`.
 
-> **Durum (v0.4):** Katalog 12 kaynak ve 9 sektör içeriyor (bankacılık, sigorta, telekom, otomotiv, akaryakıt, perakende, turizm, konut, makro_genel). Veri çeken provider'lar **TCMB EVDS3**, **BIS** ve **OECD**; üçü de canlı doğrulandı. TÜİK, BDDK, TBB, EPİAŞ, EPDK, BTK, TSB, ODMD ve BKM haritada yer alıyor ancak henüz veri çekmiyor; bu kaynakların adapter'ları yol haritasında.
+> **Durum:** Katalog 12 kaynak ve 9 sektör içeriyor (bankacılık, sigorta, telekom, otomotiv, akaryakıt, perakende, turizm, konut, makro_genel). Veri çeken provider'lar **TCMB EVDS3**, **BIS** ve **OECD**; üçü de canlı doğrulandı. TÜİK, BDDK, TBB, EPİAŞ, EPDK, BTK, TSB, ODMD ve BKM haritada yer alıyor ancak henüz veri çekmiyor; bu kaynakların adapter'ları yol haritasında.
 
 ### Veri kapsamı
 | Frekans | Seriler (örnekler) | Kaynak |
@@ -116,7 +116,7 @@ Veriler varsayılan olarak `~/.mlbooster/data` altında tutulur. Bu dizin `MLBOO
 | Katman | İçerik |
 |---|---|
 | `bronze/<kaynak>/` | Ham yanıtlar (sha256 adlı) + `manifest.jsonl` (çekim zamanı, URL) |
-| `silver/source_id=<kaynak>/` | Uzun format; her çekim ayrı bir vintage. Okumada `as_of` öncesindeki en son vintage seçilir |
+| `silver/source_id=<kaynak>/` | Uzun format; her çekim ayrı bir vintage. Okumada her anahtar için en son vintage seçilir; store `as_of` ile geçmiş bir andaki vintage'ı da okuyabilir, ancak CLI ve MCP panel üretimi şu an her zaman en son vintage'ı kullanır |
 | `gold/<sektör>.parquet` | Aylık dönem sonuna hizalanmış feature paneli |
 
 ## Panel kuralları

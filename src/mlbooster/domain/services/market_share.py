@@ -22,6 +22,7 @@ import pandas as pd
 
 from mlbooster.domain.errors import InvalidInput
 from mlbooster.domain.numfmt import tr_num, tr_pct
+from mlbooster.domain.periods import parse_period as _parse_period
 
 MAX_ROWS = 200_000
 MAX_ENTITIES = 200
@@ -43,10 +44,6 @@ _ALIASES = {
     "value": ("value", "deger", "değer", "tutar", "adet", "satis", "satış", "pay", "share"),
     "segment": ("segment", "kirilim", "kırılım", "kategori", "category"),
 }
-_RE_DAY = re.compile(r"^(\d{4})-(\d{2})-(\d{2})")
-_RE_MONTH = re.compile(r"^(\d{4})-(\d{1,2})$")
-_RE_QUARTER = re.compile(r"^(\d{4})[- ]?[QÇ]([1-4])$", re.IGNORECASE)
-_RE_YEAR = re.compile(r"^(\d{4})$")
 _CONTROL = re.compile(r"[\x00-\x1f\x7f]")
 # Entity names that mark market total rows (case-insensitive); `TOTAL` is accepted as an English alias.
 TOTAL_ALIASES = ("TOPLAM", "TOTAL")
@@ -103,17 +100,8 @@ def parse_period(raw: object) -> date:
     if isinstance(raw, (pd.Timestamp, date)):
         return pd.Timestamp(raw).date()
     s = str(raw).strip()
-    try:
-        if m := _RE_DAY.match(s):
-            return date(int(m[1]), int(m[2]), int(m[3]))
-        if m := _RE_MONTH.match(s):
-            return (pd.Timestamp(int(m[1]), int(m[2]), 1) + pd.offsets.MonthEnd(0)).date()
-        if m := _RE_QUARTER.match(s):
-            return (pd.Timestamp(int(m[1]), int(m[2]) * 3, 1) + pd.offsets.MonthEnd(0)).date()
-        if m := _RE_YEAR.match(s):
-            return date(int(m[1]), 12, 31)
-    except ValueError:
-        pass
+    if parsed := _parse_period(s):
+        return parsed[0]
     raise InvalidInput(f"Dönem biçimi tanınmadı: {s[:20]!r} (beklenen biçimler: YYYY-AA, YYYY-AA-GG, YYYY-Qn ya da YYYY)")
 
 
@@ -427,7 +415,7 @@ def competitor_candidates(players: pd.DataFrame, subst: pd.DataFrame, overlaps: 
         for entity, value in overlaps.drop(index=focus, errors="ignore").nlargest(3).items():
             if value >= OVERLAP_MIN:
                 reasons.setdefault(entity, []).append(f"segment karması en çok örtüşen oyunculardan ({tr_pct(value * 100, '.0f')})")
-    share = dict(zip(players["entity"], players["share"]))
+    share = dict(zip(players["entity"], players["share"], strict=True))
     r_of = {row.entity: row.r for row in subst.itertuples() if row.r is not None and not pd.isna(row.r)}
     out = [{"entity": e, "share": share.get(e), "r": r_of.get(e), "reasons": r} for e, r in reasons.items() if e != focus]
     return sorted(out, key=lambda c: (-len(c["reasons"]), c["r"] if c["r"] is not None else 1.0, -(c["share"] or 0)))

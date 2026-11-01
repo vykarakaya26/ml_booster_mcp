@@ -16,10 +16,10 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "_shared"))
 
-from mlb_report import assumptions as A  # noqa: E402
-from mlb_report import html as H  # noqa: E402
-from mlb_report.data import read_json  # noqa: E402
-from mlb_report.svg import bar_chart  # noqa: E402
+from mlb_report import assumptions as A
+from mlb_report import html as H
+from mlb_report.data import read_json
+from mlb_report.svg import bar_chart
 
 DESCRIPTION = "mlbooster features --json çıktısından feature üretimi ve seçimi raporu (HTML) üretir."
 FAMILIES = {

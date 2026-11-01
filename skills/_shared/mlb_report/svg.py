@@ -136,7 +136,7 @@ def line_chart(chart: LineChart) -> str:
     # Bands (below the lines): separate polygons for contiguous segments
     for b in chart.bands:
         segment: list[tuple[date, float, float]] = []
-        for d, lo, hi in [*zip(dates, b.lower, b.upper), (None, None, None)]:
+        for d, lo, hi in [*zip(dates, b.lower, b.upper, strict=True), (None, None, None)]:
             if d is not None and lo is not None and hi is not None:
                 segment.append((d, lo, hi))
                 continue
@@ -148,7 +148,7 @@ def line_chart(chart: LineChart) -> str:
     # Series: the line is broken at gaps
     for s in chart.series:
         path, pen = [], False
-        for d, v in zip(dates, s.values):
+        for d, v in zip(dates, s.values, strict=True):
             if v is None:
                 pen = False
                 continue
@@ -198,7 +198,7 @@ def bar_chart(labels: Sequence[str], values: Sequence[float], title: str, fmt: C
     vmax = max(max(values), 0) or 1
     plot_w = W - label_w - 80
     out = [f'<svg viewBox="0 0 {W} {h}" role="img" aria-label="{html.escape(title)}" class="chart">']
-    for i, (lab, val) in enumerate(zip(labels, values)):
+    for i, (lab, val) in enumerate(zip(labels, values, strict=True)):
         y = 6 + i * row_h
         bw = max(2.0, val / vmax * plot_w)
         cls = "bar" + (" muted-bar" if highlight and lab != highlight else "")

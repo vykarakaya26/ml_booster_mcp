@@ -18,6 +18,7 @@ from mlbooster.application.use_cases.panel import DEFAULT_START
 from mlbooster.bootstrap import Container, build_container
 from mlbooster.domain.errors import DomainError
 from mlbooster.domain.model import HealthStatus
+from mlbooster.domain.numfmt import tr_num
 from mlbooster.domain.services.backtest import MODELS, BacktestConfig
 from mlbooster.domain.services.feature_engineering import FeatureConfig
 from mlbooster.domain.services.market_share import ShareConfig
@@ -66,11 +67,6 @@ def _period_end(value: str | None) -> date | None:
     if len(value.strip()) == 7:
         return (pd.Timestamp(parsed) + pd.offsets.MonthEnd(0)).date()
     return parsed
-
-
-def _num(value: float, spec: str) -> str:
-    """Formats a number the Turkish way: decimal comma, dot as thousands separator."""
-    return format(value, spec).replace(",", "\0").replace(".", ",").replace("\0", ".")
 
 
 def _fail(exc: Exception) -> None:
@@ -422,12 +418,12 @@ def market_share(
         _write_json(result, json_out)
     meta, conc = result["meta"], result["concentration"]["latest"]
     typer.echo(f"Dönem {meta['first']} – {meta['last']} · taban: {BASIS_LABELS.get(meta['basis'], meta['basis'])} · {meta['entities']} oyuncu")
-    typer.echo(f"HHI {_num(conc['hhi'], ',.0f')} ({HHI_CLASS_LABELS.get(conc['class'], conc['class'])}) · CR3 %{_num(conc['cr3'], '.1f')} · "
-               f"eşdeğer oyuncu {_num(conc['equivalent_players'], '.1f')}")
+    typer.echo(f"HHI {tr_num(conc['hhi'], ',.0f')} ({HHI_CLASS_LABELS.get(conc['class'], conc['class'])}) · CR3 %{tr_num(conc['cr3'], '.1f')} · "
+               f"eşdeğer oyuncu {tr_num(conc['equivalent_players'], '.1f')}")
     for p in result["players"][:top_n]:
-        d, share = p.get("d_year_pp"), "%" + _num(p["share"], ".2f")
+        d, share = p.get("d_year_pp"), "%" + tr_num(p["share"], ".2f")
         trend = TREND_LABELS.get(p["trend"], p["trend"])
-        typer.echo(f"{p['rank']:>3}. {p['entity']:<28} {share:>7}  yıllık {_num(d, '+.2f')} puan  {trend}" if d is not None
+        typer.echo(f"{p['rank']:>3}. {p['entity']:<28} {share:>7}  yıllık {tr_num(d, '+.2f')} puan  {trend}" if d is not None
                    else f"{p['rank']:>3}. {p['entity']:<28} {share:>7}  {trend}")  # fmt: skip
     for i in result["issues"]:
         typer.secho(f"{SEVERITY_LABELS.get(i['severity'], i['severity']):<7} {i['message']}", fg=typer.colors.YELLOW if i["severity"] != "info" else typer.colors.BLUE)

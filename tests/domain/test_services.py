@@ -1,4 +1,5 @@
 from datetime import date
+from itertools import pairwise
 
 import numpy as np
 import pandas as pd
@@ -70,7 +71,7 @@ def test_deflate_and_transforms_fill_gaps():
 def test_date_chunks_cover_range_without_overlap():
     chunks = date_chunks(date(2020, 1, 1), date(2026, 10, 30), Frequency.BUSINESS, 1000)
     assert chunks[0][0] == date(2020, 1, 1) and chunks[-1][1] == date(2026, 10, 30)
-    assert all((b[0] - a[1]).days == 1 for a, b in zip(chunks, chunks[1:]))
+    assert all((b[0] - a[1]).days == 1 for a, b in pairwise(chunks))
     assert all((e - s).days < 1000 for s, e in chunks)
     assert len(date_chunks(date(2000, 1, 1), date(2026, 1, 1), Frequency.MONTHLY, 1000)) == 1
 

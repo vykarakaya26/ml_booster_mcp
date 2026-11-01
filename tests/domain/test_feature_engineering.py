@@ -120,3 +120,19 @@ def test_sector_events_and_ramadan_windows(catalog):
     assert feats.loc["2019-07-31", "otv_indirimi_2018"] == 0
     cal = month_calendar(pd.date_range("2025-02-28", periods=2, freq="ME"))
     assert cal.loc["2025-03-31", "ramazan_ayi_gun"] == 29 and cal.loc["2025-02-28", "ramazan_ayi_gun"] == 1
+
+
+def test_holiday_table_covers_the_next_year():
+    # Operational guard: extend MOVING_HOLIDAYS (Diyanet calendar) before this fails in CI.
+    from datetime import date
+
+    from mlbooster.domain.services.calendar_tr import HOLIDAY_YEARS
+
+    assert HOLIDAY_YEARS[1] >= date.today().year + 1, "Extend MOVING_HOLIDAYS in domain/services/calendar_tr.py"
+
+
+def test_uncovered_calendar_years_are_reported():
+    from mlbooster.domain.services.calendar_tr import HOLIDAY_YEARS, uncovered_years
+
+    idx = pd.date_range(f"{HOLIDAY_YEARS[1]}-11-30", periods=3, freq="ME")
+    assert uncovered_years(idx) == [HOLIDAY_YEARS[1] + 1]

@@ -11,29 +11,35 @@ No UI — usage is through the CLI (`mlbooster`) and the MCP server (`mlbooster-
 - MCP: `mcp` 2.x — `from mcp.server.mcpserver import MCPServer` (FastMCP from 1.x does not exist in 2.x)
 - PDF (later phases): pdfplumber + camelot (fallback); Excel: openpyxl
 - Tests: pytest + respx (mocked HTTP) + tests/fakes.py (port fakes); live contract tests with `-m live`
-- CI: GitHub Actions (pytest 3.12/3.13 + pip-audit), Dependabot
+- CI: GitHub Actions (pytest 3.12/3.13 with coverage ≥ 85%, ruff check, pip-audit), actions pinned to SHAs, Dependabot
+- Lint: `ruff check .` (rules in pyproject.toml; skills/ excluded from pyupgrade because scripts run on system Python ≥ 3.10)
 
 ## Architecture: Onion — dependencies only from the outside in (enforced by tests/test_architecture.py)
 ```
 src/mlbooster/
-  domain/            # core: model.py (frozen dataclasses), validation.py (allow-lists, DateRange),
-                     # observations.py (observation frame contract), services/ (frequency, deflator, features,
-                     # chunking, sector_map, market_share). Allowed: stdlib + pandas/numpy. NO I/O.
+  domain/            # core: model.py (frozen dataclasses), validation.py (allow-lists, DateRange), periods.py
+                     # (single period-string parser), numfmt.py (Turkish number formatting for messages),
+                     # observations.py (observation frame contract), services/ (frequency, deflation, features,
+                     # chunking, sector_map, quality, backtest, distribution, preprocessing, feature_engineering,
+                     # calendar_tr, market_share). Allowed: stdlib + pandas/numpy. NO I/O.
   application/       # ports.py (Protocols), dto.py (FetchRequest: input validation gate), errors.py,
-                     # use_cases/ (ListSectors, ListSources, GetSectorMap, DiscoverSeries, FetchSeries,
-                     # BuildPanel, RunHealthChecks, AnalyzeMarketShare). Depends only on domain.
-  infrastructure/    # port implementations: providers/ (evds3, registry), http_client.py (SecureHttpClient),
+                     # use_cases/ (catalog, series, discovery, panel, health, analysis, modeling, market_share,
+                     # files: ExportTable/ReadPanelFile). Depends only on domain.
+  infrastructure/    # port implementations: providers/ (evds3, sdmx, registry), http_client.py (SecureHttpClient),
                      # catalog_yaml.py (pydantic → domain), secret_store.py, settings.py, storage/,
-                     # table_reader.py (market share CSV/JSON input; CLI only)
+                     # update_check.py (GitHub tags), table_reader.py (user CSV/JSON input; CLI only)
   interfaces/        # cli.py (typer), mcp_server.py (MCPServer), presenters.py — call use cases only
+                     # (tests/test_architecture.py forbids container().<port> access)
   bootstrap.py       # composition root: the single wiring point
   catalog_data/      # sources/*.yaml, sectors/*.yaml (package-data); user override: ~/.mlbooster/catalog/overrides.yaml
-skills/              # Claude Code plugin skills (sector-analysis, evds-series-discovery, data-quality-audit,
-                     # forecast-baseline, market-share); _shared/ = stdlib-only report library + bin/mlb CLI wrapper
+skills/              # Claude Code plugin skills (sector-analysis, data-quality-audit, data-prep, feature-engineering,
+                     # forecast-baseline, evds-series-discovery, market-share); _shared/ = stdlib-only report library
+                     # + bin/mlb CLI wrapper
 .claude-plugin/      # plugin.json (mcpServers: uvx --from ${CLAUDE_PLUGIN_ROOT}) + marketplace.json; there is NO
                      # .mcp.json at the root — if there were, sessions opened in the repo folder would treat it as a
                      # project MCP server and run it without ${CLAUDE_PLUGIN_ROOT}
-tests/               # domain/, application/ (with fakes.py), infrastructure/ (respx), interfaces/, test_architecture.py
+tests/               # domain/, application/ (with fakes.py), infrastructure/ (respx), interfaces/, skills/,
+                     # test_architecture.py (layering), test_drift.py (docs/packaging consistency)
 ```
 Rules:
 - Do NOT import httpx, duckdb, pyarrow, yaml, pydantic, mcp, typer or dotenv in domain/application.

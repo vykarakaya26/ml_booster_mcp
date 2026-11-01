@@ -24,7 +24,7 @@ def read_panel_csv(path: str | Path) -> tuple[list[date], dict[str, list[float |
             if not row:
                 continue
             dates.append(date.fromisoformat(row[0][:10]))
-            for name, raw in zip(header[1:], row[1:]):
+            for name, raw in zip(header[1:], row[1:], strict=False):
                 columns[name].append(_num(raw))
     return dates, columns
 
