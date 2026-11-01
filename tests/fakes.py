@@ -64,6 +64,15 @@ class FakeProviderFactory:
 class InMemoryObservationStore:
     def __init__(self):
         self.frames: list[pd.DataFrame] = []
+        self.requested: dict[tuple[str, str, str], object] = {}
+
+    def record_requested_start(self, source_id, series_ids, metric, start):
+        for code in series_ids:
+            key = (source_id, code, metric)
+            self.requested[key] = min(start, self.requested.get(key, start))
+
+    def requested_start(self, source_id, series_id, metric):
+        return self.requested.get((source_id, series_id, metric))
 
     def write(self, observations):
         self.frames.append(observations)
