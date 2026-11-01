@@ -1,4 +1,4 @@
-"""CSV / JSON okuma — yalnızca standart kütüphane."""
+"""CSV / JSON reading — standard library only."""
 
 from __future__ import annotations
 
@@ -14,7 +14,7 @@ def read_json(path: str | Path) -> dict | list:
 
 
 def read_panel_csv(path: str | Path) -> tuple[list[date], dict[str, list[float | None]]]:
-    """`mlbooster build-panel --out x.csv` çıktısı: ilk kolon tarih, diğerleri feature."""
+    """Output of `mlbooster build-panel --out x.csv`: first column is the date, the others are features."""
     with Path(path).open(encoding="utf-8") as fh:
         reader = csv.reader(fh)
         header = next(reader)
@@ -24,7 +24,7 @@ def read_panel_csv(path: str | Path) -> tuple[list[date], dict[str, list[float |
             if not row:
                 continue
             dates.append(date.fromisoformat(row[0][:10]))
-            for name, raw in zip(header[1:], row[1:]):
+            for name, raw in zip(header[1:], row[1:], strict=False):
                 columns[name].append(_num(raw))
     return dates, columns
 

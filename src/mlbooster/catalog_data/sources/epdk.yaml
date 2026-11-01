@@ -8,6 +8,6 @@ license: {attribution: required, notes: "Kamuya açık yayın."}
 frequency: [M, A]
 formats: [pdf, xlsx]
 sectors: [akaryakit, enerji]
-publication_lag_days: 60  # tahmini
+publication_lag_days: 60  # estimated
 verification_status: reported
 priority: 6

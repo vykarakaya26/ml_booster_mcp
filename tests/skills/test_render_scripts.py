@@ -1,4 +1,4 @@
-"""Skill render script'leri: uçtan uca üretim, XSS dayanıklılığı ve yalnızca stdlib kullanımı."""
+"""Skill render scripts: end-to-end generation, XSS resistance and stdlib-only imports."""
 
 from __future__ import annotations
 
@@ -43,8 +43,8 @@ def artifacts(tmp_path):
              "publication_lag_days": 1, "verification_status": "verified", "provider_ready": True, "license": EVIL},
         ],
         "macro_features": [
-            {"name": "tufe_yoy", "source": "evds3", "series": "TP.TUKFIY2025.GENEL", "transform": "yoy_pct", "status": "hazir", "discover_hint": None},
-            {"name": "x", "source": "evds3", "series": None, "transform": "level", "status": "kesif_bekliyor", "discover_hint": EVIL},
+            {"name": "tufe_yoy", "source": "evds3", "series": "TP.TUKFIY2025.GENEL", "transform": "yoy_pct", "status": "ready", "discover_hint": None},
+            {"name": "x", "source": "evds3", "series": None, "transform": "level", "status": "pending_discovery", "discover_hint": EVIL},
         ],
         "market_share": [{"source": "btk", "metric": "abone payı", "is_proxy": False, "notes": None}],
     }  # fmt: skip
@@ -63,7 +63,7 @@ def _run(script: Path, *args: str) -> None:
 
 def _assert_safe(html: str) -> None:
     assert EVIL not in html and "<img src=x" not in html
-    assert html.count("<script>") == 1  # yalnızca kendi tooltip script'imiz
+    assert html.count("<script>") == 1  # only our own tooltip script
 
 
 def test_audit_report(artifacts):
@@ -74,7 +74,8 @@ def test_audit_report(artifacts):
     html = out.read_text(encoding="utf-8")
     _assert_safe(html)
     assert "Veri kalitesi denetimi — telekom" in html and "data-chart=" in html
-    assert "Dağılım ve durağanlık" in html and "Girdiler ve varsayımlar" in html
+    assert "Dağılım ve durağanlık" in html and "Girdiler ve varsayımlar" in html and 'lang="tr"' in html
+    assert 'id="findings"' in html and 'href="#series-summary"' in html
 
 
 def test_backtest_report(artifacts):
@@ -96,6 +97,7 @@ def test_sector_report(artifacts):
     _assert_safe(html)
     assert "2 varsayım kullanıcı tarafından onaylanmadı (A1, A2)" in html
     assert "<strong>TÜFE</strong>" in html and "Telekom sektörü" in html and "Metodoloji ve sınırlar" in html
+    assert "Seri kodu bekleniyor" in html and "Panelde" in html
 
 
 def test_skill_scripts_use_only_stdlib():
@@ -125,7 +127,7 @@ def test_every_skill_has_valid_frontmatter():
                 rel = clean.split(ref, 1)[1]
                 base = SKILLS / "_shared" if "_shared/" in clean else skill
                 if rel and "*" not in rel and "<" not in rel:
-                    assert (base / ref / rel).exists(), f"{skill.name}: {base.name}/{ref}{rel} yok"
+                    assert (base / ref / rel).exists(), f"{skill.name}: {base.name}/{ref}{rel} missing"
 
 
 def test_assumptions_validation():
@@ -172,10 +174,10 @@ def test_external_consensus_rule_and_validation():
     from mlb_report.external import ExternalForecastError, consensus, section, validate
 
     tight = consensus([50.0, 50.5, 51.0, 51.2])
-    assert tight["rule"] == "ortalama" and tight["consensus"] == pytest.approx(50.675)
-    wide = consensus([45.0, 50.0, 52.0, 70.0])  # tek aykırı görüş ortalamayı sürükler
+    assert tight["rule"] == "mean" and tight["consensus"] == pytest.approx(50.675)
+    wide = consensus([45.0, 50.0, 52.0, 70.0])  # a single outlying view drags the mean
     assert wide["dispersed"] and wide["consensus"] == pytest.approx(51.0) and wide["mean"] > 54
-    assert consensus([50.0, 60.0])["rule"].startswith("medyan")
+    assert consensus([50.0, 60.0])["rule"].startswith("median")
     for bad in ({"forecasts": []}, _external([1.0]) | {"forecasts": [{"institution": "x"}]}):
         with pytest.raises(ExternalForecastError):
             validate(bad)
@@ -192,7 +194,7 @@ def test_external_consensus_rule_and_validation():
 def test_market_share_report(tmp_path):
     from mlbooster.domain.services.market_share import ShareConfig, analyze
 
-    sample = pd.read_csv(SKILLS / "market-share/assets/ornek_pazar_payi.csv")
+    sample = pd.read_csv(SKILLS / "market-share/assets/sample_market_share.csv")
     sample.loc[sample["entity"] == "Marka G", "entity"] = EVIL[:60]
     (tmp_path / "share.json").write_text(json.dumps(analyze(sample, ShareConfig(focus="Marka B"))), encoding="utf-8")
     comp = json.loads((SKILLS / "market-share/assets/competitors.example.json").read_text(encoding="utf-8"))
@@ -205,7 +207,7 @@ def test_market_share_report(tmp_path):
          "--source", "Sentetik örnek", "--out", str(out))  # fmt: skip
     html = out.read_text(encoding="utf-8")
     _assert_safe(html)
-    for heading in ("Pazar yapısı ve yoğunlaşma", "Oyuncular ve pay dinamikleri", "Rakip seti", "Segment kırılımı", "Yöntem"):
+    for heading in ("Pazar yapısı ve yoğunlaşma", "Oyuncular ve pay dinamikleri", "Rakip seti", "Segment kırılımı", "Coverage ve veri kalitesi", "Yöntem"):
         assert heading in html
     assert "Doğrudan rakip" in html and "pay etkisi" in html and "data-chart=" in html
 
@@ -216,10 +218,10 @@ def test_competitors_validation():
 
     validate_competitors(json.loads((SKILLS / "market-share/assets/competitors.example.json").read_text(encoding="utf-8")))
     for broken in (
-        {"competitors": [{"entity": "A", "tier": "rakip"}]},
-        {"competitors": [{"entity": "A", "tier": "doğrudan", "confidence": "kesin"}]},
-        {"competitors": [{"entity": "A", "tier": "doğrudan", "source_url": "javascript:alert(1)"}]},
-        {"competitors": [{"tier": "doğrudan"}]},
+        {"competitors": [{"entity": "A", "tier": "rival"}]},
+        {"competitors": [{"entity": "A", "tier": "direct", "confidence": "certain"}]},
+        {"competitors": [{"entity": "A", "tier": "direct", "source_url": "javascript:alert(1)"}]},
+        {"competitors": [{"tier": "direct"}]},
     ):
         with pytest.raises(CompetitorsError):
             validate_competitors(broken)
@@ -232,9 +234,9 @@ def test_prep_and_feature_reports(tmp_path):
 
     rng = np.random.default_rng(4)
     idx = pd.date_range("2013-01-31", periods=140, freq="ME")
-    panel = pd.DataFrame({"hedef": np.cumsum(rng.normal(0, 1, 140)), EVIL: rng.lognormal(0, 1, 140), "x": rng.normal(0, 1, 140)}, index=idx)
+    panel = pd.DataFrame({"target": np.cumsum(rng.normal(0, 1, 140)), EVIL: rng.lognormal(0, 1, 140), "x": rng.normal(0, 1, 140)}, index=idx)
     panel.index.name = "date"
-    prep = prepare(panel, PrepConfig(target="hedef", train_end=date(2021, 12, 31)))
+    prep = prepare(panel, PrepConfig(target="target", train_end=date(2021, 12, 31)))
     (tmp_path / "prep.json").write_text(json.dumps(prep_dict(prep, "telekom")), encoding="utf-8")
     panel.to_csv(tmp_path / "raw.csv", date_format="%Y-%m-%d")
     prep.panel.to_csv(tmp_path / "prepared.csv", date_format="%Y-%m-%d")
@@ -245,7 +247,7 @@ def test_prep_and_feature_reports(tmp_path):
     _assert_safe(html)
     assert "Dağılım profili ve uygulanan adımlar" in html and "Yeo–Johnson" in html and "(hedef)" in html
 
-    fe = engineer(prep.panel, [], FeatureConfig(target="hedef", train_end=date(2021, 12, 31)))
+    fe = engineer(prep.panel, [], FeatureConfig(target="target", train_end=date(2021, 12, 31)))
     (tmp_path / "fe.json").write_text(json.dumps(features_dict(fe, "telekom")), encoding="utf-8")
     bt = {"config": {"eval_start": "2021-12-31"}, "best_model": "naive", "common_origins": 20,
           "metrics": [{"model": "naive", "mae": 1.0}, {"model": "ridge", "mae": 0.9}]}  # fmt: skip
@@ -255,4 +257,4 @@ def test_prep_and_feature_reports(tmp_path):
          "--bt-base", str(tmp_path / "bt.json"), "--bt-features", str(tmp_path / "bt.json"), "--out", str(out))  # fmt: skip
     html = out.read_text(encoding="utf-8")
     _assert_safe(html)
-    assert "Değişken aileleri" in html and "Seçimin tahmin performansına katkısı" in html and "%10,0" in html
+    assert "Feature aileleri" in html and "Seçimin tahmin performansına katkısı" in html and "%10,0" in html

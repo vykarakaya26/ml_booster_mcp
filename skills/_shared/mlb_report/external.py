@@ -1,14 +1,14 @@
-"""Dış (kurumsal) tahminler: büyük bankalar, uluslararası kuruluşlar, TCMB anketi.
+"""External (institutional) forecasts: large banks, international organisations, the TCMB survey.
 
-Bu tahminler **veri değil, varsayım/girdi**dir. Raporda kaynak, yayın tarihi ve birincil/ikincil
-ayrımıyla gösterilir; konsensüs, görüş dağılımı genişse ortalama yerine medyanla özetlenir.
+These forecasts are **assumptions/inputs, not data**. The report shows them with source, publication date and the
+primary/secondary distinction; if the dispersion of views is wide, the consensus is summarised by the median instead of the mean.
 
-Şema (external_forecasts.json):
+Schema (external_forecasts.json):
 {
-  "retrieved": "YYYY-AA-GG",
+  "retrieved": "YYYY-MM-DD",
   "forecasts": [
     {"institution": "JPMorgan", "variable": "usdtry|cpi_yoy|policy_rate|...", "horizon": "2026-12",
-     "value": 43.5, "unit": "TRY|%", "published": "YYYY-AA-GG", "source_url": "https://...",
+     "value": 43.5, "unit": "TRY|%", "published": "YYYY-MM-DD", "source_url": "https://...",
      "primary": false, "note": "..."}
   ]
 }
@@ -25,7 +25,7 @@ from mlb_report import html as H
 from mlb_report.data import read_json
 
 STALE_DAYS = 92
-DISPERSION_RULE = 0.10  # IQR / |medyan| bu oranı aşarsa konsensüs = medyan (ortalama aykırı görüşe duyarlı)
+DISPERSION_RULE = 0.10  # if IQR / |median| exceeds this ratio, consensus = median (the mean is sensitive to an outlying view)
 VARIABLES = {
     "usdtry": "USD/TRY (dönem sonu)",
     "eurtry": "EUR/TRY (dönem sonu)",
@@ -33,6 +33,7 @@ VARIABLES = {
     "policy_rate": "Politika faizi % (dönem sonu)",
     "gdp_growth": "GSYH büyümesi %",
 }
+RULES = {"mean": "ortalama", "median_dispersed": "medyan (görüş dağılımı geniş)", "median_few": "medyan (az gözlem)"}
 
 
 class ExternalForecastError(ValueError):
@@ -48,23 +49,23 @@ def load(path: str | Path) -> dict:
 def validate(data: dict) -> None:
     items = data.get("forecasts") if isinstance(data, dict) else None
     if not isinstance(items, list) or not items:
-        raise ExternalForecastError("external_forecasts.json: 'forecasts' listesi gerekli")
+        raise ExternalForecastError("external_forecasts.json: 'forecasts' listesi gereklidir")
     for f in items:
         missing = {"institution", "variable", "horizon", "value", "published", "source_url"} - set(f)
         if missing:
             raise ExternalForecastError(f"Eksik alanlar {sorted(missing)}: {f}")
         if not isinstance(f["value"], int | float):
-            raise ExternalForecastError(f"value sayı olmalı: {f}")
+            raise ExternalForecastError(f"value sayı olmalıdır: {f}")
         try:
             date.fromisoformat(str(f["published"]))
         except ValueError:
-            raise ExternalForecastError(f"published YYYY-AA-GG olmalı: {f['published']}") from None
+            raise ExternalForecastError(f"published YYYY-AA-GG biçiminde olmalıdır: {f['published']}") from None
         if urlsplit(str(f["source_url"])).scheme not in {"https", "http"}:
-            raise ExternalForecastError(f"source_url http(s) olmalı: {f['source_url']}")
+            raise ExternalForecastError(f"source_url http(s) olmalıdır: {f['source_url']}")
 
 
 def consensus(values: list[float]) -> dict:
-    """Ortalama, medyan, çeyrekler ve hangisinin konsensüs sayıldığı (dağılım kuralı)."""
+    """Mean, median, quartiles and which of them is taken as the consensus (dispersion rule)."""
     n = len(values)
     srt = sorted(values)
     median = statistics.median(srt)
@@ -77,15 +78,15 @@ def consensus(values: list[float]) -> dict:
     dispersed = n >= 3 and median != 0 and iqr / abs(median) > DISPERSION_RULE
     return {"n": n, "mean": mean, "median": median, "min": srt[0], "max": srt[-1], "q1": q1, "q3": q3,
             "dispersed": dispersed, "consensus": median if dispersed or n < 3 else mean,
-            "rule": "medyan (görüş dağılımı geniş)" if dispersed else ("medyan (az gözlem)" if n < 3 else "ortalama")}  # fmt: skip
+            "rule": "median_dispersed" if dispersed else ("median_few" if n < 3 else "mean")}  # fmt: skip
 
 
 def _fmt(v: float) -> str:
-    return f"{v:,.2f}"
+    return H.num(v, 2)
 
 
 def section(data: dict, today: date | None = None, latest: dict[str, tuple[str, float]] | None = None) -> str:
-    """`latest`: değişken → (ay, son gerçekleşen değer); yıl sonuna ima edilen değişimi göstermek için."""
+    """`latest`: variable → (month, latest actual value); used to show the change implied by the year-end consensus."""
     today = today or date.today()
     groups: dict[tuple[str, str], list[dict]] = {}
     for f in data["forecasts"]:
@@ -95,10 +96,10 @@ def section(data: dict, today: date | None = None, latest: dict[str, tuple[str, 
     for (var, horizon), items in sorted(groups.items()):
         c = consensus([float(f["value"]) for f in items])
         last = (latest or {}).get(var)
-        implied = f"{(c['consensus'] / last[1] - 1) * 100:+.1f}% ({H.esc(last[0])}: {_fmt(last[1])})" if last and var in {"usdtry", "eurtry"} and last[1] else "—"
+        implied = f"%{H.num((c['consensus'] / last[1] - 1) * 100, 1, sign=True)} ({H.esc(last[0])}: {_fmt(last[1])})" if last and var in {"usdtry", "eurtry"} and last[1] else "—"
         summary_rows.append((
             H.esc(VARIABLES.get(var, var)), H.esc(horizon), c["n"], f"<strong>{_fmt(c['consensus'])}</strong>",
-            H.esc(c["rule"]), _fmt(c["median"]), _fmt(c["mean"]), f"{_fmt(c['min'])} – {_fmt(c['max'])}", implied,
+            H.esc(RULES.get(c["rule"], c["rule"])), _fmt(c["median"]), _fmt(c["mean"]), f"{_fmt(c['min'])} – {_fmt(c['max'])}", implied,
         ))  # fmt: skip
         for f in sorted(items, key=lambda x: x["published"], reverse=True):
             age = (today - date.fromisoformat(f["published"])).days
@@ -113,7 +114,7 @@ def section(data: dict, today: date | None = None, latest: dict[str, tuple[str, 
     body = (
         '<p class="muted">Dış tahminler veri değil, <strong>varsayım</strong> niteliğindedir. Görüş dağılımı genişse '
         f"(çeyrekler arası açıklık medyanın %{int(DISPERSION_RULE * 100)}'undan fazlaysa) konsensüs olarak medyan "
-        "kullanılır, çünkü ortalama tek bir aykırı görüşe duyarlıdır. "
+        "kullanılır; çünkü ortalama tek bir outlier görüşe duyarlıdır. "
         f"{STALE_DAYS} günden eski tahminler 'güncel değil' olarak işaretlenir.</p>"
         + H.table(
             ["Değişken", "Ufuk", "n", "Konsensüs", "Kural", "Medyan", "Ortalama", "Aralık", "Son değere göre"],
@@ -124,5 +125,5 @@ def section(data: dict, today: date | None = None, latest: dict[str, tuple[str, 
                   numeric=[3], raw=[0, 1, 2, 3, 4, 5, 6, 7])  # fmt: skip
     )
     if data.get("retrieved"):
-        body += f'<p class="muted">Derlenme tarihi: {H.esc(data["retrieved"])}. Değerler kurum notlarından ve haber kaynaklarından derlenmiştir; birincil kaynaktan doğrulanması önerilir.</p>'
-    return H.section("Dış tahminler ve konsensüs", body, "dis-tahminler")
+        body += f'<p class="muted">Derlenme tarihi: {H.esc(data["retrieved"])}. Değerler kurum notlarından ve haber kaynaklarından derlenmiştir; birincil kaynaktan doğrulanmaları önerilir.</p>'
+    return H.section("Dış tahminler ve konsensüs", body, "external-forecasts")

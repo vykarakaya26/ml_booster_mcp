@@ -1,5 +1,5 @@
-// Crosshair + tooltip: işaretçiye en yakın X'e yapışır, o tarihteki tüm serileri listeler.
-// DOM'a yalnızca textContent ile yazılır (veri asla HTML olarak yorumlanmaz).
+// Crosshair + tooltip: snaps to the X nearest to the pointer and lists all series at that date.
+// Writes to the DOM only via textContent (data is never interpreted as HTML).
 (function () {
   function fmt(v) {
     if (v === null || v === undefined) return "—";

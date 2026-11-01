@@ -8,7 +8,7 @@ biçimde sunmak ise analizi güçlendirir.
 İstekten çıkarılabilenleri sorma. Yalnızca sonucu değiştirecek eksikleri sor ve seçenekli sun.
 
 1. **Karar ve kullanım.** Bu analiz hangi kararı besliyor (fiyatlama, bütçe, karşılık, hedge, model
-   seçimi)? Fazla ya da eksik tahminin maliyeti simetrik mi? Asimetrikse kantil kaybı kullanılır.
+   seçimi)? Fazla ya da eksik tahminin maliyeti simetrik mi? Asimetrikse quantile loss (pinball loss) kullanılır.
 2. **Hedef.** Tam olarak hangi seri? Seviye mi değişim mi? Ay ortalaması mı dönem sonu mu? Nominal mi
    reel mi (deflatör ne)?
 3. **Ufuk ve yenileme.** Kaç ay ileri? Ne sıklıkla güncellenecek?
@@ -51,7 +51,7 @@ onaylamasını iste.
 Bölüm sırası (merkez bankası pratiğine yakın):
 1. Veri ve kalite notları
 2. Varsayımlar
-3. Ufuk başına sonuçlar ve kıyas düzeyleri
+3. Ufuk başına sonuçlar ve benchmark'lar
 4. Senaryolar ve duyarlılık
 5. Riskler ve sonucu çürütebilecek gelişmeler
 6. Sınırlar
@@ -95,5 +95,5 @@ ancak bu ilkeyi mekanik biçimde uygulama.
 - **Baz etkisi.** Mekanik YoY düşüşünü politikaya bağlama.
 - **Küçük rejim örneklemi.** Bir rejimde 36 aydan az gözleme dayanan sonucu "gösterge niteliğinde" diye
   etiketle `[sezgisel]`.
-- **İyileşme iddiası.** Yalnızca kıyas düzeyine karşı, ufuk başına ve mümkünse DM testiyle yap.
+- **İyileşme iddiası.** Yalnızca benchmark'a karşı, ufuk başına ve mümkünse DM testiyle yap.
 - **Gelecek değer.** Kullanıcı açıkça senaryo istemedikçe nokta tahmin ya da yatırım tavsiyesi verme.

@@ -21,7 +21,7 @@ def test_reads_json_rows_wrapper(tmp_path):
 
 @pytest.mark.parametrize(("name", "content", "match"), [
     ("t.xlsx", "x", "Desteklenen"),
-    ("t.json", "{bad", "geçerli JSON"),
+    ("t.json", "{bad", "geçerli bir JSON"),
     ("t.json", '{"a": 1}', "liste"),
 ])  # fmt: skip
 def test_rejects_bad_files(tmp_path, name, content, match):
@@ -33,4 +33,4 @@ def test_rejects_bad_files(tmp_path, name, content, match):
 
 def test_missing_file(tmp_path):
     with pytest.raises(InvalidInput, match="bulunamadı"):
-        LocalTableReader().read(tmp_path / "yok.csv")
+        LocalTableReader().read(tmp_path / "missing.csv")

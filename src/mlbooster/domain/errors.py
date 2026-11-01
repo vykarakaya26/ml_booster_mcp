@@ -1,8 +1,8 @@
-"""Domain hataları. Mesajları kullanıcıya gösterilebilir; sır veya dosya yolu içermez."""
+"""Domain errors. Their messages may be shown to users; they contain no secrets or file paths."""
 
 
 class DomainError(Exception):
-    """Tüm beklenen (kullanıcıya gösterilebilir) hataların tabanı."""
+    """Base class of all expected (user-displayable) errors."""
 
 
 class InvalidInput(DomainError, ValueError):
@@ -10,7 +10,7 @@ class InvalidInput(DomainError, ValueError):
 
 
 class NotFound(DomainError, LookupError):
-    def __str__(self) -> str:  # LookupError'ın repr tarzı tırnaklamasını engelle
+    def __str__(self) -> str:  # suppress LookupError's repr-style quoting
         return str(self.args[0]) if self.args else ""
 
 

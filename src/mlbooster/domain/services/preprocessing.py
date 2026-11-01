@@ -1,11 +1,11 @@
-"""Dağılıma dayalı veri ön işleme: profil → plan → sızıntısız uygulama.
+"""Distribution-based data preprocessing: profile → plan → leakage-free application.
 
-Her değişken için eğitim penceresinde dağılım profili çıkarılır (ortalama/standart sapma ile medyan/MAD/IQR,
-çarpıklık, basıklık, aykırı değer oranı, durağanlık). Bu profile ve hedeflenen model ailesine göre bir plan
-seçilir; parametreler yalnızca eğitim penceresinde tahmin edilir ve bütün döneme aynı parametrelerle uygulanır.
-Zamana bağlı adımlar (eksik doldurma, aykırı değer tespiti) yalnızca geçmiş gözlemleri kullanır.
+For each variable a distribution profile is computed on the training window (mean/standard deviation and
+median/MAD/IQR, skewness, kurtosis, outlier share, stationarity). A plan is chosen based on this profile and the
+target model family; parameters are estimated on the training window only and applied with the same parameters
+to the full period. Time-dependent steps (missing-value filling, outlier detection) use past observations only.
 
-Varsayılan eşikler ve kaynakları `skills/data-prep/references/preprocessing-guide.md` belgesindedir.
+Default thresholds and their sources are in `skills/data-prep/references/preprocessing-guide.md`.
 """
 
 from __future__ import annotations
@@ -18,16 +18,17 @@ import numpy as np
 import pandas as pd
 
 from mlbooster.domain.errors import InvalidInput
+from mlbooster.domain.numfmt import tr_num, tr_pct
 from mlbooster.domain.services.distribution import diagnose
 
-MAD_TO_SIGMA = 1.4826  # normal dağılımda MAD × 1,4826 ≈ σ
-SKEW_ROBUST = 1.0  # |çarpıklık| > 1: belirgin çarpık dağılım
-KURT_ROBUST = 3.0  # aşırı basıklık > 3: kalın kuyruk
+MAD_TO_SIGMA = 1.4826  # for a normal distribution MAD × 1.4826 ≈ σ
+SKEW_ROBUST = 1.0  # |skewness| > 1: markedly skewed distribution
+KURT_ROBUST = 3.0  # excess kurtosis > 3: heavy tails
 OUTLIER_SHARE_ROBUST = 0.02
-ROBUST_Z = 3.5  # Iglewicz–Hoaglin değiştirilmiş z skoru eşiği
+ROBUST_Z = 3.5  # Iglewicz–Hoaglin modified z-score threshold
 HAMPEL_WINDOW = 24
 HAMPEL_MIN = 12
-LOG_RANGE = 10.0  # pozitif seride max/min > 10: büyüklük mertebesi farkı, log uygun
+LOG_RANGE = 10.0  # positive series with max/min > 10: order-of-magnitude range, log is appropriate
 YJ_GRID = np.round(np.linspace(-2.0, 2.0, 81), 3)
 
 FAMILIES = ("linear", "tree", "neural")
@@ -81,7 +82,7 @@ class Profile:
     max: float | None
     outlier_share: float
     stationarity: str | None
-    center_scale: str  # "ortalama/standart sapma" | "medyan/IQR"
+    center_scale: str  # "mean/standard deviation" | "median/IQR"
     reasons: list[str] = field(default_factory=list)
 
 
@@ -89,7 +90,7 @@ class Profile:
 class ColumnPlan:
     feature: str
     is_target: bool
-    steps: list[dict]  # her adım: {step, params, reason}
+    steps: list[dict]  # each step: {step, params, reason}
 
 
 @dataclass
@@ -103,7 +104,7 @@ class PrepResult:
     notes: list[str]
 
 
-# ------------------------------------------------------------------------------------------- profil
+# ------------------------------------------------------------------------------------------ profile
 
 
 def robust_z(x: pd.Series) -> pd.Series:
@@ -111,7 +112,7 @@ def robust_z(x: pd.Series) -> pd.Series:
     mad = (x - med).abs().median()
     if not mad or math.isnan(mad):
         return pd.Series(0.0, index=x.index)
-    return 0.6745 * (x - med) / mad  # Iglewicz–Hoaglin: 0,6745 = 1 / 1,4826
+    return 0.6745 * (x - med) / mad  # Iglewicz–Hoaglin: 0.6745 = 1 / 1.4826
 
 
 def profile(series: pd.Series, name: str, transform: str | None, k: float = ROBUST_Z) -> Profile:
@@ -121,7 +122,7 @@ def profile(series: pd.Series, name: str, transform: str | None, k: float = ROBU
     missing = float(span.isna().mean()) if len(span) else 1.0
     if n < 3:
         return Profile(name, n, missing, None, None, None, None, None, None, None, None, None, 0.0, None,
-                       "ortalama/standart sapma", ["gözlem sayısı yetersiz"])  # fmt: skip
+                       "mean/standard deviation", ["gözlem sayısı yetersiz"])  # fmt: skip
     med = float(x.median())
     mad = float((x - med).abs().median() * MAD_TO_SIGMA)
     q1, q3 = x.quantile([0.25, 0.75])
@@ -131,19 +132,19 @@ def profile(series: pd.Series, name: str, transform: str | None, k: float = ROBU
     kurt = float(x.kurt()) if n >= 4 else None
     reasons = []
     if skew is not None and abs(skew) > SKEW_ROBUST:
-        reasons.append(f"çarpıklık {skew:+.2f} (|·| > {SKEW_ROBUST:g})")
+        reasons.append(f"çarpıklık {tr_num(skew, '+.2f')} (|·| > {tr_num(SKEW_ROBUST, 'g')})")
     if kurt is not None and kurt > KURT_ROBUST:
-        reasons.append(f"aşırı basıklık {kurt:.2f} (> {KURT_ROBUST:g})")
+        reasons.append(f"fazla basıklık {tr_num(kurt, '.2f')} (> {tr_num(KURT_ROBUST, 'g')})")
     if outlier_share > OUTLIER_SHARE_ROBUST:
-        reasons.append(f"aykırı değer oranı %{outlier_share * 100:.1f} (> %{OUTLIER_SHARE_ROBUST * 100:g})")
+        reasons.append(f"outlier oranı {tr_pct(outlier_share * 100)} (> {tr_pct(OUTLIER_SHARE_ROBUST * 100, 'g')})")
     return Profile(
         name, n, missing, float(x.mean()), float(x.std()), med, mad, float(q3 - q1), skew, kurt,
         float(x.min()), float(x.max()), outlier_share, d.stationarity if d else None,
-        "medyan/IQR" if reasons else "ortalama/standart sapma", reasons,
+        "median/IQR" if reasons else "mean/standard deviation", reasons,
     )  # fmt: skip
 
 
-# ----------------------------------------------------------------------------------------- dönüşümler
+# ------------------------------------------------------------------------------------------- transforms
 
 
 def yeo_johnson(x: np.ndarray, lam: float) -> np.ndarray:
@@ -161,7 +162,7 @@ def yeo_johnson(x: np.ndarray, lam: float) -> np.ndarray:
 
 
 def fit_yeo_johnson(x: np.ndarray) -> float:
-    """Profil olabilirlik maksimizasyonu (ızgara arama). Yalnızca eğitim penceresinde çağrılır."""
+    """Profile likelihood maximisation (grid search). Called on the training window only."""
     x = x[np.isfinite(x)]
     n = len(x)
     jac = np.sum(np.sign(x) * np.log1p(np.abs(x)))
@@ -178,7 +179,7 @@ def fit_yeo_johnson(x: np.ndarray) -> float:
 
 
 def causal_hampel(s: pd.Series, k: float, window: int = HAMPEL_WINDOW) -> tuple[pd.Series, pd.Series, pd.Series]:
-    """Geçmiş pencereye göre robust z: t anındaki değer, t−1'e kadarki medyan ve MAD ile karşılaştırılır."""
+    """Robust z relative to a past window: the value at t is compared with the median and MAD up to t−1."""
     past = s.shift(1).rolling(window, min_periods=HAMPEL_MIN)
     med = past.median()
     mad = (s.shift(1) - med).abs().rolling(window, min_periods=HAMPEL_MIN).median() * MAD_TO_SIGMA
@@ -195,26 +196,30 @@ def _plan_column(name: str, train_series: pd.Series, cfg: PrepConfig, transform:
     prof = profile(train_series, name, transform, cfg.outlier_k)
     if cfg.missing == "ffill" and prof.missing_ratio > 0:
         steps.append({"step": "ffill", "params": {"limit": cfg.max_gap},
-                      "reason": f"Seri içi eksik oranı %{prof.missing_ratio * 100:.1f}; en fazla {cfg.max_gap} dönem ileri taşınır, "
-                                "daha uzun boşluklar boş kalır ve eksiklik göstergesiyle işaretlenir."})  # fmt: skip
+                      "reason": f"Seri içindeki eksik değer oranı {tr_pct(prof.missing_ratio * 100)}. Son değer en fazla "
+                                f"{cfg.max_gap} dönem ileri taşınır; daha uzun boşluklar boş kalır ve missing "
+                                "göstergesiyle işaretlenir."})  # fmt: skip
     if is_target:
         return ColumnPlan(name, True, steps)
-    if cfg.difference == "auto" and linear and prof.stationarity == "birim_kök" and transform in {None, "level"}:
+    if cfg.difference == "auto" and linear and prof.stationarity == "unit_root" and transform in {None, "level"}:
         positive_range = prof.min is not None and prof.min > 0 and prof.max / prof.min > LOG_RANGE
         if positive_range:
             steps.append({"step": "log", "params": {},
-                          "reason": "Pozitif ve mertebe farkı büyük düzey serisi; farktan önce log alınır (log-fark ≈ dönemlik büyüme)."})  # fmt: skip
+                          "reason": "Pozitif ve büyüklük mertebeleri arasında değişen bir düzey serisi; farktan önce "
+                                    "log alınır (log farkı ≈ dönemlik büyüme)."})  # fmt: skip
         steps.append({"step": "diff", "params": {},
-                      "reason": "ADF ve KPSS birlikte birim kök gösteriyor; doğrusal modelde düzey yerine birinci fark kullanılır."})  # fmt: skip
+                      "reason": "ADF ve KPSS birlikte birim kök gösteriyor; doğrusal modelde düzey yerine birinci "
+                                "fark kullanılır."})  # fmt: skip
         changed = np.log(train_series.where(train_series > 0)) if positive_range else train_series
-        prof = profile(changed.diff(), name, "diff", cfg.outlier_k)  # sonraki kararlar dönüştürülmüş seriye göre
+        prof = profile(changed.diff(), name, "diff", cfg.outlier_k)  # subsequent decisions are based on the transformed series
         transform = "diff"
     mode = cfg.outliers if cfg.outliers != "auto" else ("winsorize" if linear else "flag")
     if mode != "none" and prof.outlier_share > 0:
         steps.append({"step": "outlier_" + mode, "params": {"k": cfg.outlier_k, "window": HAMPEL_WINDOW},
-                      "reason": f"Eğitim penceresinde aykırı değer oranı %{prof.outlier_share * 100:.1f}. "
-                                + ("Değer geçmiş medyan ± k·MAD aralığına kırpılır ve gösterge değişkenle işaretlenir."
-                                   if mode == "winsorize" else "Değer korunur; gösterge değişkenle işaretlenir (gerçek şoklar silinmez).")})  # fmt: skip
+                      "reason": f"Eğitim penceresinde outlier oranı {tr_pct(prof.outlier_share * 100)}. "
+                                + ("Değer, geçmiş medyan ± k·MAD aralığına kırpılır (winsorize) ve gösterge değişkenle işaretlenir."
+                                   if mode == "winsorize" else "Değer korunur ve gösterge değişkenle işaretlenir "
+                                   "(gerçek şoklar silinmez).")})  # fmt: skip
     power = cfg.power
     if power == "auto":
         power = "none"
@@ -225,20 +230,22 @@ def _plan_column(name: str, train_series: pd.Series, cfg: PrepConfig, transform:
         power = "yeo_johnson"
     if power != "none":
         steps.append({"step": power, "params": {},
-                      "reason": f"Çarpıklık {prof.skew:+.2f}; " + ("pozitif ve mertebe farkı büyük seri için log dönüşümü."
-                                if power == "log" else "işaret içeren/çarpık seri için Yeo–Johnson (λ eğitim penceresinde tahmin edilir).")})  # fmt: skip
+                      "reason": f"Çarpıklık {tr_num(prof.skew, '+.2f')}; " + ("pozitif ve büyüklük mertebeleri arasında "
+                                "değişen seri için log dönüşümü."
+                                if power == "log" else "negatif değer içeren ya da çarpık seri için Yeo–Johnson "
+                                "(λ eğitim penceresinde tahmin edilir).")})  # fmt: skip
     scaling = cfg.scaling
     if scaling == "auto":
         scaling = "none" if cfg.model_family == "tree" else ("robust" if prof.reasons else "standard")
     if scaling != "none":
         label = "medyan ve IQR" if scaling == "robust" else "ortalama ve standart sapma"
         steps.append({"step": "scale_" + scaling, "params": {},
-                      "reason": f"Ölçekleme {label} ile yapılır; parametreler yalnızca eğitim penceresinden hesaplanır."
+                      "reason": f"Scaling {label} ile yapılır; parametreler yalnızca eğitim penceresinden hesaplanır."
                                 + (f" Gerekçe: {', '.join(prof.reasons)}." if scaling == "robust" and prof.reasons else "")})  # fmt: skip
     return ColumnPlan(name, False, steps)
 
 
-# ------------------------------------------------------------------------------------------ uygulama
+# --------------------------------------------------------------------------------------- application
 
 
 def _apply(s: pd.Series, plan: ColumnPlan, train: pd.Index, extra: dict[str, pd.Series]) -> pd.Series:
@@ -255,13 +262,13 @@ def _apply(s: pd.Series, plan: ColumnPlan, train: pd.Index, extra: dict[str, pd.
             if out.notna().any():
                 gaps = gaps & (out.index >= out.first_valid_index())
             if gaps.any():
-                extra[f"{plan.feature}__eksik"] = gaps.astype(float)
+                extra[f"{plan.feature}__missing"] = gaps.astype(float)
         elif kind == "diff":
             out = out.diff()
         elif kind.startswith("outlier_"):
             z, med, mad = causal_hampel(out, step["params"]["k"])
             hit = z.abs() > step["params"]["k"]
-            extra[f"{plan.feature}__aykiri"] = hit.astype(float)
+            extra[f"{plan.feature}__outlier"] = hit.astype(float)
             step["params"]["count_train"] = int(hit.reindex(train).fillna(False).sum())
             if kind == "outlier_winsorize":
                 k = step["params"]["k"]
@@ -300,14 +307,14 @@ def prepare(panel: pd.DataFrame, cfg: PrepConfig, transforms: dict[str, str] | N
     notes: list[str] = []
     if cfg.train_end is None:
         cut = numeric.index[int(len(numeric) * 0.8) - 1]
-        notes.append(f"Eğitim penceresi sonu verilmedi; örneklemin ilk %80'i ({cut.date()} dahil) eğitim kabul edildi.")
+        notes.append(f"Eğitim penceresinin sonu verilmedi; örneklemin ilk %80'i ({cut.date()} dahil) eğitim dönemi olarak alındı.")
     else:
         cut = pd.Timestamp(cfg.train_end)
         if cut < numeric.index[0] or cut >= numeric.index[-1]:
-            raise InvalidInput("train_end panel dönemi içinde olmalı ve son gözlemden önce gelmelidir")
+            raise InvalidInput("train_end panel dönemi içinde ve son gözlemden önce olmalıdır")
     train = numeric.index[numeric.index <= cut]
     if len(train) < 24:
-        notes.append(f"Eğitim penceresi {len(train)} dönem; dağılım tahminleri belirsizdir (en az 24 önerilir).")
+        notes.append(f"Eğitim penceresi {len(train)} dönemden oluşuyor; dağılım tahminleri belirsiz olabilir (en az 24 dönem önerilir).")
     transforms = transforms or {}
     profiles, plans, columns, extra = [], [], {}, {}
     for name in numeric.columns:
@@ -319,7 +326,7 @@ def prepare(panel: pd.DataFrame, cfg: PrepConfig, transforms: dict[str, str] | N
     out = pd.DataFrame(columns, index=numeric.index)
     if extra:
         flags = pd.DataFrame(extra, index=numeric.index)
-        flags = flags.loc[:, flags.reindex(train).sum() > 0]  # eğitimde hiç tetiklenmeyen gösterge bilgi taşımaz
+        flags = flags.loc[:, flags.reindex(train).sum() > 0]  # an indicator never triggered in training carries no information
         out = pd.concat([out, flags], axis=1)
     after = [profile(out.loc[train, p.feature], p.feature, None, cfg.outlier_k) for p in plans]
     return PrepResult(out, profiles, after, plans, cfg, cut.date(), notes)

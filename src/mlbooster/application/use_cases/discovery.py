@@ -1,4 +1,4 @@
-"""Seri keşfi: anahtar kelimeyle arama ve bulunan kodu sektör feature'ına bağlama."""
+"""Series discovery: keyword search and binding a found code to a sector feature."""
 
 from __future__ import annotations
 
@@ -26,12 +26,12 @@ class SearchSeries:
     def __call__(self, text: str, source_id: str = "evds3", limit: int = 20) -> pd.DataFrame:
         text = (text or "").strip()
         if not 2 <= len(text) <= MAX_QUERY_LEN:
-            raise InvalidInput(f"Arama metni 2–{MAX_QUERY_LEN} karakter olmalı")
-        source = self._catalog.load().source(slug(source_id, "kaynak"))
+            raise InvalidInput(f"Arama metni 2–{MAX_QUERY_LEN} karakter uzunluğunda olmalıdır")
+        source = self._catalog.load().source(slug(source_id, "source"))
         with open_provider(self._providers, source) as provider:
             search = getattr(provider, "search", None)
             if search is None:
-                raise ProviderNotImplemented(f"{source.id} arama desteklemiyor")
+                raise ProviderNotImplemented(f"{source.id} kaynağında arama desteklenmiyor")
             return search(text, max(1, min(limit, 100)))
 
 
@@ -45,10 +45,11 @@ class FeatureBinding:
 
 
 class SetFeatureSeries:
-    """Keşif bekleyen (veya yanlış) bir feature'a seri kodu bağlar.
+    """Binds a series code to a feature that is pending discovery (or incorrect).
 
-    Bağlamadan önce kod canlı doğrulanır: son 2 yılda veri dönmeli ve seri durmuş olmamalı.
-    Yayın gecikmesi verilmezse frekansa göre muhafazakâr varsayılan kullanılır (look-ahead'e karşı).
+    Before binding, the code is validated live: data must be returned for the last 2 years and the
+    series must not have stopped. If no publication lag is given, a conservative frequency-based
+    default is used (to guard against look-ahead).
     """
 
     def __init__(self, catalog: CatalogRepository, providers: ProviderFactory, overrides: CatalogOverrides):
@@ -71,19 +72,20 @@ class SetFeatureSeries:
         source_id: str = "evds3",
     ) -> FeatureBinding:
         catalog = self._catalog.load()
-        sector = catalog.sector(slug(sector_id, "sektör"))
+        sector = catalog.sector(slug(sector_id, "sector"))
         match = next((f for f in sector.macro_features if f.name == feature), None)
         new_feature = None
         if match is None:
             if not create:
                 raise InvalidInput(
-                    f"{sector.id} sektöründe '{feature}' feature'ı yok: {[f.name for f in sector.macro_features]}. "
-                    "Yeni feature eklemek için create=True (CLI: --create) kullanın."
+                    f"{sector.id} sektöründe '{feature}' adlı bir feature yok. Mevcut feature'lar: "
+                    f"{[f.name for f in sector.macro_features]}. Yeni bir feature eklemek için create=True "
+                    "(CLI: --create) kullanın."
                 )
             try:
                 new_feature = MacroFeature(
                     name=slug(feature, "feature"),
-                    source=catalog.source(slug(source_id, "kaynak")).id,
+                    source=catalog.source(slug(source_id, "source")).id,
                     transform=Transform(transform),
                     agg=Aggregation(agg) if agg else None,
                     discover_hint="kullanıcı tarafından eklendi",
@@ -95,9 +97,9 @@ class SetFeatureSeries:
         try:
             kind_v = SeriesKind(kind)
         except ValueError:
-            raise InvalidInput(f"kind 'level' veya 'flow' olmalı: {kind}") from None
+            raise InvalidInput(f"kind 'level' ya da 'flow' olmalıdır: {kind}") from None
         if publication_lag_days is not None and not 0 <= publication_lag_days <= 730:
-            raise InvalidInput("publication_lag_days 0–730 olmalı")
+            raise InvalidInput("publication_lag_days 0 ile 730 arasında olmalıdır")
 
         source = catalog.source(match.source)
         today = date.today()
@@ -105,11 +107,11 @@ class SetFeatureSeries:
         with open_provider(self._providers, source) as provider:
             df = provider.fetch(request)
         if df.empty:
-            raise ProviderError(f"{code}: son 2 yılda gözlem yok; kod yanlış veya seri arşivlenmiş olabilir")
+            raise ProviderError(f"{code}: son 2 yılda gözlem yok; kod hatalı olabilir ya da seri arşive taşınmış olabilir")
         freq = Frequency(df["freq"].iloc[0])
         last = max(df["date"])
         if (today - last).days > freq.max_staleness_days:
-            raise ProviderError(f"{code}: son gözlem {last}; seri güncelliğini yitirmiş görünüyor; güncel bir kod seçin")
+            raise ProviderError(f"{code}: son gözlem {last}; seri güncelliğini yitirmiş (stale) görünüyor, güncel bir kod seçin")
 
         seed = SeedSeries(
             code=code,

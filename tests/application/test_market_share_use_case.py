@@ -16,7 +16,7 @@ class StubPanel:
     def __call__(self, sector_id, start, end, save=True):
         self.calls.append((sector_id, start, save))
         idx = pd.date_range("2019-01-31", periods=96, freq="ME")
-        return PanelResult(sector_id, pd.DataFrame({"x": range(96)}, index=idx), {"eksik": "sağlayıcı yok"})
+        return PanelResult(sector_id, pd.DataFrame({"x": range(96)}, index=idx), {"missing": "no provider"})
 
 
 class StubReader:
@@ -36,7 +36,7 @@ def test_from_records_with_sector_adds_drivers_without_saving_panel():
     panel = StubPanel()
     out = AnalyzeMarketShare(panel, StubReader(None)).from_records(_records(), ShareConfig(focus="A"), "otomotiv", date(2019, 1, 1))
     assert panel.calls == [("otomotiv", date(2019, 1, 1), False)]
-    assert out["meta"]["sector"] == "otomotiv" and out["meta"]["panel_skipped"] == {"eksik": "sağlayıcı yok"}
+    assert out["meta"]["sector"] == "otomotiv" and out["meta"]["panel_skipped"] == {"missing": "no provider"}
     assert "drivers" in out
 
 
@@ -44,7 +44,7 @@ def test_rejects_bad_records_and_sector():
     uc = AnalyzeMarketShare(StubPanel(), StubReader(None))
     with pytest.raises(InvalidInput, match="liste"):
         uc.from_records("A,B", ShareConfig())
-    with pytest.raises(InvalidInput, match="Geçersiz sektör"):
+    with pytest.raises(InvalidInput, match="sektör"):
         uc.from_records(_records(), ShareConfig(), "../x")
 
 

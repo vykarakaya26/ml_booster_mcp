@@ -1,4 +1,4 @@
-/* ML Booster rapor teması — dataviz referans paleti. Açık/koyu: aynı rampaların seçilmiş adımları. */
+/* ML Booster report theme — dataviz reference palette. Light/dark: selected steps of the same ramps. */
 .viz-root {
   color-scheme: light;
   --page: #f9f9f7; --surface-1: #fcfcfb;

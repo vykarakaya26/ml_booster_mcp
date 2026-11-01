@@ -1,11 +1,12 @@
-"""Pazar payı analizi: paylar, yoğunlaşma, oyuncu dinamikleri, rakip seti, segment ayrıştırması.
+"""Market share analysis: shares, concentration, entity dynamics, competitor set, segment decomposition.
 
-Girdi uzun biçimli bir tablodur: `entity, date, value` ve isteğe bağlı `segment`. `value` ya tutar/adet
-(measure="value") ya da yüzde pay (measure="share") olarak verilir. Pazar toplamı biliniyorsa
-`total_entity` adlı satırlarla eklenir; bu durumda paylar toplama göre hesaplanır ve kapsam oranı raporlanır.
+The input is a long-format table: `entity, date, value` and an optional `segment`. `value` is given either as an
+amount/volume (measure="value") or as a percentage share (measure="share"). If the market total is known it is
+added as rows named `total_entity` (default `TOPLAM`; `TOTAL` is also accepted); shares are then computed against
+that total and the coverage ratio is reported.
 
-Bütün ölçütler açıklanabilir ve yaygın kabul görmüş tanımlardır (HHI, CR-k, Hymer–Pashigian istikrarsızlık
-endeksi, kaydırma-pay ayrıştırması). Fonksiyonlar saf; G/Ç yapmaz.
+All measures are explainable, widely accepted definitions (HHI, CR-k, Hymer–Pashigian instability index,
+shift-share decomposition). The functions are pure and perform no I/O.
 """
 
 from __future__ import annotations
@@ -20,31 +21,32 @@ import numpy as np
 import pandas as pd
 
 from mlbooster.domain.errors import InvalidInput
+from mlbooster.domain.numfmt import tr_num, tr_pct
+from mlbooster.domain.periods import parse_period as _parse_period
 
 MAX_ROWS = 200_000
 MAX_ENTITIES = 200
 NAME_MAX = 80
-HHI_LOW, HHI_HIGH = 1_000, 2_000  # AB Yatay Birleşme Kılavuzu (2004/C 31/03) eşikleri
+HHI_LOW, HHI_HIGH = 1_000, 2_000  # thresholds of the EU Horizontal Merger Guidelines (2004/C 31/03)
 SUBSTITUTION_R = -0.2
 OVERLAP_MIN = 0.6
 MIN_TREND_OBS = 6
-MIN_TREND_PP = 0.2  # yıllık eğilimin anlamlı sayılması için asgari büyüklük (yüzde puan/yıl)
+MIN_TREND_PP = 0.2  # minimum magnitude for an annual trend to count as meaningful (percentage points/year)
 
 MEASURES = ("value", "share")
 KINDS = ("flow", "stock")
 BASES = ("auto", "period", "ttm")
 
+# Accepted input column names (Turkish aliases are kept: they are data, not code).
 _ALIASES = {
     "entity": ("entity", "oyuncu", "firma", "sirket", "şirket", "marka", "kurum", "player", "company", "brand"),
     "date": ("date", "tarih", "donem", "dönem", "period"),
     "value": ("value", "deger", "değer", "tutar", "adet", "satis", "satış", "pay", "share"),
     "segment": ("segment", "kirilim", "kırılım", "kategori", "category"),
 }
-_RE_DAY = re.compile(r"^(\d{4})-(\d{2})-(\d{2})")
-_RE_MONTH = re.compile(r"^(\d{4})-(\d{1,2})$")
-_RE_QUARTER = re.compile(r"^(\d{4})[- ]?[QÇ]([1-4])$", re.IGNORECASE)
-_RE_YEAR = re.compile(r"^(\d{4})$")
 _CONTROL = re.compile(r"[\x00-\x1f\x7f]")
+# Entity names that mark market total rows (case-insensitive); `TOTAL` is accepted as an English alias.
+TOTAL_ALIASES = ("TOPLAM", "TOTAL")
 
 
 @dataclass(frozen=True)
@@ -74,13 +76,13 @@ class ShareConfig:
 @dataclass(frozen=True)
 class Prepared:
     frame: pd.DataFrame  # entity, date, value, segment
-    totals: pd.DataFrame  # date, segment, value (pazar toplamı satırları; boş olabilir)
+    totals: pd.DataFrame  # date, segment, value (market total rows; may be empty)
     periods_per_year: int
     issues: list[dict]
     has_segments: bool
 
 
-# ---------------------------------------------------------------------------------------------- girdi
+# ---------------------------------------------------------------------------------------------- input
 
 
 def clean_name(raw: object) -> str:
@@ -94,22 +96,13 @@ def clean_name(raw: object) -> str:
 
 
 def parse_period(raw: object) -> date:
-    """`YYYY-AA`, `YYYY-AA-GG`, `YYYY-Qn` ve `YYYY` biçimlerini dönem sonu tarihine çevirir."""
+    """Converts the `YYYY-MM`, `YYYY-MM-DD`, `YYYY-Qn` and `YYYY` formats to the period-end date."""
     if isinstance(raw, (pd.Timestamp, date)):
         return pd.Timestamp(raw).date()
     s = str(raw).strip()
-    try:
-        if m := _RE_DAY.match(s):
-            return date(int(m[1]), int(m[2]), int(m[3]))
-        if m := _RE_MONTH.match(s):
-            return (pd.Timestamp(int(m[1]), int(m[2]), 1) + pd.offsets.MonthEnd(0)).date()
-        if m := _RE_QUARTER.match(s):
-            return (pd.Timestamp(int(m[1]), int(m[2]) * 3, 1) + pd.offsets.MonthEnd(0)).date()
-        if m := _RE_YEAR.match(s):
-            return date(int(m[1]), 12, 31)
-    except ValueError:
-        pass
-    raise InvalidInput(f"Tanınmayan dönem biçimi: {s[:20]!r} (YYYY-AA, YYYY-AA-GG, YYYY-Qn veya YYYY bekleniyor)")
+    if parsed := _parse_period(s):
+        return parsed[0]
+    raise InvalidInput(f"Dönem biçimi tanınmadı: {s[:20]!r} (beklenen biçimler: YYYY-AA, YYYY-AA-GG, YYYY-Qn ya da YYYY)")
 
 
 def infer_periods_per_year(dates: pd.Series | list[date]) -> int:
@@ -134,7 +127,7 @@ def _rename(df: pd.DataFrame) -> pd.DataFrame:
     out = df.rename(columns=mapping)
     missing = {"entity", "date", "value"} - set(out.columns)
     if missing:
-        raise InvalidInput(f"Pazar payı tablosunda eksik kolon: {', '.join(sorted(missing))} (beklenen: entity, date, value[, segment])")
+        raise InvalidInput(f"Pazar payı tablosunda eksik kolon var: {', '.join(sorted(missing))} (beklenen kolonlar: entity, date, value[, segment])")
     return out
 
 
@@ -142,11 +135,11 @@ def prepare(raw: pd.DataFrame, cfg: ShareConfig) -> Prepared:
     if raw is None or raw.empty:
         raise InvalidInput("Pazar payı tablosu boş")
     if len(raw) > MAX_ROWS:
-        raise InvalidInput(f"Pazar payı tablosu en fazla {MAX_ROWS:,} satır olabilir")
+        raise InvalidInput(f"Pazar payı tablosu en fazla {tr_num(MAX_ROWS, ',')} satır olabilir")
     df = _rename(raw.copy())
     has_segments = "segment" in df.columns and df["segment"].notna().any()
     if has_segments and cfg.measure != "value":
-        raise InvalidInput("Segment kırılımı yalnızca tutar/adet verisiyle (measure=value) analiz edilir")
+        raise InvalidInput("Segment kırılımı yalnızca tutar/adet verisiyle (measure=value) analiz edilebilir")
     issues: list[dict] = []
     df["entity"] = df["entity"].map(clean_name)
     df["segment"] = df["segment"].map(lambda s: clean_name(s) if pd.notna(s) and str(s).strip() else "") if has_segments else ""
@@ -154,7 +147,7 @@ def prepare(raw: pd.DataFrame, cfg: ShareConfig) -> Prepared:
     df["value"] = pd.to_numeric(df["value"], errors="coerce")
     dropped = int(df["value"].isna().sum())
     if dropped:
-        issues.append(_issue("info", "eksik_deger", f"Sayısal olmayan ya da boş {dropped} değer analizden çıkarıldı."))
+        issues.append(_issue("info", "missing_values", f"Sayısal olmayan ya da boş {dropped} değer analiz dışında bırakıldı."))
         df = df.dropna(subset=["value"])
     if (df["value"] < 0).any():
         bad = df.loc[df["value"] < 0, ["entity", "date"]].head(3).astype(str).agg(" ".join, axis=1).tolist()
@@ -163,19 +156,22 @@ def prepare(raw: pd.DataFrame, cfg: ShareConfig) -> Prepared:
     if dup.any():
         bad = df.loc[dup, ["entity", "date"]].head(3).astype(str).agg(" ".join, axis=1).tolist()
         raise InvalidInput(f"Aynı oyuncu ve dönem için birden fazla satır var: {'; '.join(bad)}")
-    is_total = df["entity"].str.casefold() == cfg.total_entity.casefold()
+    markers = {cfg.total_entity.casefold()}
+    if markers & {a.casefold() for a in TOTAL_ALIASES}:
+        markers |= {a.casefold() for a in TOTAL_ALIASES}
+    is_total = df["entity"].str.casefold().isin(markers)
     totals = df.loc[is_total, ["date", "segment", "value"]].reset_index(drop=True)
     frame = df.loc[~is_total, ["entity", "date", "value", "segment"]].reset_index(drop=True)
     if frame.empty:
         raise InvalidInput("Tabloda pazar toplamı dışında oyuncu satırı yok")
     n_entities = frame["entity"].nunique()
     if n_entities > MAX_ENTITIES:
-        raise InvalidInput(f"En fazla {MAX_ENTITIES} oyuncu analiz edilir (tabloda {n_entities} var)")
+        raise InvalidInput(f"En fazla {MAX_ENTITIES} oyuncu analiz edilebilir (tabloda {n_entities} oyuncu var)")
     if n_entities < 2:
         raise InvalidInput("Pazar payı analizi için en az iki oyuncu gerekir")
     if cfg.measure == "share" and frame["value"].max() <= 1.0001:
         frame["value"] = frame["value"] * 100
-        issues.append(_issue("info", "pay_olcegi", "Paylar 0–1 aralığında verildiği için yüzdeye çevrildi."))
+        issues.append(_issue("info", "share_scale", "Paylar 0–1 aralığında verildiği için yüzdeye çevrildi."))
     if cfg.focus is not None and cfg.focus.casefold() not in set(frame["entity"].str.casefold()):
         raise InvalidInput(f"Odak oyuncu tabloda yok: {cfg.focus}")
     ppy = infer_periods_per_year(frame["date"])
@@ -195,25 +191,26 @@ def _check_calendar(frame: pd.DataFrame, ppy: int, issues: list[dict]) -> None:
     expected = pd.date_range(dates[0], dates[-1], freq=freq).date
     gaps = sorted(set(expected) - set(dates))
     if gaps:
-        issues.append(_issue("medium", "eksik_donem", f"Takvimde {len(gaps)} dönem eksik (ilk: {gaps[0]}). Bu dönemlerde pay hesaplanmadı."))
+        issues.append(_issue("medium", "missing_periods", f"Takvimde {len(gaps)} dönem eksik (ilki: {gaps[0]}). "
+                             "Bu dönemler için pay hesaplanmadı."))
     per_entity = frame.groupby("entity")["date"].nunique()
     partial = per_entity[per_entity < len(dates)]
     if len(partial):
         issues.append(_issue(
-            "info", "kismi_oyuncu",
-            f"{len(partial)} oyuncunun bazı dönemlerde kaydı yok (ör. {', '.join(partial.index[:3])}); "
-            "bu dönemler tutar verisinde sıfır kabul edildi, pay verisinde boş bırakıldı.",
+            "info", "partial_entity",
+            f"{len(partial)} oyuncunun bazı dönemlerde kaydı yok (ör. {', '.join(partial.index[:3])}). "
+            "Bu dönemler tutar verisinde sıfır kabul edildi, pay verisinde boş bırakıldı.",
         ))  # fmt: skip
 
 
-# --------------------------------------------------------------------------------------------- paylar
+# --------------------------------------------------------------------------------------------- shares
 
 
 @dataclass(frozen=True)
 class ShareTables:
-    shares: pd.DataFrame  # dönem × oyuncu, seçilen tabanda yüzde pay
-    period_shares: pd.DataFrame  # dönem × oyuncu, dönemlik pay (ikame analizi için)
-    values: pd.DataFrame | None  # dönem × oyuncu, seçilen tabanda tutar (measure=value)
+    shares: pd.DataFrame  # period × entity, percentage share on the selected basis
+    period_shares: pd.DataFrame  # period × entity, per-period share (for substitution analysis)
+    values: pd.DataFrame | None  # period × entity, amount on the selected basis (measure=value)
     market: pd.DataFrame  # date, listed, market, coverage, residual
     basis: str
 
@@ -227,7 +224,7 @@ def _wide(frame: pd.DataFrame, fill_zero: bool) -> pd.DataFrame:
 def resolve_basis(cfg: ShareConfig, ppy: int, n_dates: int) -> str:
     if cfg.basis != "auto":
         if cfg.basis == "ttm" and (cfg.measure != "value" or cfg.kind != "flow"):
-            raise InvalidInput("Son 12 ay (ttm) tabanı yalnızca akım niteliğindeki tutar/adet verisinde kullanılır")
+            raise InvalidInput("Son 12 ay (ttm) tabanı yalnızca akım niteliğindeki tutar/adet verisinde kullanılabilir")
         return cfg.basis
     if cfg.measure == "value" and cfg.kind == "flow" and 1 < ppy <= 12 and n_dates >= 2 * ppy:
         return "ttm"
@@ -241,7 +238,7 @@ def compute_shares(prep: Prepared, cfg: ShareConfig) -> ShareTables:
         listed = period.sum(axis=1)
         market = pd.DataFrame({"listed": listed, "market": 100.0, "coverage": listed, "residual": (100 - listed).clip(lower=0)})
         if (listed > 100.5).any():
-            raise InvalidInput(f"Payların toplamı %100'ü aşıyor (ör. {listed.idxmax().date()}: {listed.max():.1f})")
+            raise InvalidInput(f"Payların toplamı %100'ü aşıyor (ör. {listed.idxmax().date()}: {tr_pct(listed.max())})")
         return ShareTables(period, period, None, market, "period")
 
     values = _wide(prep.frame, fill_zero=True)
@@ -268,13 +265,13 @@ def compute_shares(prep: Prepared, cfg: ShareConfig) -> ShareTables:
     return ShareTables(shares, period_shares, v_b, market, basis)
 
 
-# -------------------------------------------------------------------------------------- yoğunlaşma
+# ----------------------------------------------------------------------------------- concentration
 
 
 def hhi_class(hhi: float) -> str:
     if hhi < HHI_LOW:
-        return "düşük"
-    return "orta" if hhi <= HHI_HIGH else "yüksek"
+        return "low"
+    return "moderate" if hhi <= HHI_HIGH else "high"
 
 
 def concentration(tables: ShareTables, ppy: int) -> pd.DataFrame:
@@ -284,7 +281,7 @@ def concentration(tables: ShareTables, ppy: int) -> pd.DataFrame:
     ordered = np.sort(s.fillna(0.0).to_numpy(), axis=1)[:, ::-1]
     out = pd.DataFrame(index=s.index)
     out["hhi"] = listed_sq
-    out["hhi_upper"] = listed_sq + residual**2  # listelenmeyen kısım tek oyuncuysa
+    out["hhi_upper"] = listed_sq + residual**2  # if the unlisted remainder is a single entity
     out["cr1"] = ordered[:, :1].sum(axis=1)
     out["cr3"] = ordered[:, :3].sum(axis=1)
     out["cr5"] = ordered[:, :5].sum(axis=1)
@@ -295,7 +292,7 @@ def concentration(tables: ShareTables, ppy: int) -> pd.DataFrame:
     return out
 
 
-# ---------------------------------------------------------------------------------- oyuncu dinamiği
+# ---------------------------------------------------------------------------------- entity dynamics
 
 
 def _trend(y: pd.Series, ppy: int) -> tuple[float | None, float | None]:
@@ -315,10 +312,10 @@ def _trend(y: pd.Series, ppy: int) -> tuple[float | None, float | None]:
 
 def trend_label(slope: float | None, t: float | None) -> str:
     if slope is None:
-        return "yetersiz gözlem"
+        return "insufficient_data"
     if t is not None and abs(t) >= 2 and abs(slope) >= MIN_TREND_PP:
-        return "kazanıyor" if slope > 0 else "kaybediyor"
-    return "yatay"
+        return "gaining" if slope > 0 else "losing"
+    return "flat"
 
 
 def player_dynamics(tables: ShareTables, ppy: int, cfg: ShareConfig) -> pd.DataFrame:
@@ -328,7 +325,7 @@ def player_dynamics(tables: ShareTables, ppy: int, cfg: ShareConfig) -> pd.DataF
     prev = s.iloc[-2] if len(s) > 1 else pd.Series(np.nan, index=s.columns)
     year_ago = s.iloc[-1 - ppy] if len(s) > ppy else pd.Series(np.nan, index=s.columns)
     window = s.iloc[-cfg.trend_years * ppy :]
-    # Eğilim dönemlik paylarla tahmin edilir: son 12 ay toplamları üst üste bindiği için t istatistiğini olduğundan yüksek gösterir.
+    # The trend is estimated from per-period shares: overlapping trailing 12-month sums would overstate the t-statistic.
     trend_window = tables.period_shares.loc[:last].iloc[-cfg.trend_years * ppy :]
     rank = cur.rank(ascending=False, method="min")
     rank_year = year_ago.rank(ascending=False, method="min")
@@ -363,14 +360,14 @@ def player_dynamics(tables: ShareTables, ppy: int, cfg: ShareConfig) -> pd.DataF
     return pd.DataFrame(rows).sort_values(["share", "entity"], ascending=[False, True]).reset_index(drop=True)
 
 
-# ---------------------------------------------------------------------------------------- rakip seti
+# ----------------------------------------------------------------------------------- competitor set
 
 
 def substitution(tables: ShareTables, focus: str, ppy: int, years: int = 5) -> pd.DataFrame:
-    """Odak oyuncunun dönemlik pay değişimleriyle diğer oyuncularınki arasındaki korelasyon.
+    """Correlation between the focus entity's per-period share changes and those of the other entities.
 
-    Güçlü negatif korelasyon, odağın kazandığı payın bu oyuncudan geldiğine (doğrudan ikame) işaret eder.
-    Kanıt niteliğindedir; nedensellik göstermez.
+    A strong negative correlation indicates that the share gained by the focus comes from that entity (direct
+    substitution). It is supporting evidence and does not establish causality.
     """
     d = tables.period_shares.diff().iloc[-years * ppy :]
     rows = []
@@ -389,13 +386,13 @@ def substitution(tables: ShareTables, focus: str, ppy: int, years: int = 5) -> p
 
 
 def segment_mix(values: pd.DataFrame) -> pd.DataFrame:
-    """entity × segment → oyuncunun hacminin segmentlere dağılımı (satır toplamı 1)."""
+    """entity × segment → distribution of the entity's volume across segments (row sum 1)."""
     totals = values.sum(axis=1).replace(0, np.nan)
     return values.div(totals, axis=0).fillna(0.0)
 
 
 def overlap(mix: pd.DataFrame, focus: str) -> pd.Series:
-    """Bray–Curtis benzerliği: iki oyuncunun segment karmasının ortak kısmı (0–1)."""
+    """Bray–Curtis similarity: the common part of two entities' segment mix (0–1)."""
     base = mix.loc[focus]
     return mix.drop(index=focus).apply(lambda row: float(np.minimum(row, base).sum()), axis=1)
 
@@ -413,18 +410,18 @@ def competitor_candidates(players: pd.DataFrame, subst: pd.DataFrame, overlaps: 
             reasons.setdefault(ordered.loc[0, "entity"], []).append("pazar lideri")
     for row in subst.itertuples():
         if row.significant and row.r is not None and row.r <= SUBSTITUTION_R:
-            reasons.setdefault(row.entity, []).append(f"pay değişimleri ters yönlü (r={row.r:.2f}, n={row.n})")
+            reasons.setdefault(row.entity, []).append(f"pay değişimleri ters yönde (r={tr_num(row.r, '.2f')}, n={row.n})")
     if overlaps is not None:
         for entity, value in overlaps.drop(index=focus, errors="ignore").nlargest(3).items():
             if value >= OVERLAP_MIN:
-                reasons.setdefault(entity, []).append(f"segment karması en çok örtüşen oyunculardan ({value:.0%})")
-    share = dict(zip(players["entity"], players["share"]))
+                reasons.setdefault(entity, []).append(f"segment karması en çok örtüşen oyunculardan ({tr_pct(value * 100, '.0f')})")
+    share = dict(zip(players["entity"], players["share"], strict=True))
     r_of = {row.entity: row.r for row in subst.itertuples() if row.r is not None and not pd.isna(row.r)}
     out = [{"entity": e, "share": share.get(e), "r": r_of.get(e), "reasons": r} for e, r in reasons.items() if e != focus]
     return sorted(out, key=lambda c: (-len(c["reasons"]), c["r"] if c["r"] is not None else 1.0, -(c["share"] or 0)))
 
 
-# ----------------------------------------------------------------------------------------- segmentler
+# ------------------------------------------------------------------------------------------- segments
 
 
 def segment_analysis(prep: Prepared, cfg: ShareConfig, basis: str, focus: str | None) -> dict | None:
@@ -478,7 +475,7 @@ def segment_analysis(prep: Prepared, cfg: ShareConfig, basis: str, focus: str | 
 
 
 def shift_share(cube: pd.DataFrame, seg_tot: pd.DataFrame, weights: pd.DataFrame, focus: str, last, ago) -> dict:
-    """Kaydırma-pay: ΔS = Σ w̄·Δs (segment içi pay etkisi) + Σ s̄·Δw (segment karması etkisi). Orta nokta; tam ayrışır."""
+    """Shift-share: ΔS = Σ w̄·Δs (within-segment share effect) + Σ s̄·Δw (segment mix effect). Midpoint; decomposes exactly."""
     rows, share_eff, mix_eff = [], 0.0, 0.0
     for seg in seg_tot.columns:
         s1 = cube[seg].loc[last].get(focus, 0.0) / (seg_tot.loc[last, seg] or np.nan)
@@ -494,19 +491,19 @@ def shift_share(cube: pd.DataFrame, seg_tot: pd.DataFrame, weights: pd.DataFrame
             "mix_effect_pp": mix_eff, "total_pp": share_eff + mix_eff, "by_segment": rows}  # fmt: skip
 
 
-# ------------------------------------------------------------------------------------- makro sürücüler
+# ------------------------------------------------------------------------------------- macro drivers
 
 
 def to_share_frequency(panel: pd.DataFrame, ppy: int) -> pd.DataFrame:
     rule = {12: "ME", 4: "QE", 2: "6ME", 1: "YE"}.get(ppy)
     if rule is None:
-        raise InvalidInput("Makro sürücü analizi haftalık pazar payı verisinde desteklenmez")
+        raise InvalidInput("Makro sürücü analizi haftalık pazar payı verisinde desteklenmiyor")
     numeric = panel.select_dtypes("number")
     return numeric if rule == "ME" else numeric.resample(rule).mean()
 
 
 def driver_correlations(market_growth: pd.Series, panel: pd.DataFrame, ppy: int, max_lag: int = 2, min_obs: int = 8) -> list[dict]:
-    """Pazar büyümesi ile panel değişkenleri arasında gecikmeli korelasyon (değişken t−lag, pazar t)."""
+    """Lagged correlation between market growth and panel variables (variable t−lag, market t)."""
     target = market_growth.dropna()
     target.index = pd.to_datetime(target.index).to_period("M")
     feats = to_share_frequency(panel, ppy)
@@ -525,7 +522,7 @@ def driver_correlations(market_growth: pd.Series, panel: pd.DataFrame, ppy: int,
     return sorted(best.values(), key=lambda r: -abs(r["r"]))
 
 
-# ------------------------------------------------------------------------------------------- analiz
+# ------------------------------------------------------------------------------------------ analysis
 
 
 def _clean(obj):
@@ -565,7 +562,7 @@ def analyze(raw: pd.DataFrame, cfg: ShareConfig, panel: pd.DataFrame | None = No
         focus = next(e for e in prep.frame["entity"].unique() if e.casefold() == cfg.focus.casefold())
     tables = compute_shares(prep, cfg)
     if tables.shares.dropna(how="all").empty:
-        raise InvalidInput("Pay hesaplanabilecek dönem yok (ttm tabanı için en az bir tam yıl gerekir)")
+        raise InvalidInput("Pay hesaplanabilecek dönem yok (ttm tabanı için en az bir tam yıllık veri gerekir)")
     tables = ShareTables(tables.shares.dropna(how="all"), tables.period_shares, tables.values, tables.market, tables.basis)
     ppy = prep.periods_per_year
     issues = list(prep.issues)
@@ -573,10 +570,10 @@ def analyze(raw: pd.DataFrame, cfg: ShareConfig, panel: pd.DataFrame | None = No
     players = player_dynamics(tables, ppy, cfg)
     latest_cov = tables.market["coverage"].iloc[-1]
     if prep.totals.empty and cfg.measure == "value":
-        issues.append(_issue("medium", "kapsam_bilinmiyor",
+        issues.append(_issue("medium", "coverage_unknown",
                              "Pazar toplamı verilmedi; paylar yalnızca listelenen oyuncuların toplamına göre hesaplandı."))  # fmt: skip
     elif latest_cov < 80:
-        issues.append(_issue("medium", "dusuk_kapsam", f"Listelenen oyuncular pazarın yalnızca %{latest_cov:.1f}'ini kapsıyor."))
+        issues.append(_issue("medium", "low_coverage", f"Listelenen oyuncular pazarın yalnızca {tr_pct(latest_cov)} kadarını kapsıyor."))
 
     market = tables.market.copy()
     market["growth_yoy_pct"] = (market["market"] / market["market"].shift(ppy) - 1) * 100 if cfg.measure == "value" else np.nan

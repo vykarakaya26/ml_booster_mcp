@@ -19,7 +19,7 @@ SERIES = {
 
 
 def _known_calls(providers) -> int:
-    """Verisi olan serilere yapılan çağrılar (verisi olmayanlar önbelleğe girmez, her seferinde yeniden denenir)."""
+    """Calls made for series that have data (series without data are not cached and are retried every time)."""
     return sum(1 for p in providers.created for r in p.calls if r.series_ids[0] in SERIES)
 
 
@@ -34,16 +34,16 @@ def test_build_panel_point_in_time_and_caching(deps):
     result = build("telekom", date(2024, 1, 1), date(2026, 9, 30))
 
     assert set(result.panel.columns) == {"tufe_yoy", "usdtry_logdiff"}
-    assert "haberlesme_tufe" in result.skipped  # TÜİK sağlayıcısı yok
-    # TÜFE 3 gün gecikmeli: Ocak 2024 değeri Şubat satırında; ilk YoY Şubat 2025'te
-    # (sahte veri 2024'te başlıyor; gerçekte tampon geçmiş çekildiği için panel başı da dolu olur).
+    assert "haberlesme_tufe" in result.skipped  # no TÜİK provider
+    # CPI (TÜFE) has a 3-day lag: the January 2024 value is in the February row; the first YoY is in February 2025
+    # (the fake data starts in 2024; in reality buffer history is fetched, so the start of the panel is populated too).
     assert result.panel["tufe_yoy"].dropna().index.min() == pd.Timestamp("2025-02-28")
     assert result.location == "memory://telekom"
     assert all(p.closed for p in providers.created)
 
     calls = _known_calls(providers)
     build("telekom", date(2024, 1, 1), date(2026, 9, 30))
-    assert _known_calls(providers) == calls  # ikinci çalışma depodan
+    assert _known_calls(providers) == calls  # second run comes from the store
 
 
 def test_build_panel_validates_sector(deps):
@@ -51,7 +51,7 @@ def test_build_panel_validates_sector(deps):
     with pytest.raises(InvalidInput):
         build("../etc")
     with pytest.raises(NotFound):
-        build("uzay")
+        build("space")
 
 
 def test_fetch_series_writes_and_summarizes(deps):
@@ -75,7 +75,7 @@ def test_sector_map_statuses(deps):
     catalog, providers, *_ = deps
     m = GetSectorMap(catalog, providers)("otomotiv")
     statuses = {e.feature.name: e.status for e in m.features}
-    assert statuses["usdtry_logdiff"] == "hazir" and statuses["tuketici_guveni"] == "kesif_bekliyor"
+    assert statuses["usdtry_logdiff"] == "ready" and statuses["tuketici_guveni"] == "pending_discovery"
 
 
 @pytest.mark.parametrize(
@@ -93,8 +93,8 @@ def test_build_panel_refetches_when_cache_misses_requested_start(deps):
     build = BuildPanel(catalog, providers, store, panels)
     build("telekom", date(2025, 6, 1), date(2026, 9, 30))
     narrow_calls = _known_calls(providers)
-    # Önceki çağrının depoya yazdığı veri 2024'ten başlıyor (sahte sağlayıcı tam seriyi döner);
-    # bu yüzden 2024 başlangıcı önbellekten karşılanır, 2015 başlangıcı ise yeniden çekmeyi tetikler.
+    # The data the previous call wrote to the store starts in 2024 (the fake provider returns the full series);
+    # so a 2024 start is served from the cache, while a 2015 start triggers a refetch.
     build("telekom", date(2024, 1, 1), date(2026, 9, 30))
     assert _known_calls(providers) == narrow_calls
     build("telekom", date(2015, 1, 1), date(2026, 9, 30))
@@ -105,9 +105,9 @@ def test_cached_rows_of_other_frequency_are_ignored(deps):
     catalog, providers, store, panels = deps
     quarterly = FetchRequest.create("evds3", ["TP.TUKFIY2025.GENEL"], date(2024, 1, 1), date(2026, 9, 30))
     df = providers.create(catalog.load().source("evds3")).fetch(quarterly)
-    store.write(df.assign(freq="Q", value=999.0))  # farklı frekansta önbellek kopyası
+    store.write(df.assign(freq="Q", value=999.0))  # cached copy at a different frequency
     result = BuildPanel(catalog, providers, store, panels)("telekom", date(2024, 1, 1), date(2026, 9, 30))
-    assert result.panel["tufe_yoy"].abs().max() < 100  # 999'lar karışsaydı YoY patlardı
+    assert result.panel["tufe_yoy"].abs().max() < 100  # YoY would be extreme if the 999 values had been mixed in
 
 
 def test_health_reports_provider_construction_errors(catalog_repo):
@@ -115,7 +115,7 @@ def test_health_reports_provider_construction_errors(catalog_repo):
 
     class Broken(FakeProviderFactory):
         def create(self, source):
-            raise ProviderError("host sabitleme")
+            raise ProviderError("host pinning")
 
     results = {r.source_id: r for r in RunHealthChecks(catalog_repo, Broken({}))()}
     assert results["evds3"].status is HealthStatus.FAIL and "host" in results["evds3"].detail
@@ -139,10 +139,10 @@ def test_set_feature_series_writes_override_and_reloads(tmp_path, deps):
     providers.series["TP.KREDI.X"] = pd.Series([1.0, 2.0], index=pd.to_datetime(["2026-08-31", "2026-09-30"]))
 
     binding = SetFeatureSeries(repo, providers, repo)("bankacilik", "kredi_faizi", "TP.KREDI.X", kind="level")
-    assert binding.seed.publication_lag_days == 30  # aylık için muhafazakâr varsayılan
+    assert binding.seed.publication_lag_days == 30  # conservative default for monthly
     assert overrides.exists() and oct(overrides.stat().st_mode)[-3:] == "600"
     providers.series["TP.TG2.Y01"] = pd.Series([90.0, 91.0], index=pd.to_datetime(["2026-08-31", "2026-09-30"]))
-    SetFeatureSeries(repo, providers, repo)("otomotiv", "tuketici_guveni", "TP.TG2.Y01")  # ikinci yazım
+    SetFeatureSeries(repo, providers, repo)("otomotiv", "tuketici_guveni", "TP.TG2.Y01")  # second write
     reloaded = YamlCatalogRepository(PACKAGE_DIR / "catalog_data", overrides).load()
     assert next(f for f in reloaded.sector("otomotiv").macro_features if f.name == "tuketici_guveni").series == "TP.TG2.Y01"
     feature = next(f for f in reloaded.sector("bankacilik").macro_features if f.name == "kredi_faizi")
@@ -156,7 +156,7 @@ def test_set_feature_rejects_unknown_feature_and_stale_series(deps):
 
     catalog, providers, *_ = deps
     with pytest.raises(InvalidInput, match="feature"):
-        SetFeatureSeries(catalog, providers, None)("bankacilik", "yok_boyle", "TP.TUKFIY2025.GENEL")
+        SetFeatureSeries(catalog, providers, None)("bankacilik", "no_such_feature", "TP.TUKFIY2025.GENEL")
     providers.series["TP.TUKFIY2025.GENEL"] = pd.Series([1.0], index=pd.to_datetime(["2025-01-31"]))
     with pytest.raises(ProviderError, match="güncelliğini yitirmiş"):
         SetFeatureSeries(catalog, providers, None)("bankacilik", "kredi_faizi", "TP.TUKFIY2025.GENEL")
@@ -192,8 +192,8 @@ def test_set_feature_create_adds_new_feature_and_unknown_override_fails(tmp_path
     assert feature.series == "TP.URETIM.X" and feature.transform.value == "yoy_pct"
 
     bad = tmp_path / "bad.yaml"
-    bad.write_text("version: 1\nfeatures:\n  bankacilik:\n    yok_boyle: TP.X\n")
-    with pytest.raises(InconsistentCatalog, match="yok_boyle"):
+    bad.write_text("version: 1\nfeatures:\n  bankacilik:\n    no_such_feature: TP.X\n")
+    with pytest.raises(InconsistentCatalog, match="no_such_feature"):
         YamlCatalogRepository(PACKAGE_DIR / "catalog_data", bad).load()
 
 
@@ -206,7 +206,7 @@ def test_stale_cache_triggers_refetch(deps):
     build = BuildPanel(catalog, providers, store, panels)
     build("telekom", date(2024, 1, 1), date(2026, 9, 30))
     calls = _known_calls(providers)
-    for frame in store.frames:  # önbelleği 4 gün yaşlandır: günlük (12s) ve aylık (72s) TTL aşılır
+    for frame in store.frames:  # age the cache by 4 days: the daily (12h) and monthly (72h) TTLs are exceeded
         frame["vintage_ts"] = datetime.now(UTC) - timedelta(days=4)
     build("telekom", date(2024, 1, 1), date(2026, 9, 30))
     assert _known_calls(providers) > calls

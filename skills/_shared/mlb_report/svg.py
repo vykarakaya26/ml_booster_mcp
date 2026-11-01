@@ -1,7 +1,7 @@
-"""Bağımlılıksız SVG grafikler (dataviz yöntemi: tek eksen, ince işaretler, silik ızgara).
+"""Dependency-free SVG charts (dataviz method: single axis, thin marks, faint grid).
 
-Renkler CSS değişkenleriyle verilir (`var(--series-1)` vb.); açık/koyu tema `report.css`'te.
-Hover katmanı `report.js` içindedir: her grafik `data-chart` özniteliğinde verisini taşır.
+Colours are given as CSS variables (`var(--series-1)` etc.); the light/dark theme is in `report.css`.
+The hover layer is in `report.js`: each chart carries its data in the `data-chart` attribute.
 """
 
 from __future__ import annotations
@@ -21,7 +21,7 @@ PAD_L, PAD_R, PAD_T, PAD_B = 52, 16, 22, 28
 class Series:
     label: str
     values: Sequence[float | None]
-    slot: int = 1  # kategorik slot (1–3); sabit sırada atanır, sıralamaya göre değil
+    slot: int = 1  # categorical slot (1–3); assigned in a fixed order, not by rank
 
 
 @dataclass
@@ -39,7 +39,7 @@ class Flag:
 
 @dataclass
 class Band:
-    """Tahmin aralığı (ör. %10–%90): alt ve üst sınır arasında yarı saydam alan, ilgili serinin renginde."""
+    """Forecast interval (e.g. 10%–90%): semi-transparent area between the lower and upper bound, in the colour of the related series."""
     label: str
     lower: Sequence[float | None]
     upper: Sequence[float | None]
@@ -54,7 +54,7 @@ class LineChart:
     markers: list[Marker] = field(default_factory=list)
     flags: list[Flag] = field(default_factory=list)
     bands: list[Band] = field(default_factory=list)
-    y_format: Callable[[float], str] | None = None  # None: ondalık sayısı tick aralığından
+    y_format: Callable[[float], str] | None = None  # None: number of decimals derived from the tick interval
     height: int = H
 
 
@@ -86,7 +86,7 @@ def _ordinal(d: date) -> int:
 
 
 def line_chart(chart: LineChart) -> str:
-    """Bir ya da birkaç seriyi aynı (tek) y-ekseninde çizer. Farklı ölçekler için küçük çoklu kullanın."""
+    """Draws one or more series on the same (single) y-axis. Use small multiples for different scales."""
     dates = list(chart.dates)
     h = chart.height
     values = [v for s in chart.series for v in s.values if v is not None] + [f.value for f in chart.flags]
@@ -111,12 +111,12 @@ def line_chart(chart: LineChart) -> str:
         f'<svg viewBox="0 0 {W} {h}" role="img" aria-label="{html.escape(chart.title)}" class="chart" '
         f'preserveAspectRatio="xMidYMid meet">'
     ]
-    # Izgara + y etiketleri (silik, düz çizgi)
+    # Grid + y labels (faint, solid line)
     for t in yt:
         y = sy(t)
         out.append(f'<line class="grid" x1="{PAD_L}" x2="{W - PAD_R}" y1="{y:.1f}" y2="{y:.1f}"/>')
         out.append(f'<text class="tick" x="{PAD_L - 6}" y="{y + 3.5:.1f}" text-anchor="end">{html.escape(y_format(t))}</text>')
-    # x etiketleri: yıllar, en fazla ~8 etiket
+    # x labels: years, at most ~8 labels
     years = sorted({d.year for d in dates})
     step = max(1, math.ceil(len(years) / 8))
     for yr in years[::step]:
@@ -127,16 +127,16 @@ def line_chart(chart: LineChart) -> str:
     out.append(f'<line class="axis" x1="{PAD_L}" x2="{W - PAD_R}" y1="{PAD_T + plot_h}" y2="{PAD_T + plot_h}"/>')
     if y_lo < 0 < y_hi:
         out.append(f'<line class="zero" x1="{PAD_L}" x2="{W - PAD_R}" y1="{sy(0):.1f}" y2="{sy(0):.1f}"/>')
-    # Olay işaretleri (kırılma tarihleri vb.)
+    # Event markers (break dates etc.)
     for m in chart.markers:
         if dates[0] <= m.when <= dates[-1]:
             x = sx(m.when)
             out.append(f'<line class="marker" x1="{x:.1f}" x2="{x:.1f}" y1="{PAD_T}" y2="{PAD_T + plot_h}"/>')
             out.append(f'<text class="marker-label" x="{x + 3:.1f}" y="{PAD_T - 6}">{html.escape(m.label)}</text>')
-    # Bantlar (çizgilerin altında): kesintisiz parçalar için ayrı çokgenler
+    # Bands (below the lines): separate polygons for contiguous segments
     for b in chart.bands:
         segment: list[tuple[date, float, float]] = []
-        for d, lo, hi in [*zip(dates, b.lower, b.upper), (None, None, None)]:
+        for d, lo, hi in [*zip(dates, b.lower, b.upper, strict=True), (None, None, None)]:
             if d is not None and lo is not None and hi is not None:
                 segment.append((d, lo, hi))
                 continue
@@ -145,10 +145,10 @@ def line_chart(chart: LineChart) -> str:
                 bottom = " ".join(f"{sx(x):.1f},{sy(lo_):.1f}" for x, lo_, _ in reversed(segment))
                 out.append(f'<polygon class="band s{b.slot}" points="{top} {bottom}"><title>{html.escape(b.label)}</title></polygon>')
             segment = []
-    # Seriler: boşluklarda çizgi kesilir
+    # Series: the line is broken at gaps
     for s in chart.series:
         path, pen = [], False
-        for d, v in zip(dates, s.values):
+        for d, v in zip(dates, s.values, strict=True):
             if v is None:
                 pen = False
                 continue
@@ -156,7 +156,7 @@ def line_chart(chart: LineChart) -> str:
             pen = True
         if path:
             out.append(f'<path class="line s{s.slot}" d="{" ".join(path)}"/>')
-    # Uyarı noktaları (aykırı değerler): halka + durum rengi
+    # Warning points (outliers): ring + status colour
     for f in chart.flags:
         out.append(
             f'<circle class="flag" cx="{sx(f.when):.1f}" cy="{sy(f.value):.1f}" r="4.5">'
@@ -190,7 +190,7 @@ def line_chart(chart: LineChart) -> str:
 
 
 def bar_chart(labels: Sequence[str], values: Sequence[float], title: str, fmt: Callable[[float], str] = lambda v: f"{v:,.3f}", highlight: str | None = None) -> str:
-    """Yatay çubuk: tek seri, tek renk; vurgulanan çubuk tam renk, diğerleri silik."""
+    """Horizontal bar: single series, single colour; the highlighted bar is in full colour, the others are muted."""
     if not labels:
         return ""
     row_h, label_w = 30, 150
@@ -198,7 +198,7 @@ def bar_chart(labels: Sequence[str], values: Sequence[float], title: str, fmt: C
     vmax = max(max(values), 0) or 1
     plot_w = W - label_w - 80
     out = [f'<svg viewBox="0 0 {W} {h}" role="img" aria-label="{html.escape(title)}" class="chart">']
-    for i, (lab, val) in enumerate(zip(labels, values)):
+    for i, (lab, val) in enumerate(zip(labels, values, strict=True)):
         y = 6 + i * row_h
         bw = max(2.0, val / vmax * plot_w)
         cls = "bar" + (" muted-bar" if highlight and lab != highlight else "")

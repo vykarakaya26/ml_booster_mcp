@@ -1,10 +1,10 @@
-"""Port sözleşmesinin parçası olan hatalar. Altyapı kendi hatalarını bunlara çevirir."""
+"""Errors that are part of the port contract. Infrastructure translates its own errors into these."""
 
 from mlbooster.domain.errors import DomainError
 
 
 class ProviderError(DomainError):
-    """Bir veri sağlayıcısından beklenen biçimde veri alınamadı."""
+    """Data could not be obtained from a data provider in the expected form."""
 
 
 class CredentialsMissing(ProviderError):
@@ -12,15 +12,15 @@ class CredentialsMissing(ProviderError):
 
 
 class AuthenticationFailed(ProviderError):
-    """Kimlik bilgisi reddedildi; tekrar denenmez."""
+    """Credentials were rejected; the request is not retried."""
 
 
 class UnexpectedResponse(ProviderError):
-    """Yanıt beklenen şemada değil (HTML, boş gövde, yönlendirme, eksik alan, aşırı büyük)."""
+    """The response does not match the expected schema (HTML, empty body, redirect, missing field, too large)."""
 
 
 class ProviderUnavailable(ProviderError):
-    """Ağ hatası veya tekrar denemelerden sonra hâlâ 5xx/429."""
+    """Network error, or still 5xx/429 after retries."""
 
 
 class ProviderNotImplemented(ProviderError):

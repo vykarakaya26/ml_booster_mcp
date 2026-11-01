@@ -1,1 +1,1 @@
-"""Veri sağlayıcıları (SeriesProvider port'unun uygulamaları) ve kayıt."""
+"""Data providers (implementations of the SeriesProvider port) and the registry."""

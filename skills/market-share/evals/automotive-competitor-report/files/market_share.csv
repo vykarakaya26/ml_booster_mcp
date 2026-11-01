@@ -1,0 +1,1105 @@
+entity,date,value,segment
+Marka A,2021-01,9194.0,Binek
+Marka A,2021-01,1022.0,Hafif ticari
+Marka B,2021-01,6712.0,Binek
+Marka B,2021-01,1184.0,Hafif ticari
+Marka C,2021-01,3997.0,Binek
+Marka C,2021-01,2665.0,Hafif ticari
+Marka D,2021-01,5152.0,Binek
+Marka D,2021-01,271.0,Hafif ticari
+Marka E,2021-01,2097.0,Binek
+Marka E,2021-01,2097.0,Hafif ticari
+Marka F,2021-01,2686.0,Binek
+Marka F,2021-01,671.0,Hafif ticari
+Marka G,2021-01,2108.0,Binek
+Marka G,2021-01,904.0,Hafif ticari
+TOPLAM,2021-01,35496.0,Binek
+TOPLAM,2021-01,9793.0,Hafif ticari
+Marka A,2021-02,10722.0,Binek
+Marka A,2021-02,1191.0,Hafif ticari
+Marka B,2021-02,8164.0,Binek
+Marka B,2021-02,1441.0,Hafif ticari
+Marka C,2021-02,4867.0,Binek
+Marka C,2021-02,3245.0,Hafif ticari
+Marka D,2021-02,5814.0,Binek
+Marka D,2021-02,306.0,Hafif ticari
+Marka E,2021-02,2580.0,Binek
+Marka E,2021-02,2580.0,Hafif ticari
+Marka F,2021-02,3238.0,Binek
+Marka F,2021-02,809.0,Hafif ticari
+Marka G,2021-02,2079.0,Binek
+Marka G,2021-02,891.0,Hafif ticari
+TOPLAM,2021-02,41627.0,Binek
+TOPLAM,2021-02,11626.0,Hafif ticari
+Marka A,2021-03,11025.0,Binek
+Marka A,2021-03,1225.0,Hafif ticari
+Marka B,2021-03,6639.0,Binek
+Marka B,2021-03,1172.0,Hafif ticari
+Marka C,2021-03,6576.0,Binek
+Marka C,2021-03,4384.0,Hafif ticari
+Marka D,2021-03,6579.0,Binek
+Marka D,2021-03,346.0,Hafif ticari
+Marka E,2021-03,3029.0,Binek
+Marka E,2021-03,3029.0,Hafif ticari
+Marka F,2021-03,3624.0,Binek
+Marka F,2021-03,906.0,Hafif ticari
+Marka G,2021-03,2579.0,Binek
+Marka G,2021-03,1105.0,Hafif ticari
+TOPLAM,2021-03,44501.0,Binek
+TOPLAM,2021-03,13519.0,Hafif ticari
+Marka A,2021-04,14811.0,Binek
+Marka A,2021-04,1646.0,Hafif ticari
+Marka B,2021-04,11398.0,Binek
+Marka B,2021-04,2011.0,Hafif ticari
+Marka C,2021-04,6519.0,Binek
+Marka C,2021-04,4346.0,Hafif ticari
+Marka D,2021-04,8667.0,Binek
+Marka D,2021-04,456.0,Hafif ticari
+Marka E,2021-04,3505.0,Binek
+Marka E,2021-04,3505.0,Hafif ticari
+Marka F,2021-04,4277.0,Binek
+Marka F,2021-04,1069.0,Hafif ticari
+Marka G,2021-04,3465.0,Binek
+Marka G,2021-04,1485.0,Hafif ticari
+TOPLAM,2021-04,58491.0,Binek
+TOPLAM,2021-04,16131.0,Hafif ticari
+Marka A,2021-05,17688.0,Binek
+Marka A,2021-05,1965.0,Hafif ticari
+Marka B,2021-05,14797.0,Binek
+Marka B,2021-05,2611.0,Hafif ticari
+Marka C,2021-05,6351.0,Binek
+Marka C,2021-05,4234.0,Hafif ticari
+Marka D,2021-05,10238.0,Binek
+Marka D,2021-05,539.0,Hafif ticari
+Marka E,2021-05,4247.0,Binek
+Marka E,2021-05,4247.0,Hafif ticari
+Marka F,2021-05,4742.0,Binek
+Marka F,2021-05,1185.0,Hafif ticari
+Marka G,2021-05,3719.0,Binek
+Marka G,2021-05,1594.0,Hafif ticari
+TOPLAM,2021-05,68647.0,Binek
+TOPLAM,2021-05,18194.0,Hafif ticari
+Marka A,2021-06,17170.0,Binek
+Marka A,2021-06,1908.0,Hafif ticari
+Marka B,2021-06,14283.0,Binek
+Marka B,2021-06,2520.0,Hafif ticari
+Marka C,2021-06,6514.0,Binek
+Marka C,2021-06,4343.0,Hafif ticari
+Marka D,2021-06,11162.0,Binek
+Marka D,2021-06,587.0,Hafif ticari
+Marka E,2021-06,4323.0,Binek
+Marka E,2021-06,4323.0,Hafif ticari
+Marka F,2021-06,4650.0,Binek
+Marka F,2021-06,1162.0,Hafif ticari
+Marka G,2021-06,3633.0,Binek
+Marka G,2021-06,1557.0,Hafif ticari
+TOPLAM,2021-06,68594.0,Binek
+TOPLAM,2021-06,18222.0,Hafif ticari
+Marka A,2021-07,17338.0,Binek
+Marka A,2021-07,1926.0,Hafif ticari
+Marka B,2021-07,14085.0,Binek
+Marka B,2021-07,2486.0,Hafif ticari
+Marka C,2021-07,7556.0,Binek
+Marka C,2021-07,5037.0,Hafif ticari
+Marka D,2021-07,11132.0,Binek
+Marka D,2021-07,586.0,Hafif ticari
+Marka E,2021-07,4066.0,Binek
+Marka E,2021-07,4066.0,Hafif ticari
+Marka F,2021-07,5209.0,Binek
+Marka F,2021-07,1302.0,Hafif ticari
+Marka G,2021-07,3605.0,Binek
+Marka G,2021-07,1545.0,Hafif ticari
+TOPLAM,2021-07,69990.0,Binek
+TOPLAM,2021-07,18831.0,Hafif ticari
+Marka A,2021-08,13898.0,Binek
+Marka A,2021-08,1544.0,Hafif ticari
+Marka B,2021-08,10224.0,Binek
+Marka B,2021-08,1804.0,Hafif ticari
+Marka C,2021-08,8018.0,Binek
+Marka C,2021-08,5345.0,Hafif ticari
+Marka D,2021-08,9543.0,Binek
+Marka D,2021-08,502.0,Hafif ticari
+Marka E,2021-08,3389.0,Binek
+Marka E,2021-08,3389.0,Hafif ticari
+Marka F,2021-08,4267.0,Binek
+Marka F,2021-08,1067.0,Hafif ticari
+Marka G,2021-08,3347.0,Binek
+Marka G,2021-08,1434.0,Hafif ticari
+TOPLAM,2021-08,58540.0,Binek
+TOPLAM,2021-08,16761.0,Hafif ticari
+Marka A,2021-09,12539.0,Binek
+Marka A,2021-09,1393.0,Hafif ticari
+Marka B,2021-09,11303.0,Binek
+Marka B,2021-09,1995.0,Hafif ticari
+Marka C,2021-09,6040.0,Binek
+Marka C,2021-09,4027.0,Hafif ticari
+Marka D,2021-09,7730.0,Binek
+Marka D,2021-09,407.0,Hafif ticari
+Marka E,2021-09,3170.0,Binek
+Marka E,2021-09,3170.0,Hafif ticari
+Marka F,2021-09,3893.0,Binek
+Marka F,2021-09,973.0,Hafif ticari
+Marka G,2021-09,3095.0,Binek
+Marka G,2021-09,1327.0,Hafif ticari
+TOPLAM,2021-09,53078.0,Binek
+TOPLAM,2021-09,14769.0,Hafif ticari
+Marka A,2021-10,10682.0,Binek
+Marka A,2021-10,1187.0,Hafif ticari
+Marka B,2021-10,9474.0,Binek
+Marka B,2021-10,1672.0,Hafif ticari
+Marka C,2021-10,4235.0,Binek
+Marka C,2021-10,2824.0,Hafif ticari
+Marka D,2021-10,6152.0,Binek
+Marka D,2021-10,324.0,Hafif ticari
+Marka E,2021-10,2700.0,Binek
+Marka E,2021-10,2700.0,Hafif ticari
+Marka F,2021-10,3213.0,Binek
+Marka F,2021-10,803.0,Hafif ticari
+Marka G,2021-10,2529.0,Binek
+Marka G,2021-10,1084.0,Hafif ticari
+TOPLAM,2021-10,43317.0,Binek
+TOPLAM,2021-10,11771.0,Hafif ticari
+Marka A,2021-11,9284.0,Binek
+Marka A,2021-11,1032.0,Hafif ticari
+Marka B,2021-11,6685.0,Binek
+Marka B,2021-11,1180.0,Hafif ticari
+Marka C,2021-11,4880.0,Binek
+Marka C,2021-11,3253.0,Hafif ticari
+Marka D,2021-11,5669.0,Binek
+Marka D,2021-11,298.0,Hafif ticari
+Marka E,2021-11,2398.0,Binek
+Marka E,2021-11,2398.0,Hafif ticari
+Marka F,2021-11,2617.0,Binek
+Marka F,2021-11,654.0,Hafif ticari
+Marka G,2021-11,2070.0,Binek
+Marka G,2021-11,887.0,Hafif ticari
+TOPLAM,2021-11,37337.0,Binek
+TOPLAM,2021-11,10780.0,Hafif ticari
+Marka A,2021-12,13281.0,Binek
+Marka A,2021-12,1476.0,Hafif ticari
+Marka B,2021-12,11811.0,Binek
+Marka B,2021-12,2084.0,Hafif ticari
+Marka C,2021-12,5692.0,Binek
+Marka C,2021-12,3795.0,Hafif ticari
+Marka D,2021-12,9830.0,Binek
+Marka D,2021-12,517.0,Hafif ticari
+Marka E,2021-12,3353.0,Binek
+Marka E,2021-12,3353.0,Hafif ticari
+Marka F,2021-12,4167.0,Binek
+Marka F,2021-12,1042.0,Hafif ticari
+Marka G,2021-12,3126.0,Binek
+Marka G,2021-12,1340.0,Hafif ticari
+TOPLAM,2021-12,56956.0,Binek
+TOPLAM,2021-12,15119.0,Hafif ticari
+Marka A,2022-01,8742.0,Binek
+Marka A,2022-01,971.0,Hafif ticari
+Marka B,2022-01,8438.0,Binek
+Marka B,2022-01,1489.0,Hafif ticari
+Marka C,2022-01,3900.0,Binek
+Marka C,2022-01,2600.0,Hafif ticari
+Marka D,2022-01,5359.0,Binek
+Marka D,2022-01,282.0,Hafif ticari
+Marka E,2022-01,2310.0,Binek
+Marka E,2022-01,2310.0,Hafif ticari
+Marka F,2022-01,2858.0,Binek
+Marka F,2022-01,715.0,Hafif ticari
+Marka G,2022-01,1902.0,Binek
+Marka G,2022-01,815.0,Hafif ticari
+TOPLAM,2022-01,37232.0,Binek
+TOPLAM,2022-01,10202.0,Hafif ticari
+Marka A,2022-02,10772.0,Binek
+Marka A,2022-02,1197.0,Hafif ticari
+Marka B,2022-02,9597.0,Binek
+Marka B,2022-02,1694.0,Hafif ticari
+Marka C,2022-02,4314.0,Binek
+Marka C,2022-02,2876.0,Hafif ticari
+Marka D,2022-02,6388.0,Binek
+Marka D,2022-02,336.0,Hafif ticari
+Marka E,2022-02,2663.0,Binek
+Marka E,2022-02,2663.0,Hafif ticari
+Marka F,2022-02,2907.0,Binek
+Marka F,2022-02,727.0,Hafif ticari
+Marka G,2022-02,2187.0,Binek
+Marka G,2022-02,937.0,Hafif ticari
+TOPLAM,2022-02,43142.0,Binek
+TOPLAM,2022-02,11589.0,Hafif ticari
+Marka A,2022-03,12267.0,Binek
+Marka A,2022-03,1363.0,Hafif ticari
+Marka B,2022-03,10580.0,Binek
+Marka B,2022-03,1867.0,Hafif ticari
+Marka C,2022-03,4654.0,Binek
+Marka C,2022-03,3102.0,Hafif ticari
+Marka D,2022-03,7269.0,Binek
+Marka D,2022-03,383.0,Hafif ticari
+Marka E,2022-03,3236.0,Binek
+Marka E,2022-03,3236.0,Hafif ticari
+Marka F,2022-03,3845.0,Binek
+Marka F,2022-03,961.0,Hafif ticari
+Marka G,2022-03,2456.0,Binek
+Marka G,2022-03,1052.0,Hafif ticari
+TOPLAM,2022-03,49230.0,Binek
+TOPLAM,2022-03,13293.0,Hafif ticari
+Marka A,2022-04,15776.0,Binek
+Marka A,2022-04,1753.0,Hafif ticari
+Marka B,2022-04,13608.0,Binek
+Marka B,2022-04,2401.0,Hafif ticari
+Marka C,2022-04,7470.0,Binek
+Marka C,2022-04,4980.0,Hafif ticari
+Marka D,2022-04,9860.0,Binek
+Marka D,2022-04,519.0,Hafif ticari
+Marka E,2022-04,4493.0,Binek
+Marka E,2022-04,4493.0,Hafif ticari
+Marka F,2022-04,5043.0,Binek
+Marka F,2022-04,1261.0,Hafif ticari
+Marka G,2022-04,3677.0,Binek
+Marka G,2022-04,1576.0,Hafif ticari
+TOPLAM,2022-04,66586.0,Binek
+TOPLAM,2022-04,18870.0,Hafif ticari
+Marka A,2022-05,14932.0,Binek
+Marka A,2022-05,1659.0,Hafif ticari
+Marka B,2022-05,15704.0,Binek
+Marka B,2022-05,2771.0,Hafif ticari
+Marka C,2022-05,7444.0,Binek
+Marka C,2022-05,4963.0,Hafif ticari
+Marka D,2022-05,11403.0,Binek
+Marka D,2022-05,600.0,Hafif ticari
+Marka E,2022-05,4329.0,Binek
+Marka E,2022-05,4329.0,Hafif ticari
+Marka F,2022-05,5136.0,Binek
+Marka F,2022-05,1284.0,Hafif ticari
+Marka G,2022-05,3711.0,Binek
+Marka G,2022-05,1590.0,Hafif ticari
+TOPLAM,2022-05,69621.0,Binek
+TOPLAM,2022-05,19107.0,Hafif ticari
+Marka A,2022-06,16782.0,Binek
+Marka A,2022-06,1865.0,Hafif ticari
+Marka B,2022-06,16395.0,Binek
+Marka B,2022-06,2893.0,Hafif ticari
+Marka C,2022-06,6601.0,Binek
+Marka C,2022-06,4401.0,Hafif ticari
+Marka D,2022-06,10976.0,Binek
+Marka D,2022-06,578.0,Hafif ticari
+Marka E,2022-06,5073.0,Binek
+Marka E,2022-06,5073.0,Hafif ticari
+Marka F,2022-06,5499.0,Binek
+Marka F,2022-06,1375.0,Hafif ticari
+Marka G,2022-06,3783.0,Binek
+Marka G,2022-06,1621.0,Hafif ticari
+TOPLAM,2022-06,72343.0,Binek
+TOPLAM,2022-06,19784.0,Hafif ticari
+Marka A,2022-07,15953.0,Binek
+Marka A,2022-07,1773.0,Hafif ticari
+Marka B,2022-07,15652.0,Binek
+Marka B,2022-07,2762.0,Hafif ticari
+Marka C,2022-07,7979.0,Binek
+Marka C,2022-07,5320.0,Hafif ticari
+Marka D,2022-07,10586.0,Binek
+Marka D,2022-07,557.0,Hafif ticari
+Marka E,2022-07,4930.0,Binek
+Marka E,2022-07,4930.0,Hafif ticari
+Marka F,2022-07,5866.0,Binek
+Marka F,2022-07,1466.0,Hafif ticari
+Marka G,2022-07,4149.0,Binek
+Marka G,2022-07,1778.0,Hafif ticari
+TOPLAM,2022-07,72350.0,Binek
+TOPLAM,2022-07,20651.0,Hafif ticari
+Marka A,2022-08,14681.0,Binek
+Marka A,2022-08,1631.0,Hafif ticari
+Marka B,2022-08,14554.0,Binek
+Marka B,2022-08,2568.0,Hafif ticari
+Marka C,2022-08,6201.0,Binek
+Marka C,2022-08,4134.0,Hafif ticari
+Marka D,2022-08,9602.0,Binek
+Marka D,2022-08,505.0,Hafif ticari
+Marka E,2022-08,4449.0,Binek
+Marka E,2022-08,4449.0,Hafif ticari
+Marka F,2022-08,4978.0,Binek
+Marka F,2022-08,1245.0,Hafif ticari
+Marka G,2022-08,3668.0,Binek
+Marka G,2022-08,1572.0,Hafif ticari
+TOPLAM,2022-08,64592.0,Binek
+TOPLAM,2022-08,17893.0,Hafif ticari
+Marka A,2022-09,12062.0,Binek
+Marka A,2022-09,1340.0,Hafif ticari
+Marka B,2022-09,12994.0,Binek
+Marka B,2022-09,2293.0,Hafif ticari
+Marka C,2022-09,5088.0,Binek
+Marka C,2022-09,3392.0,Hafif ticari
+Marka D,2022-09,8484.0,Binek
+Marka D,2022-09,447.0,Hafif ticari
+Marka E,2022-09,3400.0,Binek
+Marka E,2022-09,3400.0,Hafif ticari
+Marka F,2022-09,4540.0,Binek
+Marka F,2022-09,1135.0,Hafif ticari
+Marka G,2022-09,3092.0,Binek
+Marka G,2022-09,1325.0,Hafif ticari
+TOPLAM,2022-09,55178.0,Binek
+TOPLAM,2022-09,14813.0,Hafif ticari
+Marka A,2022-10,9354.0,Binek
+Marka A,2022-10,1039.0,Hafif ticari
+Marka B,2022-10,11347.0,Binek
+Marka B,2022-10,2002.0,Hafif ticari
+Marka C,2022-10,4232.0,Binek
+Marka C,2022-10,2822.0,Hafif ticari
+Marka D,2022-10,7016.0,Binek
+Marka D,2022-10,369.0,Hafif ticari
+Marka E,2022-10,2888.0,Binek
+Marka E,2022-10,2888.0,Hafif ticari
+Marka F,2022-10,3665.0,Binek
+Marka F,2022-10,916.0,Hafif ticari
+Marka G,2022-10,2570.0,Binek
+Marka G,2022-10,1101.0,Hafif ticari
+TOPLAM,2022-10,45636.0,Binek
+TOPLAM,2022-10,12374.0,Hafif ticari
+Marka A,2022-11,9428.0,Binek
+Marka A,2022-11,1048.0,Hafif ticari
+Marka B,2022-11,7321.0,Binek
+Marka B,2022-11,1292.0,Hafif ticari
+Marka C,2022-11,4443.0,Binek
+Marka C,2022-11,2962.0,Hafif ticari
+Marka D,2022-11,6223.0,Binek
+Marka D,2022-11,328.0,Hafif ticari
+Marka E,2022-11,2507.0,Binek
+Marka E,2022-11,2507.0,Hafif ticari
+Marka F,2022-11,3324.0,Binek
+Marka F,2022-11,831.0,Hafif ticari
+Marka G,2022-11,2270.0,Binek
+Marka G,2022-11,973.0,Hafif ticari
+TOPLAM,2022-11,39462.0,Binek
+TOPLAM,2022-11,11046.0,Hafif ticari
+Marka A,2022-12,14190.0,Binek
+Marka A,2022-12,1577.0,Hafif ticari
+Marka B,2022-12,12919.0,Binek
+Marka B,2022-12,2280.0,Hafif ticari
+Marka C,2022-12,5841.0,Binek
+Marka C,2022-12,3894.0,Hafif ticari
+Marka D,2022-12,10016.0,Binek
+Marka D,2022-12,527.0,Hafif ticari
+Marka E,2022-12,3378.0,Binek
+Marka E,2022-12,3378.0,Hafif ticari
+Marka F,2022-12,4112.0,Binek
+Marka F,2022-12,1028.0,Hafif ticari
+Marka G,2022-12,3330.0,Binek
+Marka G,2022-12,1427.0,Hafif ticari
+TOPLAM,2022-12,59762.0,Binek
+TOPLAM,2022-12,15679.0,Hafif ticari
+Marka A,2023-01,8713.0,Binek
+Marka A,2023-01,968.0,Hafif ticari
+Marka B,2023-01,8411.0,Binek
+Marka B,2023-01,1484.0,Hafif ticari
+Marka C,2023-01,3456.0,Binek
+Marka C,2023-01,2304.0,Hafif ticari
+Marka D,2023-01,6115.0,Binek
+Marka D,2023-01,322.0,Hafif ticari
+Marka E,2023-01,2279.0,Binek
+Marka E,2023-01,2279.0,Hafif ticari
+Marka F,2023-01,2746.0,Binek
+Marka F,2023-01,687.0,Hafif ticari
+Marka G,2023-01,2182.0,Binek
+Marka G,2023-01,935.0,Hafif ticari
+TOPLAM,2023-01,37669.0,Binek
+TOPLAM,2023-01,9977.0,Hafif ticari
+Marka A,2023-02,9922.0,Binek
+Marka A,2023-02,1102.0,Hafif ticari
+Marka B,2023-02,10754.0,Binek
+Marka B,2023-02,1898.0,Hafif ticari
+Marka C,2023-02,4118.0,Binek
+Marka C,2023-02,2745.0,Hafif ticari
+Marka D,2023-02,7153.0,Binek
+Marka D,2023-02,376.0,Hafif ticari
+Marka E,2023-02,2986.0,Binek
+Marka E,2023-02,2986.0,Hafif ticari
+Marka F,2023-02,3548.0,Binek
+Marka F,2023-02,887.0,Hafif ticari
+Marka G,2023-02,2637.0,Binek
+Marka G,2023-02,1130.0,Hafif ticari
+TOPLAM,2023-02,45687.0,Binek
+TOPLAM,2023-02,12360.0,Hafif ticari
+Marka A,2023-03,12446.0,Binek
+Marka A,2023-03,1383.0,Hafif ticari
+Marka B,2023-03,14906.0,Binek
+Marka B,2023-03,2630.0,Hafif ticari
+Marka C,2023-03,5906.0,Binek
+Marka C,2023-03,3938.0,Hafif ticari
+Marka D,2023-03,9798.0,Binek
+Marka D,2023-03,516.0,Hafif ticari
+Marka E,2023-03,3487.0,Binek
+Marka E,2023-03,3487.0,Hafif ticari
+Marka F,2023-03,4694.0,Binek
+Marka F,2023-03,1174.0,Hafif ticari
+Marka G,2023-03,3491.0,Binek
+Marka G,2023-03,1496.0,Hafif ticari
+TOPLAM,2023-03,60809.0,Binek
+TOPLAM,2023-03,16249.0,Hafif ticari
+Marka A,2023-04,14532.0,Binek
+Marka A,2023-04,1615.0,Hafif ticari
+Marka B,2023-04,16186.0,Binek
+Marka B,2023-04,2856.0,Hafif ticari
+Marka C,2023-04,6789.0,Binek
+Marka C,2023-04,4526.0,Hafif ticari
+Marka D,2023-04,9343.0,Binek
+Marka D,2023-04,492.0,Hafif ticari
+Marka E,2023-04,4006.0,Binek
+Marka E,2023-04,4006.0,Hafif ticari
+Marka F,2023-04,4668.0,Binek
+Marka F,2023-04,1167.0,Hafif ticari
+Marka G,2023-04,2944.0,Binek
+Marka G,2023-04,1262.0,Hafif ticari
+TOPLAM,2023-04,64964.0,Binek
+TOPLAM,2023-04,17693.0,Hafif ticari
+Marka A,2023-05,17246.0,Binek
+Marka A,2023-05,1916.0,Hafif ticari
+Marka B,2023-05,17169.0,Binek
+Marka B,2023-05,3030.0,Hafif ticari
+Marka C,2023-05,6979.0,Binek
+Marka C,2023-05,4653.0,Hafif ticari
+Marka D,2023-05,13473.0,Binek
+Marka D,2023-05,709.0,Hafif ticari
+Marka E,2023-05,4931.0,Binek
+Marka E,2023-05,4931.0,Hafif ticari
+Marka F,2023-05,6217.0,Binek
+Marka F,2023-05,1554.0,Hafif ticari
+Marka G,2023-05,4260.0,Binek
+Marka G,2023-05,1826.0,Hafif ticari
+TOPLAM,2023-05,78083.0,Binek
+TOPLAM,2023-05,20688.0,Hafif ticari
+Marka A,2023-06,18012.0,Binek
+Marka A,2023-06,2001.0,Hafif ticari
+Marka B,2023-06,18947.0,Binek
+Marka B,2023-06,3344.0,Hafif ticari
+Marka C,2023-06,7179.0,Binek
+Marka C,2023-06,4786.0,Hafif ticari
+Marka D,2023-06,13289.0,Binek
+Marka D,2023-06,699.0,Hafif ticari
+Marka E,2023-06,4772.0,Binek
+Marka E,2023-06,4772.0,Hafif ticari
+Marka F,2023-06,6744.0,Binek
+Marka F,2023-06,1686.0,Hafif ticari
+Marka G,2023-06,4022.0,Binek
+Marka G,2023-06,1724.0,Hafif ticari
+TOPLAM,2023-06,81072.0,Binek
+TOPLAM,2023-06,21124.0,Hafif ticari
+Marka A,2023-07,14982.0,Binek
+Marka A,2023-07,1665.0,Hafif ticari
+Marka B,2023-07,19956.0,Binek
+Marka B,2023-07,3522.0,Hafif ticari
+Marka C,2023-07,7424.0,Binek
+Marka C,2023-07,4950.0,Hafif ticari
+Marka D,2023-07,11796.0,Binek
+Marka D,2023-07,621.0,Hafif ticari
+Marka E,2023-07,4885.0,Binek
+Marka E,2023-07,4885.0,Hafif ticari
+Marka F,2023-07,6084.0,Binek
+Marka F,2023-07,1521.0,Hafif ticari
+Marka G,2023-07,3445.0,Binek
+Marka G,2023-07,1476.0,Hafif ticari
+TOPLAM,2023-07,76191.0,Binek
+TOPLAM,2023-07,20711.0,Hafif ticari
+Marka A,2023-08,14696.0,Binek
+Marka A,2023-08,1633.0,Hafif ticari
+Marka B,2023-08,16783.0,Binek
+Marka B,2023-08,2962.0,Hafif ticari
+Marka C,2023-08,5038.0,Binek
+Marka C,2023-08,3359.0,Hafif ticari
+Marka D,2023-08,10871.0,Binek
+Marka D,2023-08,572.0,Hafif ticari
+Marka E,2023-08,4516.0,Binek
+Marka E,2023-08,4516.0,Hafif ticari
+Marka F,2023-08,5491.0,Binek
+Marka F,2023-08,1373.0,Hafif ticari
+Marka G,2023-08,3688.0,Binek
+Marka G,2023-08,1580.0,Hafif ticari
+TOPLAM,2023-08,67870.0,Binek
+TOPLAM,2023-08,17772.0,Hafif ticari
+Marka A,2023-09,11896.0,Binek
+Marka A,2023-09,1322.0,Hafif ticari
+Marka B,2023-09,12339.0,Binek
+Marka B,2023-09,2178.0,Hafif ticari
+Marka C,2023-09,5600.0,Binek
+Marka C,2023-09,3733.0,Hafif ticari
+Marka D,2023-09,9761.0,Binek
+Marka D,2023-09,514.0,Hafif ticari
+Marka E,2023-09,3724.0,Binek
+Marka E,2023-09,3724.0,Hafif ticari
+Marka F,2023-09,4696.0,Binek
+Marka F,2023-09,1174.0,Hafif ticari
+Marka G,2023-09,3109.0,Binek
+Marka G,2023-09,1332.0,Hafif ticari
+TOPLAM,2023-09,56806.0,Binek
+TOPLAM,2023-09,15530.0,Hafif ticari
+Marka A,2023-10,10035.0,Binek
+Marka A,2023-10,1115.0,Hafif ticari
+Marka B,2023-10,12741.0,Binek
+Marka B,2023-10,2248.0,Hafif ticari
+Marka C,2023-10,3911.0,Binek
+Marka C,2023-10,2608.0,Hafif ticari
+Marka D,2023-10,8016.0,Binek
+Marka D,2023-10,422.0,Hafif ticari
+Marka E,2023-10,2948.0,Binek
+Marka E,2023-10,2948.0,Hafif ticari
+Marka F,2023-10,3660.0,Binek
+Marka F,2023-10,915.0,Hafif ticari
+Marka G,2023-10,2490.0,Binek
+Marka G,2023-10,1067.0,Hafif ticari
+TOPLAM,2023-10,48668.0,Binek
+TOPLAM,2023-10,12581.0,Hafif ticari
+Marka A,2023-11,8867.0,Binek
+Marka A,2023-11,985.0,Hafif ticari
+Marka B,2023-11,9748.0,Binek
+Marka B,2023-11,1720.0,Hafif ticari
+Marka C,2023-11,3644.0,Binek
+Marka C,2023-11,2430.0,Hafif ticari
+Marka D,2023-11,6771.0,Binek
+Marka D,2023-11,356.0,Hafif ticari
+Marka E,2023-11,2720.0,Binek
+Marka E,2023-11,2720.0,Hafif ticari
+Marka F,2023-11,3242.0,Binek
+Marka F,2023-11,810.0,Hafif ticari
+Marka G,2023-11,2231.0,Binek
+Marka G,2023-11,956.0,Hafif ticari
+TOPLAM,2023-11,41359.0,Binek
+TOPLAM,2023-11,11086.0,Hafif ticari
+Marka A,2023-12,12956.0,Binek
+Marka A,2023-12,1440.0,Hafif ticari
+Marka B,2023-12,15998.0,Binek
+Marka B,2023-12,2823.0,Hafif ticari
+Marka C,2023-12,6071.0,Binek
+Marka C,2023-12,4047.0,Hafif ticari
+Marka D,2023-12,11705.0,Binek
+Marka D,2023-12,616.0,Hafif ticari
+Marka E,2023-12,4019.0,Binek
+Marka E,2023-12,4019.0,Hafif ticari
+Marka F,2023-12,5611.0,Binek
+Marka F,2023-12,1403.0,Hafif ticari
+Marka G,2023-12,4024.0,Binek
+Marka G,2023-12,1725.0,Hafif ticari
+TOPLAM,2023-12,67093.0,Binek
+TOPLAM,2023-12,17859.0,Hafif ticari
+Marka A,2024-01,8519.0,Binek
+Marka A,2024-01,947.0,Hafif ticari
+Marka B,2024-01,9185.0,Binek
+Marka B,2024-01,1621.0,Hafif ticari
+Marka C,2024-01,3864.0,Binek
+Marka C,2024-01,2576.0,Hafif ticari
+Marka D,2024-01,6770.0,Binek
+Marka D,2024-01,356.0,Hafif ticari
+Marka E,2024-01,2791.0,Binek
+Marka E,2024-01,2791.0,Hafif ticari
+Marka F,2024-01,3161.0,Binek
+Marka F,2024-01,790.0,Hafif ticari
+Marka G,2024-01,2152.0,Binek
+Marka G,2024-01,922.0,Hafif ticari
+TOPLAM,2024-01,40491.0,Binek
+TOPLAM,2024-01,11114.0,Hafif ticari
+Marka A,2024-02,9559.0,Binek
+Marka A,2024-02,1062.0,Hafif ticari
+Marka B,2024-02,11837.0,Binek
+Marka B,2024-02,2089.0,Hafif ticari
+Marka C,2024-02,4459.0,Binek
+Marka C,2024-02,2973.0,Hafif ticari
+Marka D,2024-02,7703.0,Binek
+Marka D,2024-02,405.0,Hafif ticari
+Marka E,2024-02,3269.0,Binek
+Marka E,2024-02,3269.0,Hafif ticari
+Marka F,2024-02,4329.0,Binek
+Marka F,2024-02,1082.0,Hafif ticari
+Marka G,2024-02,2728.0,Binek
+Marka G,2024-02,1169.0,Hafif ticari
+TOPLAM,2024-02,48760.0,Binek
+TOPLAM,2024-02,13388.0,Hafif ticari
+Marka A,2024-03,13153.0,Binek
+Marka A,2024-03,1461.0,Hafif ticari
+Marka B,2024-03,14479.0,Binek
+Marka B,2024-03,2555.0,Hafif ticari
+Marka C,2024-03,5845.0,Binek
+Marka C,2024-03,3896.0,Hafif ticari
+Marka D,2024-03,10605.0,Binek
+Marka D,2024-03,558.0,Hafif ticari
+Marka E,2024-03,4327.0,Binek
+Marka E,2024-03,4327.0,Hafif ticari
+Marka F,2024-03,5442.0,Binek
+Marka F,2024-03,1360.0,Hafif ticari
+Marka G,2024-03,3281.0,Binek
+Marka G,2024-03,1406.0,Hafif ticari
+TOPLAM,2024-03,63480.0,Binek
+TOPLAM,2024-03,17292.0,Hafif ticari
+Marka A,2024-04,14442.0,Binek
+Marka A,2024-04,1605.0,Hafif ticari
+Marka B,2024-04,16852.0,Binek
+Marka B,2024-04,2974.0,Hafif ticari
+Marka C,2024-04,6209.0,Binek
+Marka C,2024-04,4139.0,Hafif ticari
+Marka D,2024-04,11573.0,Binek
+Marka D,2024-04,609.0,Hafif ticari
+Marka E,2024-04,4183.0,Binek
+Marka E,2024-04,4183.0,Hafif ticari
+Marka F,2024-04,5512.0,Binek
+Marka F,2024-04,1378.0,Hafif ticari
+Marka G,2024-04,3773.0,Binek
+Marka G,2024-04,1617.0,Hafif ticari
+TOPLAM,2024-04,69493.0,Binek
+TOPLAM,2024-04,18339.0,Hafif ticari
+Marka A,2024-05,18199.0,Binek
+Marka A,2024-05,2022.0,Hafif ticari
+Marka B,2024-05,21781.0,Binek
+Marka B,2024-05,3844.0,Hafif ticari
+Marka C,2024-05,6251.0,Binek
+Marka C,2024-05,4168.0,Hafif ticari
+Marka D,2024-05,11877.0,Binek
+Marka D,2024-05,625.0,Hafif ticari
+Marka E,2024-05,5049.0,Binek
+Marka E,2024-05,5049.0,Hafif ticari
+Marka F,2024-05,5665.0,Binek
+Marka F,2024-05,1416.0,Hafif ticari
+Marka G,2024-05,3953.0,Binek
+Marka G,2024-05,1694.0,Hafif ticari
+TOPLAM,2024-05,80861.0,Binek
+TOPLAM,2024-05,20909.0,Hafif ticari
+Marka A,2024-06,16906.0,Binek
+Marka A,2024-06,1878.0,Hafif ticari
+Marka B,2024-06,17888.0,Binek
+Marka B,2024-06,3157.0,Hafif ticari
+Marka C,2024-06,7840.0,Binek
+Marka C,2024-06,5227.0,Hafif ticari
+Marka D,2024-06,13322.0,Binek
+Marka D,2024-06,701.0,Hafif ticari
+Marka E,2024-06,5368.0,Binek
+Marka E,2024-06,5368.0,Hafif ticari
+Marka F,2024-06,7647.0,Binek
+Marka F,2024-06,1912.0,Hafif ticari
+Marka G,2024-06,4583.0,Binek
+Marka G,2024-06,1964.0,Hafif ticari
+TOPLAM,2024-06,81727.0,Binek
+TOPLAM,2024-06,22452.0,Hafif ticari
+Marka A,2024-07,15189.0,Binek
+Marka A,2024-07,1688.0,Hafif ticari
+Marka B,2024-07,20121.0,Binek
+Marka B,2024-07,3551.0,Hafif ticari
+Marka C,2024-07,5140.0,Binek
+Marka C,2024-07,3427.0,Hafif ticari
+Marka D,2024-07,12594.0,Binek
+Marka D,2024-07,663.0,Hafif ticari
+Marka E,2024-07,4322.0,Binek
+Marka E,2024-07,4322.0,Hafif ticari
+Marka F,2024-07,6463.0,Binek
+Marka F,2024-07,1616.0,Hafif ticari
+Marka G,2024-07,4321.0,Binek
+Marka G,2024-07,1852.0,Hafif ticari
+TOPLAM,2024-07,75722.0,Binek
+TOPLAM,2024-07,19021.0,Hafif ticari
+Marka A,2024-08,14558.0,Binek
+Marka A,2024-08,1618.0,Hafif ticari
+Marka B,2024-08,17484.0,Binek
+Marka B,2024-08,3085.0,Hafif ticari
+Marka C,2024-08,6021.0,Binek
+Marka C,2024-08,4014.0,Hafif ticari
+Marka D,2024-08,11444.0,Binek
+Marka D,2024-08,602.0,Hafif ticari
+Marka E,2024-08,3986.0,Binek
+Marka E,2024-08,3986.0,Hafif ticari
+Marka F,2024-08,5164.0,Binek
+Marka F,2024-08,1291.0,Hafif ticari
+Marka G,2024-08,3963.0,Binek
+Marka G,2024-08,1698.0,Hafif ticari
+TOPLAM,2024-08,69578.0,Binek
+TOPLAM,2024-08,18104.0,Hafif ticari
+Marka A,2024-09,13079.0,Binek
+Marka A,2024-09,1453.0,Hafif ticari
+Marka B,2024-09,14320.0,Binek
+Marka B,2024-09,2527.0,Hafif ticari
+Marka C,2024-09,4856.0,Binek
+Marka C,2024-09,3238.0,Hafif ticari
+Marka D,2024-09,10395.0,Binek
+Marka D,2024-09,547.0,Hafif ticari
+Marka E,2024-09,3885.0,Binek
+Marka E,2024-09,3885.0,Hafif ticari
+Marka F,2024-09,4861.0,Binek
+Marka F,2024-09,1215.0,Hafif ticari
+Marka G,2024-09,3526.0,Binek
+Marka G,2024-09,1511.0,Hafif ticari
+TOPLAM,2024-09,61024.0,Binek
+TOPLAM,2024-09,15973.0,Hafif ticari
+Marka A,2024-10,9050.0,Binek
+Marka A,2024-10,1006.0,Hafif ticari
+Marka B,2024-10,12684.0,Binek
+Marka B,2024-10,2238.0,Hafif ticari
+Marka C,2024-10,4391.0,Binek
+Marka C,2024-10,2927.0,Hafif ticari
+Marka D,2024-10,7139.0,Binek
+Marka D,2024-10,376.0,Hafif ticari
+Marka E,2024-10,3204.0,Binek
+Marka E,2024-10,3204.0,Hafif ticari
+Marka F,2024-10,4031.0,Binek
+Marka F,2024-10,1008.0,Hafif ticari
+Marka G,2024-10,2803.0,Binek
+Marka G,2024-10,1201.0,Hafif ticari
+TOPLAM,2024-10,48113.0,Binek
+TOPLAM,2024-10,13289.0,Hafif ticari
+Marka A,2024-11,7828.0,Binek
+Marka A,2024-11,870.0,Hafif ticari
+Marka B,2024-11,12374.0,Binek
+Marka B,2024-11,2184.0,Hafif ticari
+Marka C,2024-11,3706.0,Binek
+Marka C,2024-11,2471.0,Hafif ticari
+Marka D,2024-11,7791.0,Binek
+Marka D,2024-11,410.0,Hafif ticari
+Marka E,2024-11,2508.0,Binek
+Marka E,2024-11,2508.0,Hafif ticari
+Marka F,2024-11,3466.0,Binek
+Marka F,2024-11,867.0,Hafif ticari
+Marka G,2024-11,2054.0,Binek
+Marka G,2024-11,880.0,Hafif ticari
+TOPLAM,2024-11,44141.0,Binek
+TOPLAM,2024-11,11322.0,Hafif ticari
+Marka A,2024-12,13456.0,Binek
+Marka A,2024-12,1495.0,Hafif ticari
+Marka B,2024-12,19816.0,Binek
+Marka B,2024-12,3497.0,Hafif ticari
+Marka C,2024-12,6733.0,Binek
+Marka C,2024-12,4488.0,Hafif ticari
+Marka D,2024-12,11648.0,Binek
+Marka D,2024-12,613.0,Hafif ticari
+Marka E,2024-12,4407.0,Binek
+Marka E,2024-12,4407.0,Hafif ticari
+Marka F,2024-12,5825.0,Binek
+Marka F,2024-12,1456.0,Hafif ticari
+Marka G,2024-12,3964.0,Binek
+Marka G,2024-12,1699.0,Hafif ticari
+TOPLAM,2024-12,73166.0,Binek
+TOPLAM,2024-12,19617.0,Hafif ticari
+Marka A,2025-01,8039.0,Binek
+Marka A,2025-01,893.0,Hafif ticari
+Marka B,2025-01,9828.0,Binek
+Marka B,2025-01,1734.0,Hafif ticari
+Marka C,2025-01,3501.0,Binek
+Marka C,2025-01,2334.0,Hafif ticari
+Marka D,2025-01,7029.0,Binek
+Marka D,2025-01,370.0,Hafif ticari
+Marka E,2025-01,2706.0,Binek
+Marka E,2025-01,2706.0,Hafif ticari
+Marka F,2025-01,3084.0,Binek
+Marka F,2025-01,771.0,Hafif ticari
+Marka G,2025-01,2249.0,Binek
+Marka G,2025-01,964.0,Hafif ticari
+TOPLAM,2025-01,40484.0,Binek
+TOPLAM,2025-01,10858.0,Hafif ticari
+Marka A,2025-02,10110.0,Binek
+Marka A,2025-02,1123.0,Hafif ticari
+Marka B,2025-02,13028.0,Binek
+Marka B,2025-02,2299.0,Hafif ticari
+Marka C,2025-02,4115.0,Binek
+Marka C,2025-02,2743.0,Hafif ticari
+Marka D,2025-02,7956.0,Binek
+Marka D,2025-02,419.0,Hafif ticari
+Marka E,2025-02,3104.0,Binek
+Marka E,2025-02,3104.0,Hafif ticari
+Marka F,2025-02,3961.0,Binek
+Marka F,2025-02,990.0,Hafif ticari
+Marka G,2025-02,2535.0,Binek
+Marka G,2025-02,1086.0,Hafif ticari
+TOPLAM,2025-02,49788.0,Binek
+TOPLAM,2025-02,13071.0,Hafif ticari
+Marka A,2025-03,12472.0,Binek
+Marka A,2025-03,1386.0,Hafif ticari
+Marka B,2025-03,16335.0,Binek
+Marka B,2025-03,2883.0,Hafif ticari
+Marka C,2025-03,4784.0,Binek
+Marka C,2025-03,3190.0,Hafif ticari
+Marka D,2025-03,10466.0,Binek
+Marka D,2025-03,551.0,Hafif ticari
+Marka E,2025-03,3828.0,Binek
+Marka E,2025-03,3828.0,Hafif ticari
+Marka F,2025-03,5352.0,Binek
+Marka F,2025-03,1338.0,Hafif ticari
+Marka G,2025-03,3158.0,Binek
+Marka G,2025-03,1353.0,Hafif ticari
+TOPLAM,2025-03,62661.0,Binek
+TOPLAM,2025-03,16143.0,Hafif ticari
+Marka A,2025-04,13746.0,Binek
+Marka A,2025-04,1527.0,Hafif ticari
+Marka B,2025-04,16263.0,Binek
+Marka B,2025-04,2870.0,Hafif ticari
+Marka C,2025-04,5546.0,Binek
+Marka C,2025-04,3697.0,Hafif ticari
+Marka D,2025-04,11625.0,Binek
+Marka D,2025-04,612.0,Hafif ticari
+Marka E,2025-04,4495.0,Binek
+Marka E,2025-04,4495.0,Hafif ticari
+Marka F,2025-04,5089.0,Binek
+Marka F,2025-04,1272.0,Hafif ticari
+Marka G,2025-04,3448.0,Binek
+Marka G,2025-04,1478.0,Hafif ticari
+TOPLAM,2025-04,66902.0,Binek
+TOPLAM,2025-04,17723.0,Hafif ticari
+Marka A,2025-05,15362.0,Binek
+Marka A,2025-05,1707.0,Hafif ticari
+Marka B,2025-05,18443.0,Binek
+Marka B,2025-05,3255.0,Hafif ticari
+Marka C,2025-05,7112.0,Binek
+Marka C,2025-05,4741.0,Hafif ticari
+Marka D,2025-05,13819.0,Binek
+Marka D,2025-05,727.0,Hafif ticari
+Marka E,2025-05,4592.0,Binek
+Marka E,2025-05,4592.0,Hafif ticari
+Marka F,2025-05,6571.0,Binek
+Marka F,2025-05,1643.0,Hafif ticari
+Marka G,2025-05,3963.0,Binek
+Marka G,2025-05,1699.0,Hafif ticari
+TOPLAM,2025-05,77624.0,Binek
+TOPLAM,2025-05,20404.0,Hafif ticari
+Marka A,2025-06,16758.0,Binek
+Marka A,2025-06,1862.0,Hafif ticari
+Marka B,2025-06,19560.0,Binek
+Marka B,2025-06,3452.0,Hafif ticari
+Marka C,2025-06,7354.0,Binek
+Marka C,2025-06,4903.0,Hafif ticari
+Marka D,2025-06,13483.0,Binek
+Marka D,2025-06,710.0,Hafif ticari
+Marka E,2025-06,4898.0,Binek
+Marka E,2025-06,4898.0,Hafif ticari
+Marka F,2025-06,6492.0,Binek
+Marka F,2025-06,1623.0,Hafif ticari
+Marka G,2025-06,4731.0,Binek
+Marka G,2025-06,2028.0,Hafif ticari
+TOPLAM,2025-06,81418.0,Binek
+TOPLAM,2025-06,21640.0,Hafif ticari
+Marka A,2025-07,13808.0,Binek
+Marka A,2025-07,1534.0,Hafif ticari
+Marka B,2025-07,20964.0,Binek
+Marka B,2025-07,3699.0,Hafif ticari
+Marka C,2025-07,5277.0,Binek
+Marka C,2025-07,3518.0,Hafif ticari
+Marka D,2025-07,13932.0,Binek
+Marka D,2025-07,733.0,Hafif ticari
+Marka E,2025-07,4481.0,Binek
+Marka E,2025-07,4481.0,Hafif ticari
+Marka F,2025-07,5826.0,Binek
+Marka F,2025-07,1457.0,Hafif ticari
+Marka G,2025-07,4072.0,Binek
+Marka G,2025-07,1745.0,Hafif ticari
+TOPLAM,2025-07,75956.0,Binek
+TOPLAM,2025-07,19074.0,Hafif ticari
+Marka A,2025-08,12916.0,Binek
+Marka A,2025-08,1435.0,Hafif ticari
+Marka B,2025-08,18318.0,Binek
+Marka B,2025-08,3233.0,Hafif ticari
+Marka C,2025-08,4580.0,Binek
+Marka C,2025-08,3053.0,Hafif ticari
+Marka D,2025-08,10663.0,Binek
+Marka D,2025-08,561.0,Hafif ticari
+Marka E,2025-08,4000.0,Binek
+Marka E,2025-08,4000.0,Hafif ticari
+Marka F,2025-08,4959.0,Binek
+Marka F,2025-08,1240.0,Hafif ticari
+Marka G,2025-08,3352.0,Binek
+Marka G,2025-08,1437.0,Hafif ticari
+TOPLAM,2025-08,65320.0,Binek
+TOPLAM,2025-08,16621.0,Hafif ticari
+Marka A,2025-09,12084.0,Binek
+Marka A,2025-09,1343.0,Hafif ticari
+Marka B,2025-09,15945.0,Binek
+Marka B,2025-09,2814.0,Hafif ticari
+Marka C,2025-09,5429.0,Binek
+Marka C,2025-09,3619.0,Hafif ticari
+Marka D,2025-09,11097.0,Binek
+Marka D,2025-09,584.0,Hafif ticari
+Marka E,2025-09,4038.0,Binek
+Marka E,2025-09,4038.0,Hafif ticari
+Marka F,2025-09,5402.0,Binek
+Marka F,2025-09,1351.0,Hafif ticari
+Marka G,2025-09,3520.0,Binek
+Marka G,2025-09,1508.0,Hafif ticari
+TOPLAM,2025-09,63906.0,Binek
+TOPLAM,2025-09,16952.0,Hafif ticari
+Marka A,2025-10,9825.0,Binek
+Marka A,2025-10,1092.0,Hafif ticari
+Marka B,2025-10,15020.0,Binek
+Marka B,2025-10,2651.0,Hafif ticari
+Marka C,2025-10,5029.0,Binek
+Marka C,2025-10,3353.0,Hafif ticari
+Marka D,2025-10,9036.0,Binek
+Marka D,2025-10,476.0,Hafif ticari
+Marka E,2025-10,3085.0,Binek
+Marka E,2025-10,3085.0,Hafif ticari
+Marka F,2025-10,4332.0,Binek
+Marka F,2025-10,1083.0,Hafif ticari
+Marka G,2025-10,2726.0,Binek
+Marka G,2025-10,1168.0,Hafif ticari
+TOPLAM,2025-10,54503.0,Binek
+TOPLAM,2025-10,14342.0,Hafif ticari
+Marka A,2025-11,7786.0,Binek
+Marka A,2025-11,865.0,Hafif ticari
+Marka B,2025-11,12658.0,Binek
+Marka B,2025-11,2234.0,Hafif ticari
+Marka C,2025-11,3579.0,Binek
+Marka C,2025-11,2386.0,Hafif ticari
+Marka D,2025-11,7863.0,Binek
+Marka D,2025-11,414.0,Hafif ticari
+Marka E,2025-11,2711.0,Binek
+Marka E,2025-11,2711.0,Hafif ticari
+Marka F,2025-11,3533.0,Binek
+Marka F,2025-11,883.0,Hafif ticari
+Marka G,2025-11,2262.0,Binek
+Marka G,2025-11,969.0,Hafif ticari
+TOPLAM,2025-11,44880.0,Binek
+TOPLAM,2025-11,11624.0,Hafif ticari
+Marka A,2025-12,13602.0,Binek
+Marka A,2025-12,1511.0,Hafif ticari
+Marka B,2025-12,17844.0,Binek
+Marka B,2025-12,3149.0,Hafif ticari
+Marka C,2025-12,6823.0,Binek
+Marka C,2025-12,4548.0,Hafif ticari
+Marka D,2025-12,12662.0,Binek
+Marka D,2025-12,666.0,Hafif ticari
+Marka E,2025-12,4090.0,Binek
+Marka E,2025-12,4090.0,Hafif ticari
+Marka F,2025-12,5785.0,Binek
+Marka F,2025-12,1446.0,Hafif ticari
+Marka G,2025-12,3824.0,Binek
+Marka G,2025-12,1639.0,Hafif ticari
+TOPLAM,2025-12,71811.0,Binek
+TOPLAM,2025-12,18943.0,Hafif ticari
+Marka A,2026-01,8402.0,Binek
+Marka A,2026-01,934.0,Hafif ticari
+Marka B,2026-01,12625.0,Binek
+Marka B,2026-01,2228.0,Hafif ticari
+Marka C,2026-01,3351.0,Binek
+Marka C,2026-01,2234.0,Hafif ticari
+Marka D,2026-01,7715.0,Binek
+Marka D,2026-01,406.0,Hafif ticari
+Marka E,2026-01,2613.0,Binek
+Marka E,2026-01,2613.0,Hafif ticari
+Marka F,2026-01,3694.0,Binek
+Marka F,2026-01,924.0,Hafif ticari
+Marka G,2026-01,2348.0,Binek
+Marka G,2026-01,1006.0,Hafif ticari
+TOPLAM,2026-01,45276.0,Binek
+TOPLAM,2026-01,11494.0,Hafif ticari
+Marka A,2026-02,9464.0,Binek
+Marka A,2026-02,1052.0,Hafif ticari
+Marka B,2026-02,14685.0,Binek
+Marka B,2026-02,2591.0,Hafif ticari
+Marka C,2026-02,3732.0,Binek
+Marka C,2026-02,2488.0,Hafif ticari
+Marka D,2026-02,8680.0,Binek
+Marka D,2026-02,457.0,Hafif ticari
+Marka E,2026-02,3230.0,Binek
+Marka E,2026-02,3230.0,Hafif ticari
+Marka F,2026-02,3815.0,Binek
+Marka F,2026-02,954.0,Hafif ticari
+Marka G,2026-02,2811.0,Binek
+Marka G,2026-02,1205.0,Hafif ticari
+TOPLAM,2026-02,51574.0,Binek
+TOPLAM,2026-02,13308.0,Hafif ticari
+Marka A,2026-03,12273.0,Binek
+Marka A,2026-03,1364.0,Hafif ticari
+Marka B,2026-03,18497.0,Binek
+Marka B,2026-03,3264.0,Hafif ticari
+Marka C,2026-03,4543.0,Binek
+Marka C,2026-03,3028.0,Hafif ticari
+Marka D,2026-03,11995.0,Binek
+Marka D,2026-03,631.0,Hafif ticari
+Marka E,2026-03,4143.0,Binek
+Marka E,2026-03,4143.0,Hafif ticari
+Marka F,2026-03,5555.0,Binek
+Marka F,2026-03,1389.0,Hafif ticari
+Marka G,2026-03,3213.0,Binek
+Marka G,2026-03,1377.0,Hafif ticari
+TOPLAM,2026-03,66910.0,Binek
+TOPLAM,2026-03,16884.0,Hafif ticari
+Marka A,2026-04,15447.0,Binek
+Marka A,2026-04,1716.0,Hafif ticari
+Marka B,2026-04,21369.0,Binek
+Marka B,2026-04,3771.0,Hafif ticari
+Marka C,2026-04,6833.0,Binek
+Marka C,2026-04,4556.0,Hafif ticari
+Marka D,2026-04,14938.0,Binek
+Marka D,2026-04,786.0,Hafif ticari
+Marka E,2026-04,4884.0,Binek
+Marka E,2026-04,4884.0,Hafif ticari
+Marka F,2026-04,5688.0,Binek
+Marka F,2026-04,1422.0,Hafif ticari
+Marka G,2026-04,4409.0,Binek
+Marka G,2026-04,1890.0,Hafif ticari
+TOPLAM,2026-04,81742.0,Binek
+TOPLAM,2026-04,21139.0,Hafif ticari
+Marka A,2026-05,14048.0,Binek
+Marka A,2026-05,1561.0,Hafif ticari
+Marka B,2026-05,24707.0,Binek
+Marka B,2026-05,4360.0,Hafif ticari
+Marka C,2026-05,6169.0,Binek
+Marka C,2026-05,4112.0,Hafif ticari
+Marka D,2026-05,14523.0,Binek
+Marka D,2026-05,764.0,Hafif ticari
+Marka E,2026-05,5487.0,Binek
+Marka E,2026-05,5487.0,Hafif ticari
+Marka F,2026-05,7421.0,Binek
+Marka F,2026-05,1855.0,Hafif ticari
+Marka G,2026-05,4318.0,Binek
+Marka G,2026-05,1851.0,Hafif ticari
+TOPLAM,2026-05,85192.0,Binek
+TOPLAM,2026-05,22211.0,Hafif ticari
+Marka A,2026-06,14495.0,Binek
+Marka A,2026-06,1611.0,Hafif ticari
+Marka B,2026-06,25918.0,Binek
+Marka B,2026-06,4574.0,Hafif ticari
+Marka C,2026-06,5768.0,Binek
+Marka C,2026-06,3846.0,Hafif ticari
+Marka D,2026-06,15017.0,Binek
+Marka D,2026-06,790.0,Hafif ticari
+Marka E,2026-06,5477.0,Binek
+Marka E,2026-06,5477.0,Hafif ticari
+Marka F,2026-06,6736.0,Binek
+Marka F,2026-06,1684.0,Hafif ticari
+Marka G,2026-06,4507.0,Binek
+Marka G,2026-06,1932.0,Hafif ticari
+TOPLAM,2026-06,86576.0,Binek
+TOPLAM,2026-06,22127.0,Hafif ticari
+Marka A,2026-07,16714.0,Binek
+Marka A,2026-07,1857.0,Hafif ticari
+Marka B,2026-07,26080.0,Binek
+Marka B,2026-07,4602.0,Hafif ticari
+Marka C,2026-07,6467.0,Binek
+Marka C,2026-07,4311.0,Hafif ticari
+Marka D,2026-07,15955.0,Binek
+Marka D,2026-07,840.0,Hafif ticari
+Marka E,2026-07,5069.0,Binek
+Marka E,2026-07,5069.0,Hafif ticari
+Marka F,2026-07,6660.0,Binek
+Marka F,2026-07,1665.0,Hafif ticari
+Marka G,2026-07,4884.0,Binek
+Marka G,2026-07,2093.0,Hafif ticari
+TOPLAM,2026-07,90921.0,Binek
+TOPLAM,2026-07,22708.0,Hafif ticari
+Marka A,2026-08,12559.0,Binek
+Marka A,2026-08,1395.0,Hafif ticari
+Marka B,2026-08,22962.0,Binek
+Marka B,2026-08,4052.0,Hafif ticari
+Marka C,2026-08,5272.0,Binek
+Marka C,2026-08,3514.0,Hafif ticari
+Marka D,2026-08,13288.0,Binek
+Marka D,2026-08,699.0,Hafif ticari
+Marka E,2026-08,4173.0,Binek
+Marka E,2026-08,4173.0,Hafif ticari
+Marka F,2026-08,6489.0,Binek
+Marka F,2026-08,1622.0,Hafif ticari
+Marka G,2026-08,4451.0,Binek
+Marka G,2026-08,1907.0,Hafif ticari
+TOPLAM,2026-08,76882.0,Binek
+TOPLAM,2026-08,19291.0,Hafif ticari
+Marka A,2026-09,11441.0,Binek
+Marka A,2026-09,1271.0,Hafif ticari
+Marka B,2026-09,21056.0,Binek
+Marka B,2026-09,3716.0,Hafif ticari
+Marka C,2026-09,3156.0,Binek
+Marka C,2026-09,2104.0,Hafif ticari
+Marka D,2026-09,11483.0,Binek
+Marka D,2026-09,604.0,Hafif ticari
+Marka E,2026-09,4102.0,Binek
+Marka E,2026-09,4102.0,Hafif ticari
+Marka F,2026-09,5685.0,Binek
+Marka F,2026-09,1421.0,Hafif ticari
+Marka G,2026-09,3831.0,Binek
+Marka G,2026-09,1642.0,Hafif ticari
+TOPLAM,2026-09,67504.0,Binek
+TOPLAM,2026-09,16511.0,Hafif ticari

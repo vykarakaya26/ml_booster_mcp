@@ -1,4 +1,4 @@
-"""Sektör → kaynak haritası (sunumdan bağımsız veri yapısı)."""
+"""Sector → source map (presentation-independent data structure)."""
 
 from __future__ import annotations
 
@@ -17,7 +17,7 @@ class SourceEntry:
 @dataclass(frozen=True)
 class FeatureEntry:
     feature: MacroFeature
-    status: str  # hazir | kesif_bekliyor | saglayici_yok
+    status: str  # ready | pending_discovery | no_provider
 
 
 @dataclass(frozen=True)
@@ -32,7 +32,7 @@ class SectorMap:
 
 def build_sector_map(catalog: Catalog, sector_id: str, available_providers: set[str]) -> SectorMap:
     sector = catalog.sector(sector_id)
-    roles: dict[str, list[str]] = {}
+    roles: dict[str, list[str]] = {}  # Turkish display labels (shown in the map and reports)
     for source_id in dict.fromkeys(f.source for f in sector.macro_features):
         roles.setdefault(source_id, []).append("makro")
     for source_id in sector.sector_sources:
@@ -45,8 +45,8 @@ def build_sector_map(catalog: Catalog, sector_id: str, available_providers: set[
 
     def status(f: MacroFeature) -> str:
         if not ready(f.source):
-            return "saglayici_yok"
-        return "hazir" if f.is_resolved else "kesif_bekliyor"
+            return "no_provider"
+        return "ready" if f.is_resolved else "pending_discovery"
 
     return SectorMap(
         sector_id=sector.id,

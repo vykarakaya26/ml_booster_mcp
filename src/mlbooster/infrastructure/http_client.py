@@ -1,5 +1,5 @@
-"""Güvenli HTTP istemcisi: TLS doğrulama, yönlendirme yok, zaman aşımı, yanıt boyutu limiti,
-rate limit, üstel backoff ile tekrar deneme. Dönüş değeri httpx'ten bağımsız bir değer nesnesidir."""
+"""Secure HTTP client: TLS verification, no redirects, timeout, response size limit,
+rate limit, retries with exponential backoff. The return value is a value object independent of httpx."""
 
 from __future__ import annotations
 
@@ -70,12 +70,12 @@ class SecureHttpClient:
         self._client = httpx.Client(
             timeout=timeout,
             headers={"User-Agent": USER_AGENT},
-            follow_redirects=False,  # sessiz 302→HTML kırılmalarını ve başka hosta sızmayı engelle
+            follow_redirects=False,  # prevent silent 302→HTML breakage and leaking to another host
             verify=True,
-            trust_env=False,  # ortamdaki proxy/netrc ayarları istekleri (ve header'ları) başka yere taşımasın
+            trust_env=False,  # do not let proxy/netrc settings in the environment route requests (and headers) elsewhere
             transport=transport,
         )
-        # Aynı kaynağa giden tüm istemciler limiti paylaşabilsin diye dışarıdan verilebilir.
+        # Can be supplied from outside so that all clients targeting the same source share the limit.
         self._limiter = limiter or RateLimiter(rps)
         self._max_retries = max_retries
         self._backoff_base = backoff_base
@@ -98,9 +98,9 @@ class SecureHttpClient:
                 if response.status not in RETRYABLE_STATUS:
                     return response
                 if attempt >= self._max_retries:
-                    raise ProviderUnavailable(f"HTTP {response.status}, {attempt} tekrar denemeden sonra: {url}")
+                    raise ProviderUnavailable(f"HTTP {response.status}; {attempt} retry sonrasında da başarısız: {url}")
             delay = self._retry_delay(attempt, response)
-            log.warning("Tekrar deneniyor (%s/%s) %.1fs sonra: %s", attempt + 1, self._max_retries, delay, url)
+            log.warning("Retrying (%s/%s) in %.1fs: %s", attempt + 1, self._max_retries, delay, url)
             self._sleep(delay)
             attempt += 1
 
@@ -113,7 +113,7 @@ class SecureHttpClient:
             for chunk in r.iter_bytes():
                 size += len(chunk)
                 if size > self._max_bytes:
-                    raise UnexpectedResponse(f"Yanıt {self._max_bytes} bayt limitini aştı: {url}")
+                    raise UnexpectedResponse(f"Yanıt {self._max_bytes} baytlık limiti aştı: {url}")
                 chunks.append(chunk)
             return HttpResponse(r.status_code, {k.lower(): v for k, v in r.headers.items()}, b"".join(chunks), url)
 

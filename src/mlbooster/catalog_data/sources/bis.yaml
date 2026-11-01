@@ -9,13 +9,13 @@ license:
   commercial: true
   redistribution: true
   attribution: required
-  notes: "BIS istatistikleri kaynak gösterilerek kullanılabilir (BIS kullanım koşulları); orijinal kaynak kurum (TCMB vb.) ayrıca belirtilmeli."
+  notes: "BIS istatistikleri kaynak gösterilerek kullanılabilir (BIS kullanım koşulları); verinin asıl kaynağı olan kurum (TCMB vb.) ayrıca belirtilmelidir."
 frequency: [D, M, Q]
 formats: [csv]
 sectors: ["*"]
 publication_lag_days: 30
 verification_status: verified
-verification_notes: "2026-10-31: SDMX-CSV uçları canlı denendi (WS_CBPOL, WS_EER, WS_SPP, WS_TC)."
+verification_notes: "2026-10-31: SDMX-CSV endpoint'leri canlı olarak test edildi (WS_CBPOL, WS_EER, WS_SPP, WS_TC)."
 adapter: sdmx
 priority: 11
 series:

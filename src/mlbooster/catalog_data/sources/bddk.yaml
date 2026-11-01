@@ -4,10 +4,10 @@ owner: BDDK
 base_url: https://www.bddk.org.tr
 access: file_download
 auth: {type: none}
-license: {attribution: required, notes: "Bankaların geçici mali tablolarına dayanır; BDDK kesinlik garantisi vermez."}
+license: {attribution: required, notes: "Bankaların geçici mali tablolarına dayanır; BDDK verilerin kesinliğini garanti etmez."}
 frequency: [D, W, M, Q]
 formats: [html, xlsx]
 sectors: [bankacilik]
-publication_lag_days: 30  # tahmini
+publication_lag_days: 30  # estimated
 verification_status: reported
 priority: 3

@@ -1,4 +1,4 @@
-"""Use case giriş/çıkış nesneleri. Girdi doğrulaması burada, çekirdeğin kapısında yapılır."""
+"""Use case input/output objects. Input validation happens here, at the gate of the core."""
 
 from __future__ import annotations
 
@@ -11,7 +11,7 @@ from mlbooster.domain.errors import InvalidInput
 from mlbooster.domain.model import Aggregation, Frequency
 from mlbooster.domain.validation import DateRange, series_codes, slug
 
-# Sağlayıcıdan bağımsız formül kodları (EVDS ile aynı numaralandırma).
+# Provider-independent formula codes (same numbering as EVDS).
 FORMULA_METRICS = {
     0: "level", 1: "pct_change", 2: "diff", 3: "yoy_pct", 4: "yoy_diff",
     5: "ytd_pct", 6: "ytd_diff", 7: "moving_avg", 8: "moving_sum",
@@ -42,7 +42,7 @@ class FetchRequest:
         agg: str | None = None,
         formula: int = 0,
     ) -> FetchRequest:
-        if type(formula) is not int or formula not in FORMULA_METRICS:  # bool/float'ı da reddet
+        if type(formula) is not int or formula not in FORMULA_METRICS:  # also reject bool/float
             raise InvalidInput(f"Geçersiz formül {formula}; seçenekler: {sorted(FORMULA_METRICS)}")
         try:
             freq_v = Frequency(freq) if freq else None
@@ -50,7 +50,7 @@ class FetchRequest:
         except ValueError as exc:
             raise InvalidInput(str(exc)) from None
         return cls(
-            source_id=slug(source_id, "kaynak"),
+            source_id=slug(source_id, "source"),
             series_ids=series_codes(series_ids),
             period=DateRange(start, end or date.today()),
             freq=freq_v,

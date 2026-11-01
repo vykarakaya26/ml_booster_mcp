@@ -13,7 +13,7 @@ from mlbooster.domain.services.preprocessing import PrepConfig
 
 
 class StubBuild:
-    """Sektör kataloğunu gerçek, paneli sentetik veren BuildPanel yerine geçen sahte."""
+    """Fake replacing BuildPanel that returns the real sector catalog and a synthetic panel."""
 
     def __init__(self, catalog, sector_id="makro_genel"):
         self._sector = catalog.sector(sector_id)
@@ -28,7 +28,7 @@ class StubBuild:
 
     def __call__(self, sector_id, start, end, save=True, **kw):
         self.calls.append(save)
-        return PanelResult(sector_id, self.panel, {"eksik": "seri kodu keşfedilmedi"})
+        return PanelResult(sector_id, self.panel, {"missing": "series code not discovered"})
 
 
 def test_prepare_panel_uses_catalog_transforms_and_never_saves(catalog):
@@ -44,7 +44,7 @@ def test_engineer_features_applies_sector_recipes(catalog):
     result, prepared, _ = EngineerFeatures(build)(
         "makro_genel", FeatureConfig(target="tufe_yoy", train_end=date(2020, 12, 31)), PrepConfig(target="tufe_yoy", train_end=date(2020, 12, 31))
     )  # fmt: skip
-    names = {s.name for s in result.specs if s.family == "sektor_tarifi"}
+    names = {s.name for s in result.specs if s.family == "sector_recipe"}
     assert {"reel_faiz_ex_ante", "aofm_politika_farki"} <= names and prepared is not None
     assert result.screening is not None and "q" in result.screening
 

@@ -4,23 +4,23 @@
   "competitors": [
     {
       "entity": "Marka C",
-      "tier": "doğrudan",
+      "tier": "direct",
       "basis": ["aynı ana segment", "benzer fiyat bandı"],
-      "evidence": "Sentetik örnek: iki marka aynı segmentte benzer fiyat bandında konumlanıyor.",
-      "confidence": "orta"
+      "evidence": "Sentetik örnek: iki marka aynı segmentte, benzer fiyat bandında konumlanıyor.",
+      "confidence": "medium"
     },
     {
       "entity": "Marka A",
-      "tier": "doğrudan",
-      "basis": ["pazar lideri konumundan gerileyen en büyük rakip", "ortak bayi bölgeleri"],
+      "tier": "direct",
+      "basis": ["pazar liderliğinden gerileyen en büyük rakip", "ortak bayi bölgeleri"],
       "evidence": "Sentetik örnek: pay sıralamasında komşu ve segment karması büyük ölçüde örtüşüyor.",
-      "confidence": "orta"
+      "confidence": "medium"
     },
     {
       "entity": "Marka E",
-      "tier": "dolaylı",
+      "tier": "indirect",
       "basis": ["hafif ticari segmentte lider", "farklı müşteri profili (kurumsal filo)"],
-      "confidence": "düşük"
+      "confidence": "low"
     }
   ],
   "notes": "Bu dosya sentetik örnek veriyle birlikte kullanılmak üzere hazırlanmıştır; gerçek bir rakip değerlendirmesi değildir."
