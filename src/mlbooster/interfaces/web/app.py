@@ -40,6 +40,7 @@ from mlbooster.domain.errors import DomainError, InvalidInput
 from mlbooster.domain.services.backtest import MODELS, BacktestConfig
 from mlbooster.domain.validation import slug
 from mlbooster.interfaces.presenters import backtest_dict, health_dict, quality_dict, sector_map_dict
+from mlbooster.interfaces.web.labels import sector_feature_info
 
 log = logging.getLogger(__name__)
 
@@ -198,6 +199,10 @@ def _num(value: Any) -> Any:
     return value
 
 
+def _now() -> str:
+    return datetime.now().astimezone().isoformat(timespec="minutes")
+
+
 def panel_payload(panel: pd.DataFrame) -> dict:
     """Paneli grafik için sütun bazlı JSON'a çevirir (NaN → null)."""
     if panel.empty:
@@ -260,11 +265,30 @@ def create_app(container_factory: Callable[[], Container] = build_container, tok
         return await call(run)
 
     async def sectors(request: Request) -> list[dict]:
-        return await call(lambda: [{"id": s.id, "name": s.name} for s in container().list_sectors()])
+        def run():
+            c = container()
+            out = []
+            for s in c.list_sectors():
+                m = c.sector_map(s.id)
+                statuses = [e.status for e in m.features]
+                out.append({
+                    "id": s.id, "name": s.name, "ml_use_cases": list(m.ml_use_cases),
+                    "features": len(statuses), "ready": statuses.count("hazir"),
+                    "pending": statuses.count("kesif_bekliyor"), "sources": len(m.sources),
+                    "market_share_sources": len(m.market_share),
+                })  # fmt: skip
+            return out
+
+        return await call(run)
 
     async def sector_map(request: Request) -> dict:
         sector = request.path_params["sector"]
-        return await call(lambda: sector_map_dict(container().sector_map(sector)))
+        def run():
+            c = container()
+            m = c.sector_map(sector)  # kimliği doğrular
+            return sector_map_dict(m) | {"feature_info": sector_feature_info(c.catalog.load(), m.sector_id)}
+
+        return await call(run)
 
     async def panel(request: Request) -> dict:
         sector, start, end, freq = _panel_args(await _body(request))
@@ -278,6 +302,7 @@ def create_app(container_factory: Callable[[], Container] = build_container, tok
                 "features": list(result.panel.columns),
                 "skipped": result.skipped,
                 "saved": result.location is not None,
+                "generated_at": _now(),
                 **panel_payload(result.panel),
             }
 
@@ -311,7 +336,7 @@ def create_app(container_factory: Callable[[], Container] = build_container, tok
 
         def run():
             report, result = container().audit_panel(sector, start, end)
-            return quality_dict(report, result.skipped) | {"sector": sector, **panel_payload(result.panel)}
+            return quality_dict(report, result.skipped) | {"sector": sector, "generated_at": _now(), **panel_payload(result.panel)}
 
         return await call(run)
 
@@ -329,7 +354,7 @@ def create_app(container_factory: Callable[[], Container] = build_container, tok
 
         def run():
             result, panel_result = container().run_backtest(sector, config, start, end)
-            out = backtest_dict(result, sector, max_predictions=MAX_PREDICTION_DATES)
+            out = backtest_dict(result, sector, max_predictions=MAX_PREDICTION_DATES) | {"generated_at": _now()}
             target = panel_result.panel[config.target] if config.target in panel_result.panel else pd.Series()
             out["history"] = {
                 "dates": [d.date().isoformat() for d in pd.to_datetime(target.index)],

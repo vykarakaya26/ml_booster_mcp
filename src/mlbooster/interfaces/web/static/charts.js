@@ -24,7 +24,8 @@ const fmtNum = (v) => {
   const a = Math.abs(v);
   return new Intl.NumberFormat("tr-TR", { maximumFractionDigits: a >= 1000 ? 0 : a >= 100 ? 1 : a >= 1 ? 2 : 4 }).format(v);
 };
-const monthLabel = (iso) => `${iso.slice(5, 7)}.${iso.slice(0, 4)}`;
+const MONTHS = ["Oca", "Şub", "Mar", "Nis", "May", "Haz", "Tem", "Ağu", "Eyl", "Eki", "Kas", "Ara"];
+const monthLabel = (iso) => `${MONTHS[Number(iso.slice(5, 7)) - 1]} ${iso.slice(0, 4)}`;
 
 function niceTicks(min, max, count = 4) {
   if (min === max) { min -= 1; max += 1; }
@@ -75,8 +76,28 @@ function legend(items) {
   return el;
 }
 
-export function lineChart({ dates, series, band = null, markers = null, events = [], height = 260, compact = false }) {
-  const W = compact ? 360 : 860;
+export { fmtNum };
+
+// Grafik, kutusunun gerçek genişliğinde çizilir (viewBox ölçeklemesi yazıları büyütüp küçültmesin diye);
+// genişlik değişince yeniden çizilir.
+export function lineChart(opts) {
+  const wrap = div("chart-wrap");
+  let lastWidth = 0;
+  const render = (width) => {
+    const w = Math.max(240, Math.round(width));
+    if (Math.abs(w - lastWidth) < 4) return;
+    lastWidth = w;
+    wrap.replaceChildren(...buildLineChart(opts, w));
+  };
+  render(opts.compact ? 360 : 860); // ilk çizim; yerleşince gerçek genişliğe uyar
+  new ResizeObserver((entries) => {
+    const width = entries[0]?.contentRect.width;
+    if (width) render(width);
+  }).observe(wrap);
+  return wrap;
+}
+
+function buildLineChart({ dates, series, band = null, markers = null, events = [], height = 260, compact = false, format = fmtNum }, W) {
   const H = height;
   const m = compact ? { t: 8, r: 8, b: 20, l: 44 } : { t: events.length ? 34 : 12, r: 16, b: 26, l: 56 };
   const iw = W - m.l - m.r;
@@ -86,11 +107,7 @@ export function lineChart({ dates, series, band = null, markers = null, events =
   const all = [];
   for (const sr of series) for (const v of sr.values) if (v !== null && Number.isFinite(v)) all.push(v);
   if (band) for (const v of [...band.lower, ...band.upper]) if (v !== null && Number.isFinite(v)) all.push(v);
-  const wrap = div("chart-wrap");
-  if (!n || !all.length) {
-    wrap.append(div("muted small", "Veri yok."));
-    return wrap;
-  }
+  if (!n || !all.length) return [div("muted small", "Veri yok.")];
   let lo = Math.min(...all);
   let hi = Math.max(...all);
   const padY = (hi - lo || Math.abs(hi) || 1) * 0.06;
@@ -100,7 +117,7 @@ export function lineChart({ dates, series, band = null, markers = null, events =
   const x = (i) => m.l + (n === 1 ? iw / 2 : (i / (n - 1)) * iw);
   const y = (v) => m.t + ih - ((v - lo) / (hi - lo)) * ih;
 
-  const svg = s("svg", { viewBox: `0 0 ${W} ${H}`, class: "chart", role: "img", "aria-label": series.map((x) => x.name).join(", ") });
+  const svg = s("svg", { viewBox: `0 0 ${W} ${H}`, width: W, height: H, class: "chart", role: "img", "aria-label": series.map((x) => x.name).join(", ") });
   for (const t of ticks) {
     svg.append(s("line", { class: "gridline", x1: m.l, x2: W - m.r, y1: y(t), y2: y(t) }));
     const label = s("text", { x: m.l - 6, y: y(t) + 4, "text-anchor": "end" });
@@ -112,7 +129,7 @@ export function lineChart({ dates, series, band = null, markers = null, events =
   // x etiketleri: yıl başları, en çok ~8 etiket
   const years = [];
   dates.forEach((d, i) => { if (i === 0 || d.slice(0, 4) !== dates[i - 1].slice(0, 4)) years.push(i); });
-  const maxLabels = compact ? 4 : 9;
+  const maxLabels = Math.max(3, Math.floor(W / 90));
   const every = Math.max(1, Math.ceil(years.length / maxLabels));
   years.filter((_, k) => k % every === 0).forEach((i) => {
     const t = s("text", { x: x(i), y: H - 6, "text-anchor": "middle" });
@@ -194,9 +211,9 @@ export function lineChart({ dates, series, band = null, markers = null, events =
       const v = sr.values[i];
       if (v === null || v === undefined) { dots[k].setAttribute("visibility", "hidden"); return; }
       dots[k].setAttribute("cx", x(i)); dots[k].setAttribute("cy", y(v)); dots[k].setAttribute("visibility", "visible");
-      rows.push([sr.color, sr.name, fmtNum(v)]);
+      rows.push([sr.color, sr.name, format(v)]);
     });
-    if (band && band.lower[i] !== null) rows.push([band.color, band.name, `${fmtNum(band.lower[i])} – ${fmtNum(band.upper[i])}`]);
+    if (band && band.lower[i] !== null) rows.push([band.color, band.name, `${format(band.lower[i])} – ${format(band.upper[i])}`]);
     if (markers && markers.dates.includes(dates[i])) rows.push([markers.color, markers.name, "evet"]);
     showTip(evt, monthLabel(dates[i]), rows);
   });
@@ -209,22 +226,32 @@ export function lineChart({ dates, series, band = null, markers = null, events =
   const items = series.length > 1 ? series.map((sr) => ({ name: sr.name, color: sr.color })) : [];
   if (band) items.push({ name: band.name, color: band.color, kind: "band" });
   if (markers) items.push({ name: markers.name, color: markers.color, kind: "dot" });
-  if (items.length) wrap.append(legend(items));
-  wrap.append(svg);
-  return wrap;
+  return items.length ? [legend(items), svg] : [svg];
 }
 
-export function barChart(items, { format = fmtNum } = {}) {
-  // HTML çubuklar: dar kartlarda yazı küçülmesin diye SVG yerine akışkan düzen
+export function barChart(items, { format = fmtNum, ref = null, cap = null } = {}) {
+  // HTML çubuklar: dar kartlarda yazı küçülmesin diye SVG yerine akışkan düzen.
+  // ref: {value, label} → tüm satırlarda aynı konumda kesikli referans çizgisi (ör. naive düzeyi = 1).
   const wrap = div("bars");
   if (!items.length) { wrap.append(div("muted small", "Veri yok.")); return wrap; }
-  const max = Math.max(...items.map((d) => d.value), 0) || 1;
+  // cap: bu değeri aşan çubuklar eksen sonunda kesilir (gerçek değer yazılı kalır), küçük farklar okunur kalsın diye
+  let max = Math.max(...items.map((d) => d.value), ref ? ref.value * 1.15 : 0, 0) || 1;
+  if (cap) max = Math.min(max, cap);
   for (const d of items) {
-    const fill = div("bar-fill" + (d.highlight ? " highlight" : ""));
-    fill.style.width = `${Math.max(1, (d.value / max) * 100)}%`;
-    const row = div("bar-row", div("bar-label", d.label), div("bar-track", fill), div("bar-value", format(d.value)));
+    const capped = d.value > max;
+    const fill = div("bar-fill" + (d.highlight ? " highlight" : "") + (capped ? " capped" : ""));
+    fill.style.width = `${Math.max(1, (Math.min(d.value, max) / max) * 100)}%`;
+    const track = div("bar-track", fill);
+    if (ref) {
+      const line = div("bar-ref");
+      line.style.left = `${(ref.value / max) * 100}%`;
+      track.append(line);
+    }
+    const row = div("bar-row", div("bar-label", d.label), track, div("bar-value", format(d.value)));
     const color = d.highlight ? "var(--series-1)" : "var(--axis)";
-    row.addEventListener("mousemove", (evt) => showTip(evt, d.label, [[color, "Değer", format(d.value)]]));
+    const rows = [[color, d.label, format(d.value)]];
+    if (d.note) rows.push(["transparent", d.note, ""]);
+    row.addEventListener("mousemove", (evt) => showTip(evt, d.label, rows));
     row.addEventListener("mouseleave", hideTip);
     wrap.append(row);
   }

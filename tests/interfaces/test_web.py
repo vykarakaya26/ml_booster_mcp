@@ -55,7 +55,9 @@ def test_api_requires_token_and_same_origin(client):
     cross = client.post("/api/panel", json={"sector": "telekom"}, headers={**AUTH, "Origin": "https://evil.example"})
     assert cross.status_code == 403
     same = client.get("/api/sectors", headers={**AUTH, "Origin": BASE})
-    assert same.status_code == 200 and {"id": "telekom", "name": "Telekom"} in same.json()
+    assert same.status_code == 200
+    telekom = next(s for s in same.json() if s["id"] == "telekom")
+    assert telekom["name"] == "Telekom" and telekom["ready"] <= telekom["features"]
 
 
 def test_invalid_input_returns_safe_message(client):
@@ -136,3 +138,25 @@ def test_free_port_skips_busy_port():
         busy.listen()
         port = busy.getsockname()[1]
         assert _free_port(port) not in (None, port)
+
+
+def test_feature_labels_are_readable_and_distinct(catalog):
+    from mlbooster.interfaces.web.labels import sector_feature_info
+
+    info = sector_feature_info(catalog, "bankacilik")
+    assert info["aofm"]["label"] != info["aofm_son"]["label"]  # ortalama / ay sonu sürümleri ayrışır
+    assert "ay sonu" in info["aofm_son"]["label"]
+    usd = info["usdtry_logdiff"]
+    assert usd["label"].startswith("USD/TRY") and usd["transform_label"] == "Aylık değişim (log)"
+    assert "≈" in usd["unit"] and "İş günü" in usd["description"]  # Türkçe büyük İ
+    assert info["tufe_yoy"]["unit"] == "yüzde" and info["tufe_yoy"]["publication_lag_days"] == 3
+    pending = info["kredi_faizi"]
+    assert pending["series"] is None and pending["label"] == "Kredi faizi"
+
+
+def test_sector_map_and_list_include_readable_metadata(client):
+    m = client.get("/api/sectors/bankacilik/map", headers=AUTH).json()
+    assert m["feature_info"]["aofm"]["source_name"]
+    sectors = client.get("/api/sectors", headers=AUTH).json()
+    bank = next(s for s in sectors if s["id"] == "bankacilik")
+    assert bank["pending"] >= 1 and bank["ml_use_cases"]
