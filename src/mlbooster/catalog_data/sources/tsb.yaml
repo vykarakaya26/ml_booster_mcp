@@ -4,10 +4,10 @@ owner: Türkiye Sigorta Birliği
 base_url: https://www.tsb.org.tr
 access: file_download
 auth: {type: none}
-license: {attribution: required, notes: "Açık veri lisansı yayımlanmamış; kurumsal koşullar kontrol edilmeli."}
+license: {attribution: required, notes: "Açık veri lisansı yayımlanmamış; kurumun kullanım koşulları kontrol edilmelidir."}
 frequency: [M]
 formats: [xlsx, pdf]
 sectors: [sigorta]
-publication_lag_days: 45  # tahmini
+publication_lag_days: 45  # estimated
 verification_status: reported
 priority: 8

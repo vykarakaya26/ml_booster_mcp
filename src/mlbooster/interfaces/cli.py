@@ -1,4 +1,6 @@
-"""mlbooster CLI (typer). Yalnızca composition root'tan alınan use case'leri çağırır."""
+"""mlbooster CLI (typer). Calls only the use cases obtained from the composition root.
+
+Help and output text is user-facing and therefore written in Turkish."""
 
 from __future__ import annotations
 
@@ -16,11 +18,16 @@ from mlbooster.application.use_cases.panel import DEFAULT_START
 from mlbooster.bootstrap import Container, build_container
 from mlbooster.domain.errors import DomainError
 from mlbooster.domain.model import HealthStatus
+from mlbooster.domain.numfmt import tr_num
 from mlbooster.domain.services.backtest import MODELS, BacktestConfig
 from mlbooster.domain.services.feature_engineering import FeatureConfig
 from mlbooster.domain.services.market_share import ShareConfig
 from mlbooster.domain.services.preprocessing import PrepConfig
 from mlbooster.interfaces.presenters import (
+    BASIS_LABELS,
+    HHI_CLASS_LABELS,
+    SEVERITY_LABELS,
+    TREND_LABELS,
     backtest_dict,
     features_dict,
     prep_dict,
@@ -29,7 +36,7 @@ from mlbooster.interfaces.presenters import (
     sector_map_markdown,
 )
 
-app = typer.Typer(help="ML Booster Map: Türkiye ücretsiz veri kaynakları → ML'e hazır panel", no_args_is_help=True)
+app = typer.Typer(help="ML Booster Map: Türkiye için ücretsiz veri kaynakları → ML'e hazır panel", no_args_is_help=True)
 catalog_app = typer.Typer(help="Kaynak kataloğu", no_args_is_help=True)
 map_app = typer.Typer(help="Sektör → kaynak haritası", no_args_is_help=True)
 app.add_typer(catalog_app, name="catalog")
@@ -49,11 +56,11 @@ def _date(value: str | None) -> date | None:
             return datetime.strptime(value, fmt).date()
         except ValueError:
             pass
-    raise typer.BadParameter(f"Tarih YYYY-AA veya YYYY-AA-GG olmalı: {value}")
+    raise typer.BadParameter(f"Tarih YYYY-AA veya YYYY-AA-GG biçiminde olmalıdır: {value}")
 
 
 def _period_end(value: str | None) -> date | None:
-    """`YYYY-AA` verilen dönem sınırları ayın son günü olarak yorumlanır (ör. 2022-12 → 2022-12-31)."""
+    """Period bounds given as `YYYY-MM` are read as the last day of the month (e.g. 2022-12 → 2022-12-31)."""
     if value is None:
         return None
     parsed = _date(value)
@@ -74,7 +81,7 @@ def catalog_list(sector: Annotated[str | None, typer.Option(help="Sektör id (ö
         sources = container().list_sources(sector)
     except DomainError as exc:
         _fail(exc)
-    ready = container().providers.available()
+    ready = container().ready_providers()
     for s in sources:
         mark = "✓" if s.provider in ready else "—"
         typer.echo(f"{mark} {s.id:<8} {s.access.value:<14} {s.verification.value:<10} {s.name}")
@@ -92,7 +99,7 @@ def catalog_series(
     source: Annotated[str, typer.Option(help="Kaynak id")] = "evds3",
     datagroup: Annotated[str | None, typer.Option(help="EVDS veri grubu kodu (ör. bie_dkdovizgn)")] = None,
 ):
-    """Serileri listeler: datagroup verilirse kaynaktan canlı çeker, yoksa katalog tohumları."""
+    """Serileri listeler: datagroup verilirse kaynaktan canlı çeker, verilmezse katalogdaki seed serileri döner."""
     try:
         df = container().discover_series(source, datagroup)
     except DomainError as exc:
@@ -121,9 +128,9 @@ def fetch(
     end: Annotated[str | None, typer.Option(help="YYYY-AA[-GG], varsayılan bugün")] = None,
     freq: Annotated[str | None, typer.Option(help="D,B,W,SM,M,Q,S,A")] = None,
     agg: Annotated[str | None, typer.Option(help="avg,min,max,first,last,sum")] = None,
-    formula: Annotated[int, typer.Option(help="0 düzey, 1 %değişim, 3 yıllık %değişim, ...")] = 0,
+    formula: Annotated[int, typer.Option(help="0 düzey, 1 yüzde değişim, 3 yıllık yüzde değişim, ...")] = 0,
 ):
-    """Serileri çeker, yerel depoya yazar ve özet basar."""
+    """Serileri çeker, yerel depoya yazar ve özetini gösterir."""
     try:
         request = FetchRequest.create(source, series, _date(start), _date(end), freq, agg, formula)
         summary = container().fetch_series.summarize(request, max_rows=0)
@@ -143,11 +150,13 @@ def build_panel(
     out: Annotated[Path | None, typer.Option(help="Ek olarak bu .parquet / .csv yoluna da yaz")] = None,
     start: Annotated[str, typer.Option(help="YYYY-AA[-GG]")] = DEFAULT_START.isoformat(),
     end: Annotated[str | None, typer.Option(help="YYYY-AA[-GG]")] = None,
-    refresh: Annotated[bool, typer.Option(help="Yerel önbelleği yok sayıp yeniden çek")] = False,
+    refresh: Annotated[bool, typer.Option(help="Yerel cache'i yok sayıp veriyi yeniden çek")] = False,
     freq: Annotated[str, typer.Option(help="Panel frekansı: M (aylık), W (haftalık, Cuma), B (iş günü)")] = "M",
 ):
-    """Sektörün feature'larından nokta-zamanlı gold panel üretir (aylık, haftalık ya da iş günlük)."""
+    """Sektörün feature'larından point-in-time gold panel üretir (aylık, haftalık ya da iş günü frekansında)."""
     try:
+        if out is not None:
+            container().export_table.check(out)
         result = container().build_panel(sector, _date(start), _date(end), refresh, freq=freq)
         for name, reason in result.skipped.items():
             typer.secho(f"atlandı  {name}: {reason}", fg=typer.colors.YELLOW)
@@ -155,7 +164,7 @@ def build_panel(
             _fail(RuntimeError("Panel boş; atlanan feature'ları inceleyin."))
         location = result.location
         if out is not None:
-            location = container().panels.export(result.panel, out)
+            location = container().export_table(result.panel, out)
     except (DomainError, ValueError) as exc:
         _fail(exc)
     unit = {"M": "ay", "W": "hafta", "B": "iş günü"}.get(freq, "dönem")
@@ -164,7 +173,7 @@ def build_panel(
 
 @app.command()
 def health(source: Annotated[str | None, typer.Option(help="Tek kaynak")] = None):
-    """Sağlık kontrolü (canary): her sağlayıcının kritik serilerinden son gözlemleri çeker."""
+    """Healthcheck (canary): her provider'ın kritik serilerinden son gözlemleri çeker."""
     try:
         results = container().health(source)
     except DomainError as exc:
@@ -193,10 +202,10 @@ def _write_json(data: dict, path: Path | None) -> None:
 def catalog_search(
     text: Annotated[str, typer.Argument(help="Aranacak kelimeler (ör. 'kredi faiz')")],
     source: Annotated[str, typer.Option(help="Kaynak id")] = "evds3",
-    limit: Annotated[int, typer.Option(help="En fazla sonuç")] = 20,
-    as_json: Annotated[bool, typer.Option("--json", help="JSON çıktı")] = False,
+    limit: Annotated[int, typer.Option(help="En fazla sonuç sayısı")] = 20,
+    as_json: Annotated[bool, typer.Option("--json", help="Çıktıyı JSON olarak ver")] = False,
 ):
-    """Kaynakta veri grubu arar (Türkçe karakter/büyük-küçük harf duyarsız)."""
+    """Kaynakta veri grubu arar (Türkçe karakter ve büyük/küçük harf farkı gözetilmez)."""
     try:
         df = container().search_series(text, source, limit)
     except DomainError as exc:
@@ -214,11 +223,11 @@ def catalog_search(
 @catalog_app.command("set-feature")
 def catalog_set_feature(
     sector: Annotated[str, typer.Option(help="Sektör id")],
-    feature: Annotated[str, typer.Option(help="Feature adı (map show çıktısındaki)")],
+    feature: Annotated[str, typer.Option(help="Feature adı (map show çıktısında görünen)")],
     series: Annotated[str, typer.Option(help="Seri kodu (canlı doğrulanır)")],
     name: Annotated[str | None, typer.Option(help="Seri açıklaması")] = None,
     kind: Annotated[str, typer.Option(help="level | flow")] = "level",
-    lag: Annotated[int | None, typer.Option(help="Yayın gecikmesi (gün); verilmezse frekansa göre varsayılan")] = None,
+    lag: Annotated[int | None, typer.Option(help="Publication lag (gün); verilmezse frekansa göre varsayılan değer kullanılır")] = None,
     datagroup: Annotated[str | None, typer.Option(help="Veri grubu kodu")] = None,
     create: Annotated[bool, typer.Option("--create", help="Feature sektörde yoksa yeni feature olarak ekle")] = False,
     transform: Annotated[str, typer.Option(help="--create ile: level | diff | log_diff | yoy_pct")] = "level",
@@ -232,7 +241,7 @@ def catalog_set_feature(
     except DomainError as exc:
         _fail(exc)
     typer.echo(
-        f"{b.sector_id}.{b.feature} ← {b.seed.code} (frekans {b.seed.freq.value}, gecikme {b.seed.publication_lag_days} gün, "
+        f"{b.sector_id}.{b.feature} ← {b.seed.code} (frekans {b.seed.freq.value}, publication lag {b.seed.publication_lag_days} gün, "
         f"son gözlem {b.last_observation}) → {b.location}"
     )
 
@@ -244,7 +253,7 @@ def audit(
     end: Annotated[str | None, typer.Option(help="YYYY-AA[-GG]")] = None,
     json_out: Annotated[Path | None, typer.Option("--json", help="JSON raporu bu dosyaya yaz")] = None,
 ):
-    """Sektör panelinin veri kalitesini denetler (güncellik, eksik gözlem, aykırı değer, yapısal kırılma, kolineerlik)."""
+    """Sektör panelinin veri kalitesini denetler (stale seri, eksik gözlem, outlier, structural break, collinearity)."""
     try:
         report, result = container().audit_panel(sector, _date(start), _date(end))
     except DomainError as exc:
@@ -256,7 +265,8 @@ def audit(
     typer.echo(f"{report.months} ay × {len(report.series)} feature — yüksek {counts['high']}, orta {counts['medium']}, bilgi {counts['info']}")
     colors = {"high": typer.colors.RED, "medium": typer.colors.YELLOW, "info": typer.colors.BLUE}
     for i in report.issues:
-        typer.secho(f"{i.severity.value:<7} {i.feature:<28} {i.message}", fg=colors[i.severity.value])
+        label = SEVERITY_LABELS.get(i.severity.value, i.severity.value)
+        typer.secho(f"{label:<7} {i.feature:<28} {i.message}", fg=colors[i.severity.value])
 
 
 @app.command()
@@ -265,23 +275,23 @@ def backtest(
     target: Annotated[str, typer.Option(help="Hedef feature (panel kolonu)")],
     horizon: Annotated[int, typer.Option(help="Kaç ay ileri (1–24)")] = 1,
     min_train: Annotated[int, typer.Option(help="İlk eğitim penceresi (ay, ≥24)")] = 48,
-    models: Annotated[str, typer.Option(help=f"Virgülle: {','.join(MODELS)}")] = ",".join(MODELS),
+    models: Annotated[str, typer.Option(help=f"Virgülle ayrılmış: {','.join(MODELS)}")] = ",".join(MODELS),
     no_exog: Annotated[bool, typer.Option("--no-exog", help="Ridge'de diğer feature'ları kullanma")] = False,
-    anchor: Annotated[str | None, typer.Option(help="Çapa kolon (ör. aofm_son): anchor_naive modeli = bu kolonun son değeri")] = None,
+    anchor: Annotated[str | None, typer.Option(help="Anchor kolonu (ör. aofm_son): anchor_naive modeli bu kolonun son değerini kullanır")] = None,
     start: Annotated[str, typer.Option(help="YYYY-AA[-GG]")] = DEFAULT_START.isoformat(),
     end: Annotated[str | None, typer.Option(help="YYYY-AA[-GG]")] = None,
-    json_out: Annotated[Path | None, typer.Option("--json", help="Metrik + tahminleri bu dosyaya yaz")] = None,
+    json_out: Annotated[Path | None, typer.Option("--json", help="Metrikleri ve forecast'leri bu dosyaya yaz")] = None,
     panel_file: Annotated[Path | None, typer.Option("--panel-file", help="Sektör paneli yerine bu CSV'yi kullan (ör. features --selected-out çıktısı)")] = None,
-    eval_start: Annotated[str | None, typer.Option(help="Metrikleri yalnızca bu aydan sonraki başlangıç noktalarında hesapla (seçim penceresi sonu)")] = None,
+    eval_start: Annotated[str | None, typer.Option(help="Metrikleri yalnızca bu aydan sonraki origin'lerde hesapla (seçim penceresinin sonu)")] = None,
 ):
-    """Rolling-origin backtest ile referans modelleri karşılaştırır (look-ahead korumalı)."""
+    """Rolling-origin backtest ile baseline modelleri karşılaştırır (look-ahead korumalı)."""
     try:
         config = BacktestConfig(
             target=target, horizon=horizon, min_train=min_train,
             models=tuple(m.strip() for m in models.split(",") if m.strip()), exogenous=not no_exog, anchor=anchor,
             eval_start=pd.Timestamp(_period_end(eval_start)) if eval_start else None,
         )  # fmt: skip
-        external = container().table_reader.read_panel(panel_file) if panel_file is not None else None
+        external = container().read_panel_file(panel_file) if panel_file is not None else None
         result, _ = container().run_backtest(sector, config, _date(start), _date(end), panel=external)
     except DomainError as exc:
         _fail(exc)
@@ -299,24 +309,26 @@ def _prep_config(target, train_end, model, outliers, power, scaling, difference,
 @app.command()
 def prep(
     sector: Annotated[str, typer.Option(help="Sektör id")],
-    target: Annotated[str | None, typer.Option(help="Hedef kolon: yalnızca eksik doldurulur, dağılımı değiştirilmez")] = None,
+    target: Annotated[str | None, typer.Option(help="Hedef kolon: yalnızca eksik değerleri doldurulur, dağılımı değiştirilmez")] = None,
     train_end: Annotated[str | None, typer.Option(help="Eğitim penceresinin son ayı (YYYY-AA); parametreler yalnızca bu pencereden tahmin edilir")] = None,
     model: Annotated[str, typer.Option(help="Hedeflenen model ailesi: linear | tree | neural")] = "linear",
     outliers: Annotated[str, typer.Option(help="auto | flag | winsorize | none")] = "auto",
     power: Annotated[str, typer.Option(help="auto | yeo_johnson | log | none")] = "auto",
     scaling: Annotated[str, typer.Option(help="auto | standard | robust | none")] = "auto",
-    difference: Annotated[str, typer.Option(help="auto (birim kökte fark al) | none")] = "auto",
-    max_gap: Annotated[int, typer.Option(help="İleri taşınacak en uzun boşluk (dönem)")] = 2,
+    difference: Annotated[str, typer.Option(help="auto (unit root varsa fark al) | none")] = "auto",
+    max_gap: Annotated[int, typer.Option(help="Forward-fill ile doldurulacak en uzun boşluk (dönem)")] = 2,
     start: Annotated[str, typer.Option(help="YYYY-AA[-GG]")] = DEFAULT_START.isoformat(),
     end: Annotated[str | None, typer.Option(help="YYYY-AA[-GG]")] = None,
     out: Annotated[Path | None, typer.Option(help="Ön işlenmiş paneli bu .csv / .parquet yoluna yaz")] = None,
     json_out: Annotated[Path | None, typer.Option("--json", help="Profil ve planı bu JSON dosyasına yaz")] = None,
 ):
-    """Dağılıma dayalı ön işleme: profil (ortalama/std ile medyan/MAD/IQR), plan ve sızıntısız uygulama."""
+    """Dağılıma dayalı ön işleme: profil (ortalama/std ile medyan/MAD/IQR), plan ve leakage'sız uygulama."""
     try:
         config = _prep_config(target, train_end, model, outliers, power, scaling, difference, max_gap)
+        if out is not None:
+            container().export_table.check(out)
         result, panel = container().prepare_panel(sector, config, _date(start), _date(end))
-        location = container().panels.export(result.panel, out) if out is not None else None
+        location = container().export_table(result.panel, out) if out is not None else None
     except (DomainError, ValueError) as exc:
         _fail(exc)
     data = prep_dict(result, sector, panel.skipped)
@@ -334,42 +346,45 @@ def prep(
 @app.command()
 def features(
     sector: Annotated[str, typer.Option(help="Sektör id")],
-    target: Annotated[str | None, typer.Option(help="Hedef kolon: verilirse değişkenler h dönem sonrasına göre taranır ve seçilir")] = None,
+    target: Annotated[str | None, typer.Option(help="Hedef kolon: verilirse feature'lar h dönem sonrasındaki hedefe göre taranır ve seçilir")] = None,
     horizon: Annotated[int, typer.Option(help="Tahmin ufku (ay)")] = 1,
     train_end: Annotated[str | None, typer.Option(help="Eğitim penceresinin son ayı (YYYY-AA)")] = None,
     label: Annotated[str, typer.Option(help="Tarama etiketi: auto | level | change")] = "auto",
-    max_features: Annotated[int | None, typer.Option(help="Seçilecek en fazla değişken (varsayılan: eğitim gözlemi / 10)")] = None,
+    max_features: Annotated[int | None, typer.Option(help="Seçilecek en fazla feature sayısı (varsayılan: eğitim gözlemi / 10)")] = None,
     prep: Annotated[bool, typer.Option("--prep/--no-prep", help="Önce dağılıma dayalı ön işleme uygula")] = True,
     model: Annotated[str, typer.Option(help="Ön işleme için model ailesi: linear | tree | neural")] = "linear",
     start: Annotated[str, typer.Option(help="YYYY-AA[-GG]")] = DEFAULT_START.isoformat(),
     end: Annotated[str | None, typer.Option(help="YYYY-AA[-GG]")] = None,
-    out: Annotated[Path | None, typer.Option(help="Bütün değişken matrisini bu .csv / .parquet yoluna yaz")] = None,
-    selected_out: Annotated[Path | None, typer.Option("--selected-out", help="Hedef + seçilen değişkenleri yaz (backtest --panel-file için)")] = None,
-    json_out: Annotated[Path | None, typer.Option("--json", help="Değişken kataloğu ve taramayı bu JSON dosyasına yaz")] = None,
+    out: Annotated[Path | None, typer.Option(help="Bütün feature matrisini bu .csv / .parquet yoluna yaz")] = None,
+    selected_out: Annotated[Path | None, typer.Option("--selected-out", help="Hedefi ve seçilen feature'ları yaz (backtest --panel-file için)")] = None,
+    json_out: Annotated[Path | None, typer.Option("--json", help="Feature kataloğunu ve tarama sonuçlarını bu JSON dosyasına yaz")] = None,
 ):
-    """Otomatik ve sektöre özgü değişken üretimi (gecikme, hareketli istatistik, tarif, takvim, olay) ve sızıntısız ön seçim."""
+    """Otomatik ve sektöre özgü feature üretimi (lag, rolling istatistik, sektör tarifi, takvim, olay) ve leakage'sız ön seçim."""
     try:
         fcfg = FeatureConfig(target=target, horizon=horizon, train_end=_period_end(train_end), label=label, max_features=max_features)
         pcfg = _prep_config(target, train_end, model, "auto", "auto", "auto", "auto", 2) if prep else None
+        if selected_out is not None and not target:
+            raise typer.BadParameter("--selected-out için --target gerekir")
+        for path in (out, selected_out):
+            if path is not None:
+                container().export_table.check(path)
         result, _, panel = container().engineer_features(sector, fcfg, pcfg, _date(start), _date(end))
         if out is not None:
-            container().panels.export(result.features, out)
+            container().export_table(result.features, out)
         if selected_out is not None:
-            if not target:
-                raise typer.BadParameter("--selected-out için --target gerekir")
             cols = list(dict.fromkeys([target, *result.selected]))
-            container().panels.export(result.features[cols], selected_out)
+            container().export_table(result.features[cols], selected_out)
     except (DomainError, ValueError) as exc:
         _fail(exc)
     data = features_dict(result, sector, skipped_panel=panel.skipped)
     if json_out is not None:
         _write_json(data, json_out)
     fam = ", ".join(f"{k} {v}" for k, v in data["families"].items())
-    typer.echo(f"{data['n_features']} değişken üretildi ({fam})")
+    typer.echo(f"{data['n_features']} feature üretildi ({fam})")
     for name, reason in result.skipped.items():
         typer.secho(f"atlandı  {name}: {reason}", fg=typer.colors.YELLOW)
     if target:
-        typer.echo(f"Etiket: {result.label} · seçilen {len(result.selected)} değişken")
+        typer.echo(f"Etiket: {result.label} · {len(result.selected)} feature seçildi")
         for row in data["screening"][: max(len(result.selected), 5)]:
             mark = "✓" if row.get("selected") else " "
             r = row.get("r")
@@ -384,7 +399,7 @@ def market_share(
     measure: Annotated[str, typer.Option(help="value (tutar/adet) | share (yüzde pay)")] = "value",
     kind: Annotated[str, typer.Option(help="flow (satış, prim gibi dönemlik akım) | stock (abone, mevduat gibi stok)")] = "flow",
     unit: Annotated[str, typer.Option(help="Değer birimi (ör. adet, TL, abone)")] = "",
-    total_entity: Annotated[str, typer.Option(help="Pazar toplamını taşıyan satırların oyuncu adı")] = "TOPLAM",
+    total_entity: Annotated[str, typer.Option(help="Pazar toplamını taşıyan satırların oyuncu adı (TOTAL da kabul edilir)")] = "TOPLAM",
     basis: Annotated[str, typer.Option(help="auto | period (dönemlik) | ttm (son 12 ay toplamı)")] = "auto",
     trend_years: Annotated[int, typer.Option(help="Eğilim penceresi (yıl)")] = 3,
     top_n: Annotated[int, typer.Option(help="Grafikte ayrı gösterilecek oyuncu sayısı")] = 8,
@@ -392,7 +407,7 @@ def market_share(
     start: Annotated[str, typer.Option(help="Makro panel başlangıcı, YYYY-AA[-GG]")] = DEFAULT_START.isoformat(),
     json_out: Annotated[Path | None, typer.Option("--json", help="Analizi bu JSON dosyasına yaz")] = None,
 ):
-    """Pazar payı analizi: paylar, yoğunlaşma (HHI, CR-k), oyuncu dinamikleri, rakip seti, segment ayrıştırması."""
+    """Pazar payı analizi: paylar, yoğunlaşma (HHI, CR-k), oyuncu dinamikleri, rakip seti, segment bazında shift-share ayrıştırması."""
     try:
         config = ShareConfig(focus=focus, measure=measure, kind=kind, total_entity=total_entity, basis=basis,
                              trend_years=trend_years, top_n=top_n, unit=unit)  # fmt: skip
@@ -402,14 +417,16 @@ def market_share(
     if json_out is not None:
         _write_json(result, json_out)
     meta, conc = result["meta"], result["concentration"]["latest"]
-    typer.echo(f"Dönem {meta['first']} – {meta['last']} · taban: {meta['basis']} · {meta['entities']} oyuncu")
-    typer.echo(f"HHI {conc['hhi']:,.0f} ({conc['class']}) · CR3 %{conc['cr3']:.1f} · eşdeğer oyuncu {conc['equivalent_players']:.1f}")
+    typer.echo(f"Dönem {meta['first']} – {meta['last']} · taban: {BASIS_LABELS.get(meta['basis'], meta['basis'])} · {meta['entities']} oyuncu")
+    typer.echo(f"HHI {tr_num(conc['hhi'], ',.0f')} ({HHI_CLASS_LABELS.get(conc['class'], conc['class'])}) · CR3 %{tr_num(conc['cr3'], '.1f')} · "
+               f"eşdeğer oyuncu {tr_num(conc['equivalent_players'], '.1f')}")
     for p in result["players"][:top_n]:
-        d = p.get("d_year_pp")
-        typer.echo(f"{p['rank']:>3}. {p['entity']:<28} %{p['share']:6.2f}  yıllık {d:+.2f} puan  {p['trend']}" if d is not None
-                   else f"{p['rank']:>3}. {p['entity']:<28} %{p['share']:6.2f}  {p['trend']}")  # fmt: skip
+        d, share = p.get("d_year_pp"), "%" + tr_num(p["share"], ".2f")
+        trend = TREND_LABELS.get(p["trend"], p["trend"])
+        typer.echo(f"{p['rank']:>3}. {p['entity']:<28} {share:>7}  yıllık {tr_num(d, '+.2f')} puan  {trend}" if d is not None
+                   else f"{p['rank']:>3}. {p['entity']:<28} {share:>7}  {trend}")  # fmt: skip
     for i in result["issues"]:
-        typer.secho(f"{i['severity']:<7} {i['message']}", fg=typer.colors.YELLOW if i["severity"] != "info" else typer.colors.BLUE)
+        typer.secho(f"{SEVERITY_LABELS.get(i['severity'], i['severity']):<7} {i['message']}", fg=typer.colors.YELLOW if i["severity"] != "info" else typer.colors.BLUE)
 
 
 @app.command()
@@ -421,7 +438,7 @@ def version(check: Annotated[bool, typer.Option("--check", help="GitHub'daki en 
     if check:
         upd = container().check_updates()
         if upd["latest"] is None:
-            typer.echo("En son sürüm alınamadı (çevrimdışı ya da MLBOOSTER_NO_UPDATE_CHECK=1).")
+            typer.echo("En son sürüm bilgisi alınamadı (çevrimdışı ya da MLBOOSTER_NO_UPDATE_CHECK=1).")
         elif upd["update_available"]:
             typer.secho(f"Yeni sürüm: v{upd['latest']}. {upd['how']}", fg=typer.colors.CYAN)
         else:

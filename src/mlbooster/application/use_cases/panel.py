@@ -1,4 +1,4 @@
-"""Sektör gold paneli: makro feature'lar → aylık, nokta-zamanlı hizalanmış tablo."""
+"""Sector gold panel: macro features → monthly, point-in-time aligned table."""
 
 from __future__ import annotations
 
@@ -18,7 +18,7 @@ from mlbooster.domain.services.frequency import to_frequency, to_monthly
 from mlbooster.domain.validation import DateRange, slug
 
 DEFAULT_START = date(2010, 1, 1)
-CPI = ("evds3", "TP.TUKFIY2025.GENEL")  # deflatör: TÜFE aylık % değişimi (formül 1)
+CPI = ("evds3", "TP.TUKFIY2025.GENEL")  # deflator: monthly % change of CPI (TÜFE) (formula 1)
 
 
 class BuildPanel:
@@ -45,10 +45,10 @@ class BuildPanel:
         freq: str = "M",
     ) -> PanelResult:
         if freq not in {"M", "W", "B"}:
-            raise InvalidInput(f"Panel frekansı M (aylık), W (haftalık) ya da B (iş günü) olmalı: {freq}")
+            raise InvalidInput(f"Panel frekansı M (aylık), W (haftalık) ya da B (iş günü) olmalıdır: {freq}")
         period = DateRange(start, end or date.today())
         catalog = self._catalog.load()
-        sector = catalog.sector(slug(sector_id, "sektör"))
+        sector = catalog.sector(slug(sector_id, "sector"))
         available = self._providers.available()
         result = PanelResult(sector.id)
         columns: dict[str, pd.Series] = {}
@@ -56,10 +56,10 @@ class BuildPanel:
 
         for feature in sector.macro_features:
             if not feature.is_resolved:
-                result.skipped[feature.name] = f"seri kodu keşif bekliyor: {feature.discover_hint}"
+                result.skipped[feature.name] = f"seri kodu bekleniyor: {feature.discover_hint}"
                 continue
             if catalog.source(feature.source).provider not in available:
-                result.skipped[feature.name] = f"{feature.source} sağlayıcısı henüz yok"
+                result.skipped[feature.name] = f"{feature.source} için henüz provider yok"
                 continue
             try:
                 monthly = self._monthly(catalog, feature, period, refresh, freq)
@@ -81,18 +81,18 @@ class BuildPanel:
         return result
 
     def sector(self, sector_id: str):
-        """Sektör tanımı (analiz use case'leri feature meta verisi için kullanır)."""
-        return self._catalog.load().sector(slug(sector_id, "sektör"))
+        """Sector definition (used by the analysis use cases for feature metadata)."""
+        return self._catalog.load().sector(slug(sector_id, "sector"))
 
     def _observations(
         self, catalog: Catalog, source_id: str, code: str, period: DateRange, metric: str, formula: int, refresh: bool
     ) -> pd.DataFrame:
-        """Önce depodan okur; depo istenen başlangıcı kapsamıyorsa sağlayıcıdan yeniden çeker.
-        Tek bir frekansa indirger (ör. önceden çekilmiş üç aylık kopyalar aylık veriyle karışmaz)."""
+        """Reads from the store first; refetches from the provider if the store does not cover the requested start.
+        Reduces to a single frequency (e.g. previously fetched quarterly copies do not mix with monthly data)."""
         seed = catalog.source(source_id).seed(code)
         df = pd.DataFrame() if refresh else self._store.read(source_id, [code])
         df = _single_series(df, metric, seed.freq.value if seed else None)
-        if df.empty or not _covers_start(df, period.start) or _is_stale(df):  # çekerken tamponlu, önbellekte istenen başlangıç yeterli
+        if df.empty or not _covers_start(df, period.start) or _is_stale(df):  # fetch with a buffer; for the cache the requested start is sufficient
             request = FetchRequest.create(source_id, [code], _with_history(period.start), period.end, formula=formula)
             df = _single_series(self._fetch(request), metric, seed.freq.value if seed else None)
         if df.empty:
@@ -118,7 +118,7 @@ class BuildPanel:
         pct = pd.Series(df["value"].astype(float).to_numpy(), index=pd.to_datetime(df["date"]))
         lag = int(df["publication_lag_days"].iloc[0] or 0)
         index = index_from_pct_changes(to_monthly(pct, Frequency.MONTHLY, publication_lag_days=lag))
-        return index if freq == "M" else to_frequency(index, Frequency.MONTHLY, freq)  # zaten gecikmeli
+        return index if freq == "M" else to_frequency(index, Frequency.MONTHLY, freq)  # already lagged
 
 
 def _single_series(df: pd.DataFrame, metric: str, freq: str | None) -> pd.DataFrame:
@@ -131,24 +131,24 @@ def _single_series(df: pd.DataFrame, metric: str, freq: str | None) -> pd.DataFr
 
 
 def _covers_start(df: pd.DataFrame, start: date) -> bool:
-    """İlk gözlem, istenen başlangıçtan en fazla bir dönem (+%10) sonra mı?"""
+    """Is the first observation at most one period (+10%) after the requested start?"""
     freq = Frequency(df["freq"].iloc[0])
     tolerance = max(7, int(freq.min_period_days * 1.1))
     return pd.Timestamp(df["date"].min()) <= pd.Timestamp(start) + pd.Timedelta(days=tolerance)
 
 
-HISTORY_DAYS = 400  # yoy_pct (12 ay) + yayın gecikmesi için başlangıçtan önceki tampon
+HISTORY_DAYS = 400  # buffer before the start for yoy_pct (12 months) + publication lag
 
 
 def _with_history(start: date) -> date:
-    """Dönüşümler (yıllık değişim, fark) panelin ilk aylarında da dolu olsun diye tampon geçmiş."""
+    """Buffer history so that transforms (year-on-year change, difference) are populated in the first panel months too."""
     from datetime import timedelta
 
     return max(date(1950, 1, 1), start - timedelta(days=HISTORY_DAYS))
 
 
 def _is_stale(df: pd.DataFrame, now: datetime | None = None) -> bool:
-    """Önbellekteki en yeni çekim, serinin frekansına göre tazelik süresini aştı mı? (kendini yenileme)"""
+    """Has the most recent cached pull exceeded the freshness window for the series frequency? (self-refresh)"""
     now = now or datetime.now(UTC)
     last_pull = pd.Timestamp(df["vintage_ts"].max())
     if last_pull.tzinfo is None:

@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-"""`mlbooster audit --json` çıktısı + panel CSV'sinden HTML kalite raporu üretir.
+"""Renders an HTML quality report from `mlbooster audit --json` output and the panel CSV.
 
-Kullanım:
+Usage:
   python3 render_audit_report.py --audit audit.json --panel panel.csv --sector otomotiv --notes notes.md --out audit.html
-Yalnızca standart kütüphane gerekir.
+Requires only the standard library.
 """
 
 from __future__ import annotations
@@ -15,10 +15,13 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "_shared"))
 
-from mlb_report import html as H  # noqa: E402
-from mlb_report import assumptions as A  # noqa: E402
-from mlb_report.data import read_json, read_panel_csv  # noqa: E402
-from mlb_report.svg import Flag, LineChart, Marker, Series, line_chart  # noqa: E402
+from mlb_report import assumptions as A
+from mlb_report import html as H
+from mlb_report.data import read_json, read_panel_csv
+from mlb_report.svg import Flag, LineChart, Marker, Series, line_chart
+
+DESCRIPTION = "mlbooster audit --json çıktısı ve panel CSV'sinden HTML veri kalitesi raporu üretir."
+STATIONARITY = {"stationary": "durağan", "unit_root": "unit root", "break_suspected": "structural break şüphesi", "inconclusive": "kararsız"}
 
 
 def build(audit: dict, dates: list[date], columns: dict, sector: str, notes: str | None = None, assumptions: dict | None = None) -> str:
@@ -38,7 +41,7 @@ def build(audit: dict, dates: list[date], columns: dict, sector: str, notes: str
                     ("Bilgi", str(counts["info"]), "bilinen şoklarla eşleşen"),
                 ]
             ),
-            "ozet",
+            "summary",
         )
     )
     if assumptions:
@@ -46,11 +49,11 @@ def build(audit: dict, dates: list[date], columns: dict, sector: str, notes: str
 
 
     if notes:
-        sections.append(H.section("Yorum ve öneriler", f'<div class="narrative">{H.markdown(notes)}</div>', "oneriler"))
+        sections.append(H.section("Yorum ve öneriler", f'<div class="narrative">{H.markdown(notes)}</div>', "recommendations"))
 
     rows = [(H.badge(i["severity"]), i["feature"], i["check"], i["message"]) for i in audit["issues"]]
     body = H.table(["Önem", "Feature", "Kontrol", "Bulgu"], rows, raw=[0]) if rows else '<p>Bulgu yok.</p>'
-    sections.append(H.section("Bulgular", body, "bulgular"))
+    sections.append(H.section("Bulgular", body, "findings"))
 
     charts = []
     for name, values in columns.items():
@@ -62,36 +65,36 @@ def build(audit: dict, dates: list[date], columns: dict, sector: str, notes: str
             if d in dates:
                 v = values[dates.index(d)]
                 if v is not None:
-                    flags.append(Flag(d, v, f"Aykırı değer: {d_iso[:7]} = {v:,.4g}"))
+                    flags.append(Flag(d, v, f"Outlier: {d_iso[:7]} = {H.sig(v, 4)}"))
         charts.append(line_chart(LineChart(dates, [Series(name, values)], name, markers, flags)))
     legend = (
-        '<p class="muted">Dikey çizgi: tespit edilen ortalama kayması · '
-        '<span class="badge serious"><span aria-hidden="true">▲</span> nokta</span>: robust z ile tespit edilen aykırı değer. '
+        '<p class="muted">Dikey çizgi: tespit edilen ortalama kayması (structural break) · '
+        '<span class="badge serious"><span aria-hidden="true">▲</span> nokta</span>: robust z-score ile tespit edilen outlier. '
         "Değerler, imleç grafiğin üzerine getirildiğinde görüntülenir.</p>"
     )
-    sections.append(H.section("Seriler", legend + f'<div class="grid-2">{"".join(charts)}</div>', "seriler"))
+    sections.append(H.section("Seriler", legend + f'<div class="grid-2">{"".join(charts)}</div>', "series"))
 
     diag = audit.get("diagnostics") or []
     if diag:
         drows = [
-            (d["feature"], d["n"], d["stationarity"].replace("_", " "), "—" if d["adf_t"] is None else f"{d['adf_t']:.2f}",
-             "—" if d["kpss_stat"] is None else f"{d['kpss_stat']:.3f}", f"{d['skew']:.2f}", f"{d['excess_kurtosis']:.2f}",
-             "—" if d["volatility_ratio"] is None else f"{d['volatility_ratio']:.2f}", "—" if d["acf12"] is None else f"{d['acf12']:.2f}")
+            (d["feature"], d["n"], STATIONARITY.get(d["stationarity"], d["stationarity"]), "—" if d["adf_t"] is None else H.num(d["adf_t"], 2),
+             "—" if d["kpss_stat"] is None else H.num(d["kpss_stat"], 3), H.num(d["skew"], 2), H.num(d["excess_kurtosis"], 2),
+             "—" if d["volatility_ratio"] is None else H.num(d["volatility_ratio"], 2), "—" if d["acf12"] is None else H.num(d["acf12"], 2))
             for d in diag
         ]  # fmt: skip
         recs = [(d["feature"], r) for d in diag for r in d["recommendations"]]
         body = (
-            '<p class="muted">ADF (H0: birim kök, %5 kritik −2,86) ve KPSS (H0: durağan, %5 kritik 0,463) birlikte okunur. '
-            "Oynaklık oranı: son 36 ayın değişim std'si / tüm dönem. ACF12: 12. gecikme otokorelasyonu (mevsimsellik).</p>"
+            '<p class="muted">ADF (H0: unit root, %5 kritik değer −2,86) ve KPSS (H0: durağan, %5 kritik değer 0,463) birlikte okunur. '
+            "Oynaklık oranı: son 36 aydaki değişimlerin std'si / tüm dönemdeki std. ACF12: lag 12'deki otokorelasyon (mevsimsellik).</p>"
             + H.table(["Feature", "n", "Durağanlık", "ADF t", "KPSS", "Çarpıklık", "Fazla basıklık", "Oynaklık oranı", "ACF12"], drows, numeric=[1, 3, 4, 5, 6, 7, 8])
             + ("<h3>Ön işleme önerileri</h3>" + H.table(["Feature", "Öneri"], recs) if recs else "")
         )
-        sections.append(H.section("Dağılım ve durağanlık", body, "dagilim"))
+        sections.append(H.section("Dağılım ve durağanlık", body, "distribution"))
 
     srows = [
         (
             s["feature"], s["first"] or "—", s["last"] or "—", s["observations"],
-            f"%{s['missing_ratio'] * 100:.1f}", "—" if s["months_since_last"] is None else s["months_since_last"],
+            f"%{H.num(s['missing_ratio'] * 100, 1)}", "—" if s["months_since_last"] is None else s["months_since_last"],
             len(s["outliers"]), len(s["breaks"]),
         )
         for s in audit["series"]
@@ -99,33 +102,33 @@ def build(audit: dict, dates: list[date], columns: dict, sector: str, notes: str
     sections.append(
         H.section(
             "Seri özeti",
-            H.table(["Feature", "İlk", "Son", "Gözlem", "Eksik", "Son gözlemden beri (ay)", "Aykırı", "Kırılma"], srows, numeric=[3, 4, 5, 6, 7]),
-            "seri-ozeti",
+            H.table(["Feature", "İlk", "Son", "Gözlem", "Eksik", "Son gözlemden beri (ay)", "Outlier", "Structural break"], srows, numeric=[3, 4, 5, 6, 7]),
+            "series-summary",
         )
     )
 
     extra = []
     if audit.get("notable_pairs"):
-        extra.append("<h3>Dikkate değer korelasyonlar</h3>" + H.table(["A", "B", "Korelasyon", "Not"], [(p["a"], p["b"], f"{p['corr']:+.3f}", p["note"]) for p in audit["notable_pairs"]], numeric=[2]))
+        extra.append("<h3>Dikkate değer korelasyonlar</h3>" + H.table(["A", "B", "Korelasyon", "Not"], [(p["a"], p["b"], H.num(p["corr"], 3, sign=True), p["note"]) for p in audit["notable_pairs"]], numeric=[2]))
     if audit["correlated_pairs"]:
-        extra.append("<h3>Aşırı korelasyon</h3>" + H.table(["A", "B", "Korelasyon"], [(p["a"], p["b"], f"{p['corr']:+.3f}") for p in audit["correlated_pairs"]], numeric=[2]))
+        extra.append("<h3>Aşırı korelasyon</h3>" + H.table(["A", "B", "Korelasyon"], [(p["a"], p["b"], H.num(p["corr"], 3, sign=True)) for p in audit["correlated_pairs"]], numeric=[2]))
     if audit["skipped_features"]:
         extra.append("<h3>Panele girmeyen feature'lar</h3>" + H.table(["Feature", "Neden"], list(audit["skipped_features"].items())))
     if extra:
-        sections.append(H.section("Ek notlar", "".join(extra), "ek"))
+        sections.append(H.section("Ek notlar", "".join(extra), "notes"))
 
     return H.page(
         f"Veri kalitesi denetimi — {sector}",
-        f"Denetim tarihi {audit['as_of']} · nokta-zamanlı aylık panel",
+        f"Denetim tarihi {audit['as_of']} · point-in-time aylık panel",
         sections,
-        "Kaynak: TCMB EVDS ve katalogdaki diğer kurumlar. Kırılma eşleştirmesi, Türkiye'deki bilinen şok tarihlerine göre yapılır; nedensellik iddiası taşımaz.",
-        nav=[("ozet", "Özet")] + ([("varsayimlar", "Varsayımlar")] if assumptions else []) + ([("oneriler", "Öneriler")] if notes else [])
-        + [("bulgular", "Bulgular"), ("dagilim", "Dağılım"), ("seriler", "Seriler"), ("seri-ozeti", "Seri özeti")],
+        "Kaynak: TCMB EVDS ve katalogdaki diğer kurumlar. Structural break'ler Türkiye'deki bilinen şok tarihleriyle eşleştirilir; bu eşleştirme nedensellik iddiası taşımaz.",
+        nav=[("summary", "Özet")] + ([("assumptions", "Varsayımlar")] if assumptions else []) + ([("recommendations", "Öneriler")] if notes else [])
+        + [("findings", "Bulgular"), ("distribution", "Dağılım"), ("series", "Seriler"), ("series-summary", "Seri özeti")],
     )
 
 
 def main() -> None:
-    ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    ap = argparse.ArgumentParser(description=DESCRIPTION)
     ap.add_argument("--audit", required=True, type=Path)
     ap.add_argument("--panel", required=True, type=Path)
     ap.add_argument("--sector", required=True)

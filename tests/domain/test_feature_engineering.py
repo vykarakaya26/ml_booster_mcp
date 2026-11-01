@@ -22,21 +22,21 @@ def _panel(n=150, seed=0) -> pd.DataFrame:
     idx = pd.date_range("2012-01-31", periods=n, freq="ME")
     driver = rng.normal(0, 1, n)
     noise = rng.normal(0, 1, (n, 2))
-    target = np.cumsum(0.8 * np.roll(driver, 1) + 0.3 * noise[:, 0])  # hedefin değişimi bir önceki sürücüye bağlı
-    return pd.DataFrame({"surucu": driver, "gurultu": noise[:, 1], "faiz": 10 + np.cumsum(rng.normal(0, .2, n)),
-                         "enflasyon": 8 + np.cumsum(rng.normal(0, .2, n)), "hedef": target}, index=idx)  # fmt: skip
+    target = np.cumsum(0.8 * np.roll(driver, 1) + 0.3 * noise[:, 0])  # the change of the target depends on the previous driver value
+    return pd.DataFrame({"driver": driver, "noise": noise[:, 1], "rate": 10 + np.cumsum(rng.normal(0, .2, n)),
+                         "inflation": 8 + np.cumsum(rng.normal(0, .2, n)), "target": target}, index=idx)  # fmt: skip
 
 
 def test_recipes_compute_expected_values():
     p = _panel()
-    spread = recipe_series(p, FeatureRecipe("reel", "spread", ("faiz", "enflasyon")))
-    assert spread.equals(p["faiz"] - p["enflasyon"])
-    gap = recipe_series(p, FeatureRecipe("g", "gap", ("faiz",), window=12))
-    assert gap.iloc[20] == pytest.approx(p["faiz"].iloc[20] - p["faiz"].iloc[8:20].mean())
+    spread = recipe_series(p, FeatureRecipe("real", "spread", ("rate", "inflation")))
+    assert spread.equals(p["rate"] - p["inflation"])
+    gap = recipe_series(p, FeatureRecipe("g", "gap", ("rate",), window=12))
+    assert gap.iloc[20] == pytest.approx(p["rate"].iloc[20] - p["rate"].iloc[8:20].mean())
 
 
 @pytest.mark.parametrize("bad", [
-    dict(name="x", op="fark", inputs=("a", "b")), dict(name="x", op="spread", inputs=("a",)),
+    dict(name="x", op="difference", inputs=("a", "b")), dict(name="x", op="spread", inputs=("a",)),
     dict(name="x", op="gap", inputs=("a",)), dict(name="x", op="mean", inputs=("a",)),
 ])  # fmt: skip
 def test_recipe_validation(bad):
@@ -45,9 +45,9 @@ def test_recipe_validation(bad):
 
 
 def test_generated_features_are_causal():
-    """t anındaki hiçbir değişken, t'den sonraki gözlemlerden etkilenmemelidir."""
+    """No feature at time t may be affected by observations after t."""
     p = _panel()
-    recipes = [FeatureRecipe("reel", "spread", ("faiz", "enflasyon")), FeatureRecipe("z", "zscore", ("faiz",), window=12)]
+    recipes = [FeatureRecipe("real", "spread", ("rate", "inflation")), FeatureRecipe("z", "zscore", ("rate",), window=12)]
     cfg = FeatureConfig()
     base, _, _ = generate(p, recipes, cfg)
     cut = p.index[100]
@@ -58,20 +58,20 @@ def test_generated_features_are_causal():
 
 
 def test_screening_selects_true_driver_and_controls_false_discoveries():
-    res = engineer(_panel(), [], FeatureConfig(target="hedef", horizon=1, train_end=date(2021, 12, 31), calendar=False, events=False))
-    assert "değişim" in res.label  # kalıcı hedef → değişime karşı tarama
-    assert res.selected and res.selected[0].startswith("surucu")
-    noise = [name for name in res.selected if name.startswith("gurultu")]
-    assert len(noise) / len(res.selected) <= 0.2  # FDR %10 düzeyinde kontrol edilir; sıfır değil
+    res = engineer(_panel(), [], FeatureConfig(target="target", horizon=1, train_end=date(2021, 12, 31), calendar=False, events=False))
+    assert "değişim" in res.label  # persistent target → screening against the change
+    assert res.selected and res.selected[0].startswith("driver")
+    noise = [name for name in res.selected if name.startswith("noise")]
+    assert len(noise) / len(res.selected) <= 0.2  # FDR is controlled at the 10% level; not zero
     assert res.screening["q"].dropna().between(0, 1).all()
 
 
 def test_selection_ignores_data_after_train_end():
     p = _panel()
-    cfg = FeatureConfig(target="hedef", horizon=1, train_end=date(2021, 12, 31), calendar=False, events=False)
+    cfg = FeatureConfig(target="target", horizon=1, train_end=date(2021, 12, 31), calendar=False, events=False)
     first = engineer(p, [], cfg)
     changed = p.copy()
-    changed.loc["2022-01-31":, "gurultu"] = changed.loc["2022-01-31":, "hedef"].diff().shift(-1) * 100  # sonrası sızıntılı
+    changed.loc["2022-01-31":, "noise"] = changed.loc["2022-01-31":, "target"].diff().shift(-1) * 100  # leaky afterwards
     second = engineer(changed, [], cfg)
     assert first.selected == second.selected
 
@@ -89,14 +89,14 @@ def test_monthly_panel_required_and_missing_recipe_inputs_skipped():
     weekly.index = pd.date_range("2020-01-03", periods=len(p), freq="W-FRI")
     with pytest.raises(InvalidInput, match="aylık"):
         generate(weekly, [], FeatureConfig())
-    _, _, skipped = generate(p, [FeatureRecipe("x", "spread", ("faiz", "yok"))], FeatureConfig())
-    assert "yok" in skipped["x"]
+    _, _, skipped = generate(p, [FeatureRecipe("x", "spread", ("rate", "no_such_feature"))], FeatureConfig())
+    assert "no_such_feature" in skipped["x"]
 
 
 def test_calendar_working_days_and_fixed_holidays():
     days = holiday_days(date(2024, 1, 1), date(2024, 12, 31))
     assert days[date(2024, 10, 29)] == (1.0, None) and days[date(2024, 10, 28)] == (0.5, None)
-    assert date(2016, 7, 15) not in holiday_days(date(2016, 1, 1), date(2016, 12, 31))  # 2017'den itibaren
+    assert date(2016, 7, 15) not in holiday_days(date(2016, 1, 1), date(2016, 12, 31))  # from 2017 onwards
     cal = month_calendar(pd.date_range("2024-01-31", periods=12, freq="ME"))
     assert set(cal.columns) >= {"ay_sin", "ay_cos", "is_gunu", "is_gunu_fark", "ramazan_bayrami_gun", "kurban_bayrami_gun"}
 
@@ -105,7 +105,7 @@ def test_moving_holidays_reduce_working_days():
     cal = month_calendar(pd.date_range("2024-01-31", periods=12, freq="ME"))
     april, june = cal.loc["2024-04-30"], cal.loc["2024-06-30"]
     assert april["ramazan_bayrami_gun"] == 3 and june["kurban_bayrami_gun"] == 4
-    # Nisan 2024: 22 hafta içi gün − 9 Nisan arife (0,5) − 10–12 Nisan bayram (3) − 23 Nisan (1) = 17,5
+    # April 2024: 22 weekdays − 9 April eve (0.5) − 10–12 April Eid al-Fitr (3) − 23 April (1) = 17.5
     assert april["is_gunu"] == 17.5
     assert cal["is_gunu"].notna().all()
 
@@ -120,3 +120,19 @@ def test_sector_events_and_ramadan_windows(catalog):
     assert feats.loc["2019-07-31", "otv_indirimi_2018"] == 0
     cal = month_calendar(pd.date_range("2025-02-28", periods=2, freq="ME"))
     assert cal.loc["2025-03-31", "ramazan_ayi_gun"] == 29 and cal.loc["2025-02-28", "ramazan_ayi_gun"] == 1
+
+
+def test_holiday_table_covers_the_next_year():
+    # Operational guard: extend MOVING_HOLIDAYS (Diyanet calendar) before this fails in CI.
+    from datetime import date
+
+    from mlbooster.domain.services.calendar_tr import HOLIDAY_YEARS
+
+    assert HOLIDAY_YEARS[1] >= date.today().year + 1, "Extend MOVING_HOLIDAYS in domain/services/calendar_tr.py"
+
+
+def test_uncovered_calendar_years_are_reported():
+    from mlbooster.domain.services.calendar_tr import HOLIDAY_YEARS, uncovered_years
+
+    idx = pd.date_range(f"{HOLIDAY_YEARS[1]}-11-30", periods=3, freq="ME")
+    assert uncovered_years(idx) == [HOLIDAY_YEARS[1] + 1]

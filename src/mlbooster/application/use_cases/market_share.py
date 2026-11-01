@@ -1,4 +1,4 @@
-"""Pazar payı analizi: kullanıcı tablosu + (isteğe bağlı) sektör makro paneli."""
+"""Market share analysis: user table + (optional) sector macro panel."""
 
 from __future__ import annotations
 
@@ -26,14 +26,14 @@ class AnalyzeMarketShare:
         if not isinstance(records, list) or not all(isinstance(r, dict) for r in records):
             raise InvalidInput("records, {entity, date, value[, segment]} nesnelerinden oluşan bir liste olmalıdır")
         if len(records) > MAX_ROWS:
-            raise InvalidInput(f"En fazla {MAX_ROWS:,} satır gönderilebilir")
+            raise InvalidInput(f"En fazla {MAX_ROWS:,} satır gönderilebilir".replace(",", "."))
         return self(pd.DataFrame.from_records(records), config, sector_id, start)
 
     def __call__(self, table: pd.DataFrame, config: ShareConfig, sector_id: str | None = None, start: date | None = None) -> dict:
         panel = None
         skipped: dict[str, str] = {}
         if sector_id:
-            sector_id = slug(sector_id, "sektör")
+            sector_id = slug(sector_id, "sector")
             first = start or date(2012, 1, 1)
             result = self._build(sector_id, first, None, save=False)
             panel, skipped = result.panel, result.skipped

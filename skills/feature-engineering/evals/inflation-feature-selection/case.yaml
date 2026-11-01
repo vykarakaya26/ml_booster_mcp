@@ -1,0 +1,5 @@
+schema_version: "1.1"
+name: inflation-feature-selection
+expected_outcome: |
+  makro_genel sektöründe tufe_yoy için feature'lar üretilir ve eğitim penceresinde seçilir; seçimin katkısı aynı
+  --eval-start ile koşulan iki backtest'le (sektör paneli ve seçilen feature'lar) ölçülür ve Türkçe HTML raporda verilir.

@@ -12,10 +12,10 @@ değildir; raporda "eşik" değil "uyarı" diye geç. Kaynaklar satır içinde v
 | Çarpıklık | **dönüştürülmüş** seride (Δlog) | \|S\| 0,5–1 orta, >1 güçlü `[sezgisel]` | `diagnostics.skew` |
 | Kalın kuyruk | fazla basıklık | >1 dikkat, >3 kalın `[sezgisel]` | `diagnostics.excess_kurtosis`, `heavy_tails` |
 | Normallik | Jarque-Bera | n≥150'de hemen her zaman reddeder; p değil S ve K'yı raporla ([statsmodels](https://www.statsmodels.org/v0.13.5/stats.html)) | `diagnostics.jarque_bera_p` |
-| Aykırı oranı | modifiye z = 0,6745·(x−medyan)/MAD | literatürde \|z\|>3,5 (Iglewicz & Hoaglin); mlbooster, Türkiye verisindeki kalın kuyruklar nedeniyle 5 kullanır. Noktaların >%5'i işaretliyse bu tek tek aykırılık değil, rejim ya da kalın kuyruktur `[sezgisel]` | `outliers` |
+| Outlier oranı | modifiye z = 0,6745·(x−medyan)/MAD | literatürde \|z\|>3,5 (Iglewicz & Hoaglin); mlbooster, Türkiye verisindeki kalın kuyruklar nedeniyle 5 kullanır. Noktaların >%5'i işaretliyse bu tek tek outlier değil, rejim ya da kalın kuyruktur `[sezgisel]` | `outliers` |
 | Oynaklık rejimi | değişimlerin std'si, son 36 ay / tüm dönem | oran >2 ya da <0,5 `[sezgisel]` | `diagnostics.volatility_ratio` |
 | Mevsimsellik | ACF(12) ve STL gücü F_S | F_S ≥ 0,64 ise mevsimsel fark ([FPP3 §9.1](https://otexts.com/fpp3/stationarity.html)) | `diagnostics.acf12` |
-| Yapısal kırılma | bilinen tarihlerde Chow; içsel kırılma için Zivot-Andrews / CUSUM | aday tarihleri her zaman olay takvimiyle yan yana göster | `structural_break` (ortalama kayması) |
+| Structural break | bilinen tarihlerde Chow; içsel kırılma için Zivot-Andrews / CUSUM | aday tarihleri her zaman olay takvimiyle yan yana göster | `structural_break` (ortalama kayması) |
 
 ### Durağanlık: ADF ve KPSS birlikte
 Bu iki testin sıfır hipotezleri terstir ([statsmodels ADF/KPSS](https://www.statsmodels.org/v0.14.4/examples/notebooks/generated/stationarity_detrending_adf_kpss.html)):
@@ -53,29 +53,29 @@ MacKinnon (2010) sonlu örneklem kritik değerleri. KPSS kritik değerleri: %10 
   anlamına geliyor ([Tradingpedia, 2026-10-15](https://www.tradingpedia.com/2026/10/15/commerzbank-warns-of-ongoing-devaluation-risks-for-lira/)).
   2026 Mart'taki piyasa stresinde (İran savaşı) kurda sıçrama görülmedi; maliyet rezervlerden karşılandı ve haftalık repo
   ihaleleri durduruldu. Modelleme sonuçları:
-  1. Rejim içinde saf rastgele yürüyüş uygun bir kıyas düzeyi değildir; yaklaşık sabit hızlı değer kaybı (naive
+  1. Rejim içinde saf random walk uygun bir benchmark değildir; yaklaşık sabit hızlı değer kaybı (naive
      log-fark ya da `drift_recent`) daha iyi uyar. mlbooster denetimi bunu `managed_path` olarak işaretler.
   2. Kalan oynaklık düşüktür; normal dağılım varsayımlı aralıklar kuyruklarda gereğinden dardır.
   3. Kuyruk riskini sıçrama/rejim değişimi olarak ele al. Kalibrasyon kümesi: 2018-08, 2021-12,
      2023-06, 2025-03. Rezerv erimesi sıçrama olasılığını artırır; haftalık rezerv serisini
      (`TP.AB.TOPLAM`) izle.
-  4. Üst kantilleri ufukla birlikte merkezden daha hızlı genişleyen kantil tahminleri kullan (`qr`).
+  4. Üst quantile'ları ufukla birlikte merkezden daha hızlı genişleyen quantile forecast'ları kullan (`qr`).
 - **Olay takvimi** (rejim dummy'si; adım = rejim, dürtü = tek ay sıçrama): 2014-01 olağanüstü faiz
   artırımı · 2018-08 kur krizi · 2020-03 COVID · 2021-09/12 faiz indirimleri, kur şoku, KKM · 2023-06
   normalleşme · 2024-03 sıkılaştırma zirvesi · 2025-03 piyasa stresi · 2026-01 TÜFE 2025=100 baz değişikliği.
 - **Ocak etkisi**: asgari ücret, yeniden değerleme oranıyla endekslenen vergi/harçlar ve idari fiyatlar
   Ocak MoM'unu politika takvimine bağlar. Bu "mevsimsellik" yıldan yıla değişkendir.
-- **Winsorize etme ya da koruma.** Değerlendirme **hedefini asla kırpma**; kullanıcı açısından asıl
-  önemli olan şoklardır. Feature'ları kırpacaksan eşikleri her eğitim penceresinde yeniden öğren ve sonuçları
-  kırpmalı/kırpmasız ikisiyle raporla. Silmek yerine dummy veya robust kayıp tercih et.
+- **Winsorize ya da koruma.** Değerlendirme **hedefini asla winsorize etme**; kullanıcı açısından asıl
+  önemli olan şoklardır. Feature'ları winsorize edeceksen eşikleri her eğitim penceresinde yeniden öğren ve sonuçları
+  winsorize edilmiş ve edilmemiş haliyle raporla. Silmek yerine dummy ya da robust loss tercih et.
 
 ## 3. Ön işleme (ML)
 - **Dönüşüm varsayılanları.** Seviye/fiyat → log → Δlog. Oranlar → seviye ya da Δ (düzey yüksekse
   log(1+r)). Sınırlı endeksler (güven) → seviye, varsa mevsimsellikten arındırılmış. Paylar → logit.
 - **Box-Cox / Yeo-Johnson.** λ her eğitim penceresinde ayrı tahmin edilir. Düz geri dönüşüm medyanı
   verir, ortalama için yanlılık düzeltmesi gerekir ([FPP3 §5.6](https://otexts.com/fpp3/ftransformations.html)).
-- **Ölçekleme.** Kalın kuyruklu panelde robust (medyan/IQR) kullan; yalnızca eğitim penceresinde fit et.
-- **Karışık frekans ve yayın gecikmesi.** Tarihi yayın tarihine göre birleştir (as-of join). mlbooster
+- **Scaling.** Kalın kuyruklu panelde robust scaling (medyan/IQR) kullan; yalnızca eğitim penceresinde fit et.
+- **Karışık frekans ve publication lag.** Tarihi yayın tarihine göre birleştir (as-of join). mlbooster
   paneli bunu zaten yapar; satır tarihi, verinin kullanılabilir olduğu aydır. Çeyreklik seriyi
   çeyrek sonları arasında doğrusal enterpolasyonla doldurma, bu bir sonraki çeyreği sızdırır; son
   yayımlanan değeri basamak olarak kullan.
@@ -83,32 +83,32 @@ MacKinnon (2010) sonlu örneklem kritik değerleri. KPSS kritik değerleri: %10 
   olarak saklar (`as_of` ile okunabilir). TÜFE genelde revize edilmez; milli gelir, ödemeler dengesi
   ve dış borç edilebilir.
 
-### Sızıntı kontrol listesi (her madde metodolojik hata sayılır)
-- Ölçekleyici, λ ya da PCA tüm örneklemde fit edilmiş.
+### Leakage kontrol listesi (her madde metodolojik hata sayılır)
+- Scaler, λ ya da PCA tüm örneklemde fit edilmiş.
 - İki taraflı filtreler (HP, STL, X-13) tüm örneklemde koşulmuş.
 - Tahmin sınırını aşan enterpolasyon.
-- Ortalanmış kayan pencere.
+- Ortalanmış (centered) rolling window.
 - Test döneminde feature seçimi ya da hiperparametre ayarı.
 - Revize veriyle "gerçek zamanlı" performans iddiası.
 - Ufukla çakışan YoY hedef feature'ı.
-- Yayın gecikmesinin göz ardı edilmesi.
+- Publication lag'in göz ardı edilmesi.
 
 ## 4. Değerlendirme
 - **Rolling origin** (genişleyen pencere, adım 1). Ufukları (1, 3, 6, 12) ayrı raporla
   ([FPP3 §5.10](https://otexts.com/fpp3/tscv.html)). Kırılmalı makro panelde k-fold yerine rolling origin
   kullan ([Bergmeir vd. 2018](https://ideas.repec.org/a/eee/csdana/v120y2018icp70-83.html)). En az ~60
   aylık eğitim `[sezgisel]`; sonuçları rejime göre alt dönemlerde de göster: 2021 öncesi, 2021–23, 2024+.
-- **Kıyas düzeyleri (her zaman):**
-  - naive, mevsimsel naive, drift.
-  - Enflasyon için **Atkeson–Ohanian**: son 12 ay ortalaması (`mean12`). Geçilmesi zor bir kıyas düzeyidir
+- **Benchmark'lar (her zaman):**
+  - naive, seasonal naive, drift.
+  - Enflasyon için **Atkeson–Ohanian**: son 12 ay ortalaması (`mean12`). Geçilmesi zor bir benchmark'tır
     ([Stock & Watson](https://scholar.harvard.edu/sites/scholar.harvard.edu/files/stock/files/forecastinginflation.pdf)).
-  - **Aylık ortalama hedefler** için ay sonu değeri (`--anchor <hedef>_son`). Ortalama alınmış rastgele
-    yürüyüşün farkları pozitif otokorelasyonludur, bu yüzden düz naive zayıf bir kıyas düzeyidir.
+  - **Aylık ortalama hedefler** için ay sonu değeri (`--anchor <hedef>_son`). Ortalaması alınmış bir random
+    walk'un farkları pozitif otokorelasyonludur; bu yüzden düz naive zayıf bir benchmark'tır.
 - **Metrikler.** MAE ve RMSE; MASE < 1 naive'den iyi demektir ([FPP3 §5.8](https://otexts.com/fpp3/accuracy.html)).
   Sıfıra yakın oranlarda MAPE ve sMAPE kullanma.
 - **İyileşme iddiası.** Diebold–Mariano testi (HAC, h−1 gecikme, HLN düzeltmesi;
   [statsmodels](https://www.statsmodels.org/dev/generated/statsmodels.tsa.stattools.diebold_mariano_test.html))
-  yalnızca kıyas düzeyine karşı ve ufuk başına yapılır. İç içe modellerde DM'nin boyutu bozulur.
-- **Aralıklar.** Ufuk başına backtest hata kantillerinden ampirik bant çıkar (Fed yaklaşımı,
+  yalnızca benchmark'a karşı ve ufuk başına yapılır. İç içe modellerde DM'nin boyutu bozulur.
+- **Aralıklar.** Ufuk başına backtest hatalarının quantile'larından ampirik bant çıkar (Fed yaklaşımı,
   [Reifschneider & Tulip 2017](https://www.federalreserve.gov/econres/feds/gauging-the-uncertainty-of-the-economic-outlook-using-historical-forecasting-errors-the-federal-reserves-approach.htm)).
   Mevcut rejim backtest örnekleminden farklıysa bandı genişlet ya da işaretle.

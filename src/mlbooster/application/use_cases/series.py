@@ -1,4 +1,4 @@
-"""Seri keşfi ve çekme."""
+"""Series discovery and fetching."""
 
 from __future__ import annotations
 
@@ -18,13 +18,13 @@ class DiscoverSeries:
         self._providers = providers
 
     def __call__(self, source_id: str, query: str | None = None) -> pd.DataFrame:
-        source = self._catalog.load().source(slug(source_id, "kaynak"))
+        source = self._catalog.load().source(slug(source_id, "source"))
         with open_provider(self._providers, source) as provider:
             return provider.list_series(series_code(query) if query else None)
 
 
 class FetchSeries:
-    """Sağlayıcıdan çeker, gözlem deposuna yazar."""
+    """Fetches from the provider and writes to the observation store."""
 
     def __init__(self, catalog: CatalogRepository, providers: ProviderFactory, store: ObservationStore):
         self._catalog = catalog

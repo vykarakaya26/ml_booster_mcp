@@ -1,16 +1,16 @@
-"""Girdi ve varsayım kaydı (assumptions.json): raporun "neye dayanarak" kısmı.
+"""Input and assumption register (assumptions.json): the "on what basis" part of the report.
 
-Amaç güçlendirici şeffaflıktır. Okur her yorumun hangi veriye, hangi varsayıma ve hangi
-çıkarıma dayandığını ayırt edebilmeli; onaylanmamış varsayımlar görünür biçimde işaretlenir.
+The aim is transparency that strengthens the analysis. The reader must be able to tell which data, which
+assumption and which inference each interpretation rests on; unconfirmed assumptions are visibly flagged.
 
-Şema (anahtarlar İngilizce, değerler Türkçe):
+Schema (keys are fixed; values are free text):
 {
   "context": {"purpose", "decision", "audience", "target", "horizon", "units", "period"},
   "assumptions": [{"id": "A1", "topic", "statement", "kind": "user|sector|default|data|external",
-                   "confirmed": bool, "source", "as_of": "YYYY-AA-GG", "confidence": "low|medium|high",
+                   "confirmed": bool, "source", "as_of": "YYYY-MM-DD", "confidence": "low|medium|high",
                    "impact", "check"}],
-  "scenarios": [{"name", "description"}],          # opsiyonel
-  "open_questions": ["..."]                        # opsiyonel
+  "scenarios": [{"name", "description"}],          # optional
+  "open_questions": ["..."]                        # optional
 }
 """
 
@@ -35,7 +35,7 @@ CONTEXT_LABELS = [
     ("target", "Hedef değişken"), ("horizon", "Ufuk"), ("units", "Birim (nominal/reel)"), ("period", "Dönem"),
 ]  # fmt: skip
 _ID = re.compile(r"^[A-Z]\d{1,3}$")
-STALE_DAYS = 92  # ~3 ay: daha eski sektör/regülasyon bilgisi "güncel değil — doğrulanmalı"
+STALE_DAYS = 92  # ~3 months: older sector/regulatory information is flagged as out of date
 CONFIDENCE = {"low": "düşük", "medium": "orta", "high": "yüksek"}
 
 
@@ -51,28 +51,28 @@ def load(path: str | Path) -> dict:
 
 def validate(data: dict) -> None:
     if not isinstance(data, dict) or not isinstance(data.get("context"), dict):
-        raise AssumptionsError("assumptions.json: 'context' nesnesi gerekli")
+        raise AssumptionsError("assumptions.json: 'context' nesnesi gereklidir")
     items = data.get("assumptions")
     if not isinstance(items, list) or not items:
-        raise AssumptionsError("assumptions.json: en az bir varsayım gerekli ('assumptions' listesi)")
+        raise AssumptionsError("assumptions.json: en az bir varsayım gereklidir ('assumptions' listesi)")
     seen = set()
     for a in items:
         missing = {"id", "topic", "statement", "kind", "confirmed"} - set(a)
         if missing:
             raise AssumptionsError(f"Varsayım alanları eksik {sorted(missing)}: {a}")
         if not _ID.match(str(a["id"])) or a["id"] in seen:
-            raise AssumptionsError(f"Geçersiz/tekrarlı varsayım kimliği: {a['id']} (ör. A1)")
+            raise AssumptionsError(f"Geçersiz ya da tekrarlanan varsayım kimliği: {a['id']} (ör. A1)")
         if a["kind"] not in KINDS:
-            raise AssumptionsError(f"kind {list(KINDS)} olmalı: {a['kind']}")
+            raise AssumptionsError(f"kind şu değerlerden biri olmalıdır: {list(KINDS)} ({a['kind']})")
         if a.get("confidence") not in (None, *CONFIDENCE):
-            raise AssumptionsError(f"{a['id']}: confidence {list(CONFIDENCE)} olmalı")
+            raise AssumptionsError(f"{a['id']}: confidence şu değerlerden biri olmalıdır: {list(CONFIDENCE)}")
         if a.get("as_of"):
             try:
                 date.fromisoformat(str(a["as_of"]))
             except ValueError:
-                raise AssumptionsError(f"{a['id']}: as_of YYYY-AA-GG olmalı") from None
+                raise AssumptionsError(f"{a['id']}: as_of YYYY-AA-GG biçiminde olmalıdır") from None
         if a["kind"] == "user" and not a["confirmed"]:
-            raise AssumptionsError(f"{a['id']}: 'user' türü varsayım tanım gereği onaylıdır (confirmed: true)")
+            raise AssumptionsError(f"{a['id']}: 'user' türündeki varsayım tanım gereği onaylıdır (confirmed: true)")
         seen.add(a["id"])
 
 
@@ -116,7 +116,7 @@ def section(data: dict) -> str:
         body += (
             f'<p><span class="badge serious"><span aria-hidden="true">▲</span> Dikkat</span> '
             f"{len(pending)} varsayım kullanıcı tarafından onaylanmadı ({H.esc(ids)}). Bunlara dayanan yorumlar "
-            "koşulludur; onaylandığında ya da değiştiğinde sonuçlar güncellenmelidir.</p>"
+            "koşulludur; varsayımlar onaylandığında ya da değiştiğinde sonuçlar güncellenmelidir.</p>"
         )
     if old:
         body += (
@@ -133,7 +133,7 @@ def section(data: dict) -> str:
         body += "<h3>Açık sorular</h3><ul>" + "".join(f"<li>{H.esc(q)}</li>" for q in data["open_questions"]) + "</ul>"
     legend = (
         '<p class="muted">Raporda her ifade bir dayanağa bağlanır: <strong>veri</strong> (yayımlanmış gözlem), '
-        "<strong>varsayım</strong> (A# kimliğiyle), <strong>model</strong> (tahmin/backtest, yöntem ve belirsizlikle) "
+        "<strong>varsayım</strong> (A# kimliğiyle), <strong>model</strong> (forecast/backtest; yöntem ve belirsizlikle birlikte) "
         "ya da <strong>yorum</strong> (analistin çıkarımı, güven düzeyiyle).</p>"
     )
-    return H.section("Girdiler ve varsayımlar", legend + body, "varsayimlar")
+    return H.section("Girdiler ve varsayımlar", legend + body, "assumptions")

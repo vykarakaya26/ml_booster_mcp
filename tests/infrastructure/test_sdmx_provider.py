@@ -48,7 +48,7 @@ def test_fetch_uses_catalog_remote_and_parses_csv(bis):
     df = bis.fetch(FetchRequest.create("bis", ["BIS.REER.TR"], date(2026, 8, 1), date(2026, 10, 31)))
     url = str(route.calls.last.request.url)
     assert "format=csv" in url and "startPeriod=2026-08-01" in url
-    assert df["value"].tolist() == [104.5, 105.1]  # boş gözlem düşer
+    assert df["value"].tolist() == [104.5, 105.1]  # empty observation is dropped
     assert df["date"].tolist() == [date(2026, 8, 31), date(2026, 9, 30)]
     assert set(df["freq"]) == {"M"} and df["publication_lag_days"].iloc[0] == 20
 

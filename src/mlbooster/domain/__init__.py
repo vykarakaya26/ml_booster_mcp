@@ -1,6 +1,6 @@
-"""Domain çekirdeği: varlıklar, değer nesneleri ve saf domain servisleri.
+"""Domain core: entities, value objects and pure domain services.
 
-Bağımlılık kuralı: bu paket application/infrastructure/interfaces katmanlarını ve hiçbir
-G/Ç kütüphanesini (httpx, duckdb, pyarrow, yaml, mcp, typer, pydantic) import etmez.
-Zaman serisi hesapları için yalnızca pandas/numpy kullanılır (ADR: README → Mimari).
+Dependency rule: this package does not import the application/infrastructure/interfaces layers
+or any I/O library (httpx, duckdb, pyarrow, yaml, mcp, typer, pydantic).
+Only pandas/numpy are used for time-series computations (ADR: README → Architecture).
 """

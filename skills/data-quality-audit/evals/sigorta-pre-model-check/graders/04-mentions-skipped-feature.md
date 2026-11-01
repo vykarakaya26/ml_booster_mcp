@@ -4,4 +4,4 @@ focus: trace
 weight: 1
 ---
 
-Panele girmeyen (keşif bekleyen) feature belirtiliyor
+Panele girmeyen (seri kodu bekleyen) feature belirtiliyor

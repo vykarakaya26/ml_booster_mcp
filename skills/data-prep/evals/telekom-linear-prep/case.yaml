@@ -1,5 +1,5 @@
 schema_version: "1.1"
 name: telekom-linear-prep
 expected_outcome: |
-  prep.json, prepared.csv ve HTML rapor üretilir; robust/ortalama seçimi ve dönüşümler sayısal gerekçelerle açıklanır,
-  eğitim penceresi sonu ve model ailesi belirtilir, hedef değişken dönüştürülmez.
+  prep.json, prepared.csv ve Türkçe bir HTML rapor üretilir; robust/ortalama seçimi ve dönüşümler sayısal
+  gerekçelerle açıklanır, eğitim penceresi sonu ve model ailesi belirtilir, hedef değişken dönüştürülmez.

@@ -20,8 +20,8 @@ def test_latest_tag_and_cache(tmp_path):
         return_value=httpx.Response(200, json=[{"name": "v0.4.0"}, {"name": "v0.10.1"}, {"name": "nightly"}, {"name": "v0.3.0"}])
     )
     src = GitHubReleaseSource(tmp_path / "u.json", SecureHttpClient(rps=None, max_retries=0))
-    assert src.latest_version() == "0.10.1"  # sayısal karşılaştırma (0.10 > 0.4)
-    assert src.latest_version() == "0.10.1" and route.call_count == 1  # 24 saat önbellek
+    assert src.latest_version() == "0.10.1"  # numeric comparison (0.10 > 0.4)
+    assert src.latest_version() == "0.10.1" and route.call_count == 1  # 24-hour cache
     assert json.loads((tmp_path / "u.json").read_text())["latest"] == "0.10.1"
 
 

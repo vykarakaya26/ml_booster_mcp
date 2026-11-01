@@ -1,12 +1,12 @@
 [build-system]
-# hatchling kaynak ağacına (egg-info/build) yazmaz: plugin dizininden `uvx --from` ile kurulurken önemli.
+# hatchling does not write into the source tree (egg-info/build): this matters when installing from the plugin directory with `uvx --from`.
 requires = ["hatchling>=1.25"]
 build-backend = "hatchling.build"
 
 [project]
 name = "mlbooster"
-version = "0.6.0"
-description = "ML Booster Map: Türkiye için ücretsiz veri kaynakları haritası ve ML'e hazır panel üretici"
+version = "0.7.0"
+description = "ML Booster Map: map of free data sources for Turkey and builder of ML-ready panels"
 requires-python = ">=3.12"
 license = "MIT"
 dependencies = [
@@ -22,7 +22,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-dev = ["pytest>=8", "respx>=0.21"]
+dev = ["pytest>=8", "pytest-cov>=5", "respx>=0.21", "ruff>=0.6"]
 
 [project.scripts]
 mlbooster = "mlbooster.interfaces.cli:app"
@@ -34,5 +34,27 @@ packages = ["src/mlbooster"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["tests"]
-markers = ["live: gerçek uçlara giden contract testleri (EVDS_API_KEY gerekir)"]
+markers = ["live: contract tests against real endpoints (requires EVDS_API_KEY)"]
 addopts = "-m 'not live' --import-mode=importlib"
+
+[tool.ruff]
+line-length = 120
+target-version = "py312"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+# Same rule families as the skill-suite workspace (pycodestyle, pyflakes, isort, pyupgrade, bugbear).
+# E501 is off: hand-aligned tables are kept as written and no formatter is enforced.
+select = ["E", "F", "I", "UP", "B", "RUF100", "RUF022"]
+ignore = ["E501"]
+
+[tool.ruff.lint.per-file-ignores]
+# Skill scripts run on the system Python (>=3.10) with the stdlib only: no py312-only rewrites there.
+"skills/**/*.py" = ["UP"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["mlbooster"]
+
+[tool.coverage.run]
+source = ["mlbooster"]
+branch = true

@@ -1,4 +1,4 @@
-"""Varlıklar ve değer nesneleri (değişmez dataclass'lar)."""
+"""Entities and value objects (immutable dataclasses)."""
 
 from __future__ import annotations
 
@@ -21,32 +21,32 @@ class Frequency(StrEnum):
 
     @property
     def is_high(self) -> bool:
-        """Aylıktan sık: aylığa indirgenirken agregasyon gerekir."""
+        """Higher than monthly: aggregation is required when converting to monthly."""
         return self in {Frequency.HOURLY, Frequency.DAILY, Frequency.BUSINESS, Frequency.WEEKLY, Frequency.SEMI_MONTHLY}
 
     @property
     def is_low(self) -> bool:
-        """Aylıktan seyrek: aylığa çıkarılırken ileriye doldurulur."""
+        """Lower than monthly: forward-filled when converting to monthly."""
         return self in {Frequency.QUARTERLY, Frequency.SEMI_ANNUAL, Frequency.ANNUAL}
 
     @property
     def min_period_days(self) -> int:
-        """Bir gözlemin kapsadığı en kısa takvim süresi (muhafazakâr parçalama için)."""
+        """Shortest calendar span covered by one observation (for conservative chunking)."""
         return _MIN_PERIOD_DAYS[self]
 
     @property
     def max_staleness_days(self) -> int:
-        """Son gözlem bundan eskiyse seri durmuş/taşınmış sayılır (dönem + tipik yayın gecikmesi)."""
+        """Last observation older than this → series is stale/moved (period + typical publication lag)."""
         return _MAX_STALENESS_DAYS[self]
 
     @property
     def cache_ttl_hours(self) -> int:
-        """Yerel önbelleğin tazelik süresi: bu süreden eski çekimler panel kurulurken yenilenir."""
+        """Freshness window of the local cache: fetches older than this are refreshed when the panel is built."""
         return _CACHE_TTL_HOURS[self]
 
     @property
     def default_publication_lag_days(self) -> int:
-        """Yayın gecikmesi bilinmeyen yeni seriler için muhafazakâr varsayılan (look-ahead'e karşı)."""
+        """Conservative default for new series with an unknown publication lag (guards against look-ahead)."""
         return _DEFAULT_LAG_DAYS[self]
 
     @property
@@ -78,8 +78,8 @@ _DEFAULT_LAG_DAYS = {
 
 
 class SeriesKind(StrEnum):
-    LEVEL = "level"  # stok / fiyat / oran
-    FLOW = "flow"  # akım: aylığa toplanarak indirgenir
+    LEVEL = "level"  # stock / price / rate
+    FLOW = "flow"  # flow: summed when converting to monthly
 
 
 class Aggregation(StrEnum):
@@ -113,8 +113,8 @@ class AuthKind(StrEnum):
 
 
 class Verification(StrEnum):
-    VERIFIED = "verified"  # uç canlı denendi
-    REPORTED = "reported"  # yalnızca araştırmada geçiyor
+    VERIFIED = "verified"  # endpoint tested live
+    REPORTED = "reported"  # only mentioned in research
     UNVERIFIED = "unverified"
 
 
@@ -161,7 +161,7 @@ class SeedSeries:
     datagroup: str | None = None
     publication_lag_days: int | None = None
     canary: bool = False
-    remote: str | None = None  # SDMX gibi kaynaklarda gerçek yol; kullanıcı yalnız güvenli `code` takma adını görür
+    remote: str | None = None  # actual path for sources such as SDMX; the user only sees the safe `code` alias
 
 
 @dataclass(frozen=True)
@@ -181,7 +181,7 @@ class Source:
     verification: Verification
     verification_notes: str | None = None
     known_breaks: tuple[str, ...] = ()
-    provider: str | None = None  # None = bu kaynak için sağlayıcı (adapter) henüz yok
+    provider: str | None = None  # None = no provider (adapter) exists for this source yet
     priority: int = 99
     series: tuple[SeedSeries, ...] = ()
 
@@ -201,7 +201,7 @@ class Source:
 class MacroFeature:
     name: str
     source: str
-    series: str | None = None  # None = seri kodu henüz keşfedilmedi
+    series: str | None = None  # None = series code not yet discovered
     transform: Transform = Transform.LEVEL
     agg: Aggregation | None = None
     real: bool = False
@@ -217,10 +217,10 @@ RECIPE_OPS = ("spread", "ratio", "mean", "sum", "product", "gap", "zscore")
 
 @dataclass(frozen=True)
 class FeatureRecipe:
-    """Sektöre özgü türetilmiş değişken: girdiler sektörün makro değişken adlarıdır.
+    """Sector-specific derived variable: the inputs are the sector's macro feature names.
 
-    spread: a − b · ratio: a / b · mean/sum: girdilerin ortalaması/toplamı · product: a × b (etkileşim)
-    gap: a − a'nın geçmiş `window` dönem ortalaması · zscore: geçmiş `window` döneme göre standart skor
+    spread: a − b · ratio: a / b · mean/sum: mean/sum of the inputs · product: a × b (interaction)
+    gap: a − mean of a over the past `window` periods · zscore: z-score relative to the past `window` periods
     """
 
     name: str
@@ -231,24 +231,24 @@ class FeatureRecipe:
 
     def __post_init__(self) -> None:
         if self.op not in RECIPE_OPS:
-            raise InconsistentCatalog(f"{self.name}: bilinmeyen işlem {self.op} ({', '.join(RECIPE_OPS)})")
+            raise InconsistentCatalog(f"{self.name}: bilinmeyen işlem {self.op} (geçerli işlemler: {', '.join(RECIPE_OPS)})")
         need = {"spread": 2, "ratio": 2, "product": 2, "gap": 1, "zscore": 1}.get(self.op)
         if need is not None and len(self.inputs) != need:
             raise InconsistentCatalog(f"{self.name}: {self.op} işlemi {need} girdi gerektirir")
         if self.op in {"mean", "sum"} and len(self.inputs) < 2:
             raise InconsistentCatalog(f"{self.name}: {self.op} işlemi en az iki girdi gerektirir")
         if self.op in {"gap", "zscore"} and not (self.window and 3 <= self.window <= 60):
-            raise InconsistentCatalog(f"{self.name}: {self.op} işlemi 3–60 arasında window gerektirir")
+            raise InconsistentCatalog(f"{self.name}: {self.op} işlemi 3 ile 60 arasında bir window gerektirir")
 
 
 @dataclass(frozen=True)
 class SectorEvent:
-    """Sektöre özgü düzenleme ya da şok: darbe (yalnızca başlangıç ayı) veya rejim (başlangıç–bitiş arası)."""
+    """Sector-specific regulation or shock: pulse (start month only) or regime (from start to end)."""
 
     name: str
-    start: str  # YYYY-AA
+    start: str  # YYYY-MM
     kind: str = "step"  # pulse | step
-    end: str | None = None  # YYYY-AA; step için boşsa açık uçlu
+    end: str | None = None  # YYYY-MM; open-ended for step if empty
     note: str | None = None
     source: str | None = None
 
@@ -259,7 +259,7 @@ class SectorEvent:
             if value is not None and not (len(value) == 7 and value[4] == "-" and value[:4].isdigit() and value[5:].isdigit()):
                 raise InconsistentCatalog(f"{self.name}: tarih YYYY-AA biçiminde olmalıdır ({value})")
         if self.end is not None and self.end < self.start:
-            raise InconsistentCatalog(f"{self.name}: bitiş başlangıçtan önce olamaz")
+            raise InconsistentCatalog(f"{self.name}: bitiş tarihi başlangıçtan önce olamaz")
 
 
 @dataclass(frozen=True)
@@ -300,16 +300,16 @@ class Catalog:
             if ref not in self.sources
         ]
         if errors:
-            raise InconsistentCatalog("Katalog referans hataları: " + "; ".join(errors))
+            raise InconsistentCatalog("Katalogda referans hataları var: " + "; ".join(errors))
 
     def source(self, source_id: str) -> Source:
         if source_id not in self.sources:
-            raise NotFound(f"Bilinmeyen kaynak: {source_id}. Mevcut: {', '.join(sorted(self.sources))}")
+            raise NotFound(f"Bilinmeyen kaynak: {source_id}. Mevcut kaynaklar: {', '.join(sorted(self.sources))}")
         return self.sources[source_id]
 
     def sector(self, sector_id: str) -> Sector:
         if sector_id not in self.sectors:
-            raise NotFound(f"Bilinmeyen sektör: {sector_id}. Mevcut: {', '.join(sorted(self.sectors))}")
+            raise NotFound(f"Bilinmeyen sektör: {sector_id}. Mevcut sektörler: {', '.join(sorted(self.sectors))}")
         return self.sectors[sector_id]
 
     def sources_by_priority(self) -> list[Source]:

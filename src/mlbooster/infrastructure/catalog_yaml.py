@@ -1,4 +1,4 @@
-"""YAML katalog deposu. Dosyalar pydantic şemalarıyla katı biçimde doğrulanıp domain nesnelerine çevrilir."""
+"""YAML catalog repository. Files are strictly validated with pydantic schemas and converted to domain objects."""
 
 from __future__ import annotations
 
@@ -15,18 +15,18 @@ from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_valida
 
 from mlbooster.domain.errors import InconsistentCatalog
 from mlbooster.domain.model import (
-    FeatureRecipe,
-    SectorEvent,
     Access,
     Aggregation,
     AuthKind,
     AuthSpec,
     Catalog,
+    FeatureRecipe,
     Frequency,
     LicenseSpec,
     MacroFeature,
     RateLimitSpec,
     Sector,
+    SectorEvent,
     SeedSeries,
     SeriesKind,
     ShareSource,
@@ -85,8 +85,8 @@ class SeedSchema(_Strict):
     @field_validator("remote")
     @classmethod
     def _remote(cls, v: str | None) -> str | None:
-        # SDMX yolu: "<dataflow>/<anahtar>"; tek '/', hiçbir segment '.' ya da '..' değil (yol geçişi engellenir).
-        # Not: OECD anahtarlarında '...' boş boyutları gösterir ve meşrudur.
+        # SDMX path: "<dataflow>/<key>"; a single '/', no segment is '.' or '..' (prevents path traversal).
+        # Note: in OECD keys '...' denotes empty dimensions and is legitimate.
         if v is not None and (not _REMOTE.fullmatch(v) or any(seg in {".", ".."} for seg in v.split("/"))):
             raise ValueError(f"Geçersiz remote yolu: {v!r}")
         return v
@@ -120,14 +120,14 @@ class SourceSchema(_Strict):
     @field_validator("id")
     @classmethod
     def _id(cls, v: str) -> str:
-        return slug(v, "kaynak")
+        return slug(v, "source")
 
     @field_validator("base_url")
     @classmethod
     def _https_only(cls, v: str) -> str:
         parts = urlsplit(v)
         if parts.scheme != "https" or not parts.hostname:
-            raise ValueError("base_url https olmalı")
+            raise ValueError("base_url https olmalıdır")
         return v
 
     def to_domain(self) -> Source:
@@ -180,7 +180,7 @@ class FeatureSchema(_Strict):
 
     def to_domain(self) -> MacroFeature:
         if self.series is None and not self.discover_hint:
-            raise InconsistentCatalog(f"{self.name}: series boşsa discover_hint zorunlu")
+            raise InconsistentCatalog(f"{self.name}: series boşsa discover_hint zorunludur")
         return MacroFeature(**self.model_dump())
 
 
@@ -201,7 +201,7 @@ class RecipeSchema(_Strict):
     @field_validator("name")
     @classmethod
     def _name(cls, v: str) -> str:
-        return slug(v, "türetilmiş değişken adı")
+        return slug(v, "derived_feature")
 
     def to_domain(self) -> FeatureRecipe:
         return FeatureRecipe(self.name, self.op, tuple(self.inputs), self.window, self.note)
@@ -218,7 +218,7 @@ class EventSchema(_Strict):
     @field_validator("name")
     @classmethod
     def _name(cls, v: str) -> str:
-        return slug(v, "olay adı")
+        return slug(v, "event")
 
     def to_domain(self) -> SectorEvent:
         return SectorEvent(**self.model_dump())
@@ -237,7 +237,7 @@ class SectorSchema(_Strict):
     @field_validator("id")
     @classmethod
     def _id(cls, v: str) -> str:
-        return slug(v, "sektör")
+        return slug(v, "sector")
 
     def to_domain(self) -> Sector:
         return Sector(
@@ -257,9 +257,9 @@ class SectorSchema(_Strict):
         for r in self.feature_recipes:
             unknown = set(r.inputs) - names
             if unknown:
-                raise InconsistentCatalog(f"{self.id}/{r.name}: tarifte bilinmeyen değişken {sorted(unknown)}")
+                raise InconsistentCatalog(f"{self.id}/{r.name}: tarifte bilinmeyen feature var: {sorted(unknown)}")
             if r.name in names:
-                raise InconsistentCatalog(f"{self.id}/{r.name}: tarif adı bir makro değişkenle çakışıyor")
+                raise InconsistentCatalog(f"{self.id}/{r.name}: tarif adı bir makro feature adıyla çakışıyor")
             out.append(r.to_domain())
         return tuple(out)
 
@@ -268,11 +268,11 @@ def _read_yaml(path: Path) -> dict:
     if path.stat().st_size > MAX_YAML_BYTES:
         raise InconsistentCatalog(f"Katalog dosyası çok büyük: {path.name}")
     try:
-        data = yaml.safe_load(path.read_text(encoding="utf-8"))  # safe_load: nesne oluşturma yok
+        data = yaml.safe_load(path.read_text(encoding="utf-8"))  # safe_load: no object construction
     except yaml.YAMLError:
         raise InconsistentCatalog(f"Geçersiz YAML: {path.name}") from None
     if not isinstance(data, dict):
-        raise InconsistentCatalog(f"Katalog dosyası bir eşleme olmalı: {path.name}")
+        raise InconsistentCatalog(f"Katalog dosyası bir anahtar-değer eşlemesi (mapping) olmalıdır: {path.name}")
     return data
 
 
@@ -281,25 +281,25 @@ class OverrideSeedSchema(SeedSchema):
 
 
 class OverridesSchema(_Strict):
-    """~/.mlbooster/catalog/overrides.yaml — kullanıcının keşfettiği seriler."""
+    """~/.mlbooster/catalog/overrides.yaml — series discovered by the user."""
 
     version: Literal[1] = 1
-    seeds: dict[str, list[OverrideSeedSchema]] = Field(default_factory=dict)  # kaynak → tohum seriler
-    features: dict[str, dict[str, str]] = Field(default_factory=dict)  # sektör → mevcut feature → seri kodu
-    new_features: dict[str, list[FeatureSchema]] = Field(default_factory=dict)  # sektör → eklenen feature'lar
+    seeds: dict[str, list[OverrideSeedSchema]] = Field(default_factory=dict)  # source → seed series
+    features: dict[str, dict[str, str]] = Field(default_factory=dict)  # sector → existing feature → series code
+    new_features: dict[str, list[FeatureSchema]] = Field(default_factory=dict)  # sector → added features
 
     @field_validator("features")
     @classmethod
     def _valid_codes(cls, v: dict[str, dict[str, str]]) -> dict[str, dict[str, str]]:
         for sector, mapping in v.items():
-            slug(sector, "sektör")
+            slug(sector, "sector")
             for code in mapping.values():
                 series_code(code)
         return v
 
 
 class YamlCatalogRepository:
-    """Paket kataloğu + (varsa) kullanıcı override'ları. CatalogRepository ve CatalogOverrides port'larını uygular."""
+    """Packaged catalog + user overrides (if any). Implements the CatalogRepository and CatalogOverrides ports."""
 
     def __init__(self, root: Path, overrides_path: Path | None = None):
         self._root = root
@@ -317,7 +317,7 @@ class YamlCatalogRepository:
             sectors = [SectorSchema.model_validate(_read_yaml(p)).to_domain() for p in self._files("sectors")]
             overrides = self._read_overrides()
         except ValidationError as exc:
-            raise InconsistentCatalog(f"Katalog şema hatası: {exc}") from None
+            raise InconsistentCatalog(f"Katalog schema hatası: {exc}") from None
         source_map = {s.id: s for s in sources}
         sector_map = {s.id: s for s in sectors}
         for source_id, seeds in overrides.seeds.items():
@@ -337,10 +337,10 @@ class YamlCatalogRepository:
                 raise InconsistentCatalog(f"Override: bilinmeyen sektör {sector_id}")
             sector = sector_map[sector_id]
             unknown = set(mapping) - {f.name for f in sector.macro_features}
-            if unknown:  # sessizce yok saymak yerine açıkça hata ver
+            if unknown:  # fail explicitly instead of silently ignoring
                 raise InconsistentCatalog(
-                    f"Override: {sector_id} sektöründe olmayan feature(lar): {sorted(unknown)}. "
-                    "Yeni feature için `catalog set-feature --create` kullanın."
+                    f"Override: {sector_id} sektöründe bulunmayan feature'lar: {sorted(unknown)}. "
+                    "Yeni bir feature için `catalog set-feature --create` kullanın."
                 )
             features = tuple(
                 replace(f, series=mapping[f.name]) if f.name in mapping else f for f in sector.macro_features
@@ -387,9 +387,9 @@ class YamlCatalogRepository:
             current["new_features"][sector_id] = added
         else:
             current["features"].setdefault(sector_id, {})[feature] = seed.code
-        OverridesSchema.model_validate(current)  # yazmadan önce doğrula
+        OverridesSchema.model_validate(current)  # validate before writing
         _atomic_write_yaml(self._overrides_path, current)
-        self._cache = None  # sonraki load() yeni değeri görsün
+        self._cache = None  # so that the next load() sees the new value
         return str(self._overrides_path)
 
     def _files(self, kind: str) -> list[Path]:
@@ -400,7 +400,7 @@ def _atomic_write_yaml(path: Path, data: dict) -> None:
     ensure_private_dir(path.parent)
     tmp = path.with_suffix(".yaml.tmp")
     tmp.write_text(
-        "# mlbooster kullanıcı override'ları — `mlbooster catalog set-feature` ile yönetilir.\n"
+        "# mlbooster user overrides — managed with `mlbooster catalog set-feature`.\n"
         + yaml.safe_dump(data, allow_unicode=True, sort_keys=False),
         encoding="utf-8",
     )

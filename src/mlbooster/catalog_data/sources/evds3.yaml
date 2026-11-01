@@ -8,41 +8,41 @@ rate_limit:
   rps: 2
   backoff: exponential
   max_obs_per_call: 1000
-  notes: "TCMB sayısal limit yayımlamıyor; 1000 gözlem limiti borsapy'den, doğrulanmadı (başka bir kaynak 150 olarak belirtiyor)."
+  notes: "TCMB sayısal bir rate limit yayımlamıyor; 1000 gözlemlik limit borsapy'den alındı ve doğrulanmadı (başka bir kaynak 150 olarak belirtiyor)."
 license:
   commercial: true
   redistribution: true
   attribution: required
-  notes: "Kaynak gösterilerek kullanılabilir; veri ürün kullanıcılarına/abonelerine ek ücret olarak yansıtılamaz (EVDS kullanım koşulları)."
+  notes: "Kaynak gösterilerek kullanılabilir; veriler, ürün kullanıcılarına veya abonelere ek ücret olarak yansıtılamaz (EVDS kullanım koşulları)."
 frequency: [D, B, W, SM, M, Q, S, A]
 formats: [json, csv, xml]
 sectors: ["*"]
 publication_lag_days: 1
 verification_status: verified
 verification_notes: >-
-  2026-10-30: uç canlı denendi. Anahtarsız → 403 JSON "Required request header 'key' is not present",
-  geçersiz anahtar → 401 text/plain, evds2.tcmb.gov.tr/service/evds → 302 (kapalı).
-  Geçerli anahtarla veri biçimi (items/Tarih/KOD-<formül>, 2026-1, 2025-Q1, gg-aa-yyyy) canlı doğrulandı.
+  2026-10-30: endpoint canlı olarak test edildi. API key olmadan → 403 JSON "Required request header 'key' is not present",
+  geçersiz API key → 401 text/plain, evds2.tcmb.gov.tr/service/evds → 302 (kapalı).
+  Geçerli API key ile yanıt biçimi (items/Tarih/KOD-<formül>, 2026-1, 2025-Q1, gg-aa-yyyy) canlı olarak doğrulandı.
 known_breaks:
-  - "2024-04-05: API anahtarı URL'den header'a taşındı"
-  - "2025 sonu: evds2 REST ucu kapandı (302 → SPA)"
+  - "2024-04-05: API key URL'den header'a taşındı"
+  - "2025 sonu: evds2 REST endpoint'i kapandı (302 → SPA)"
   - "2026-01: TÜFE 2025=100 bazına ve ECOICOP v2'ye geçti; TP.FG.J0 (2003=100) 2026-01'de bitti → TP.TUKFIY2025.GENEL"
   - "2026: TP.DB.B01 / bie_dbdborc kaldırıldı (HTTP 400) → TP.BRUTDBORCLU.G1"
-  - "2026: TP.DK.*.YTL kodları takma ada dönüştü; kanonik kod TP.DK.USD.A"
+  - "2026: TP.DK.*.YTL kodları alias'a dönüştü; kanonik kod TP.DK.USD.A"
 adapter: evds3
 priority: 1
 series:
-  # Kodlar 2026-10-30'da canlı /serieList ile doğrulandı.
+  # Codes verified live with /serieList on 2026-10-30.
   - {code: TP.DK.USD.A, name: "USD/TRY döviz alış", freq: B, kind: level, unit: TRY, currency: TRY, datagroup: bie_dkdovizgn, publication_lag_days: 0, canary: true}
   - {code: TP.DK.EUR.A, name: "EUR/TRY döviz alış", freq: B, kind: level, unit: TRY, currency: TRY, datagroup: bie_dkdovizgn, publication_lag_days: 0}
   - {code: TP.TUKFIY2025.GENEL, name: "TÜFE genel endeksi (2025=100)", freq: M, kind: level, unit: index, datagroup: bie_tukfiy2025, publication_lag_days: 3, canary: true}
   - {code: TP.APIFON4, name: "TCMB ağırlıklı ortalama fonlama maliyeti", freq: B, kind: level, unit: percent, datagroup: bie_apifon, publication_lag_days: 1}
   - {code: TP.BRUTDBORCLU.G1, name: "Brüt dış borç stoku, toplam", freq: Q, kind: level, unit: million_usd, currency: USD, datagroup: bie_brutdbborclu, publication_lag_days: 90}
   - {code: TP.ENFBEK.PKA12ENF, name: "Piyasa katılımcılarının 12 ay sonrası yıllık enflasyon beklentisi", freq: M, kind: level, unit: percent, datagroup: bie_enfbek, publication_lag_days: 0}
-  # --- Günlük (iş günü)
+  # --- Daily (business day)
   - {code: TP.MK.F.BILESIK, name: "BIST 100 endeksi (kapanış)", freq: B, kind: level, unit: index, datagroup: bie_mkbrgn, publication_lag_days: 1}
   - {code: TP.BISTTLREF.ORAN, name: "TLREF gecelik referans faiz", freq: B, kind: level, unit: percent, datagroup: bie_bisttlref, publication_lag_days: 1}
-  # --- Haftalık (Cuma)
+  # --- Weekly (Friday)
   - {code: TP.KKHARTUT.KT1, name: "Kartlı harcama tutarı, toplam", freq: W, kind: flow, unit: thousand_try, datagroup: bie_kkhartut, publication_lag_days: 14}
   - {code: TP.KKHARTUT.KT3, name: "Kartlı harcama: araç kiralama/satış/servis/yedek parça", freq: W, kind: flow, unit: thousand_try, datagroup: bie_kkhartut, publication_lag_days: 14}
   - {code: TP.KKHARTUT.KT4, name: "Kartlı harcama: benzin ve yakıt istasyonları", freq: W, kind: flow, unit: thousand_try, datagroup: bie_kkhartut, publication_lag_days: 14}
@@ -57,10 +57,10 @@ series:
   - {code: TP.KKHARTUT.KT22, name: "Kartlı harcama: telekomünikasyon", freq: W, kind: flow, unit: thousand_try, datagroup: bie_kkhartut, publication_lag_days: 14}
   - {code: TP.KKHARTUT.KT23, name: "Kartlı harcama: yapı malzemeleri/hırdavat", freq: W, kind: flow, unit: thousand_try, datagroup: bie_kkhartut, publication_lag_days: 14}
   - {code: TP.KKHARTUT.KT24, name: "Kartlı harcama: yemek", freq: W, kind: flow, unit: thousand_try, datagroup: bie_kkhartut, publication_lag_days: 14}
-  - {code: TP.KKHARTUT.KT50, name: "Kartlı harcama: internet üzerinden (bilgi kalemi)", freq: W, kind: flow, unit: thousand_try, datagroup: bie_kkhartut, publication_lag_days: 14}
+  - {code: TP.KKHARTUT.KT50, name: "Kartlı harcama: internet üzerinden (bilgi amaçlı kalem)", freq: W, kind: flow, unit: thousand_try, datagroup: bie_kkhartut, publication_lag_days: 14}
   - {code: TP.AB.TOPLAM, name: "TCMB rezervleri, toplam (altın + döviz)", freq: W, kind: level, unit: million_usd, currency: USD, datagroup: bie_abres2, publication_lag_days: 8}
   - {code: TP.HPBITABLO1.11, name: "M2 para arzı", freq: W, kind: level, unit: thousand_try, datagroup: bie_hpbitablo1, publication_lag_days: 14}
-  # --- Aylık
+  # --- Monthly
   - {code: TP.KARTMETRE.D2, name: "BKM kartlı ödeme endeksi (reel)", freq: M, kind: level, unit: index, datagroup: bie_kartmetre, publication_lag_days: 30}
   - {code: TP.TSANAYMT2021.BCD, name: "Sanayi üretim endeksi, toplam (mevsim ve takvim etkisinden arındırılmış)", freq: M, kind: level, unit: index, datagroup: bie_tsanaymt2021, publication_lag_days: 45}
   - {code: TP.KKO.MA, name: "İmalat sanayi kapasite kullanım oranı (MA)", freq: M, kind: level, unit: percent, datagroup: bie_kkoisma, publication_lag_days: 0}

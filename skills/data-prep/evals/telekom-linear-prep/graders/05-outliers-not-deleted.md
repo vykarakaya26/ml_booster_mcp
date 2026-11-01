@@ -4,4 +4,4 @@ focus: outputs
 weight: 1
 ---
 
-Aykırı değerler silinmiş gibi anlatılmıyor; kırpıldığı ve gösterge değişkenle işaretlendiği belirtiliyor ve yoğunlaştıkları dönemler bilinen şoklarla ilişkilendiriliyor.
+Outlier'lar silinmiş gibi anlatılmıyor; winsorize edildikleri ve gösterge değişkenle (__outlier) işaretlendikleri belirtiliyor ve yoğunlaştıkları dönemler bilinen şoklarla ilişkilendiriliyor.

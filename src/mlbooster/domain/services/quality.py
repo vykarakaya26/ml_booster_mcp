@@ -1,7 +1,7 @@
-"""Panel kalite denetimi: eksiklik, güncellik, aykırı değer, yapısal kırılma, aşırı korelasyon.
+"""Panel quality audit: missingness, timeliness, outliers, structural breaks, excessive correlation.
 
-Bütün kontroller açıklanabilir basit istatistiklerdir. Amaç, modellemeden önce analistin incelemesi
-gereken noktaları işaretlemektir; kesin hüküm vermek değil.
+All checks are simple, explainable statistics. The aim is to flag the points an analyst should review
+before modelling, not to deliver a definitive verdict.
 """
 
 from __future__ import annotations
@@ -13,15 +13,16 @@ from enum import StrEnum
 import numpy as np
 import pandas as pd
 
+from mlbooster.domain.numfmt import tr_num, tr_pct
 from mlbooster.domain.services.distribution import Diagnostics, diagnose_panel
 
-# Türkiye makro verisinde bilinen rejim/şok dönemleri: kırılma bulgularını yorumlamak için bağlam.
+# Known regime/shock periods in Turkish macro data: context for interpreting break findings (Turkish display labels).
 KNOWN_EVENTS: dict[str, str] = {
     "2014-01": "Ocak 2014 TCMB olağanüstü faiz artırımı",
     "2018-08": "Ağustos 2018 kur şoku",
     "2020-03": "COVID-19 şoku",
     "2021-12": "Aralık 2021 kur şoku / KKM",
-    "2023-06": "Para politikasında normalleşme (sıkılaştırma başlangıcı)",
+    "2023-06": "Para politikasında normalleşme (sıkılaştırmanın başlangıcı)",
     "2026-01": "TÜFE 2025=100 baz değişikliği",
 }
 
@@ -67,7 +68,7 @@ class QualityThresholds:
     break_t: float = 4.0
     break_window: int = 24
     collinearity: float = 0.95
-    notable_correlation: float = 0.80  # bu eşikle collinearity arası: bilgi olarak listelenir
+    notable_correlation: float = 0.80  # between this threshold and collinearity: listed for information
 
 
 @dataclass(frozen=True)
@@ -78,7 +79,7 @@ class QualityReport:
     issues: tuple[Issue, ...]
     correlated_pairs: tuple[tuple[str, str, float], ...] = field(default_factory=tuple)
     diagnostics: tuple[Diagnostics, ...] = field(default_factory=tuple)
-    notable_pairs: tuple[tuple[str, str, float, str], ...] = field(default_factory=tuple)  # a, b, r, not
+    notable_pairs: tuple[tuple[str, str, float, str], ...] = field(default_factory=tuple)  # a, b, r, note
 
     @property
     def counts(self) -> dict[str, int]:
@@ -86,7 +87,7 @@ class QualityReport:
 
 
 def _robust_outliers(s: pd.Series, z: float) -> list[pd.Timestamp]:
-    """Medyan mutlak sapma (MAD) tabanlı z-skoru: kalın kuyruklu TR verisinde std'den sağlam."""
+    """Median absolute deviation (MAD) based z-score: more robust than std for heavy-tailed Turkish data."""
     median = s.median()
     mad = (s - median).abs().median()
     if not mad or np.isnan(mad):
@@ -96,8 +97,8 @@ def _robust_outliers(s: pd.Series, z: float) -> list[pd.Timestamp]:
 
 
 def _mean_shift_breaks(s: pd.Series, window: int, threshold: float) -> list[tuple[pd.Timestamp, float]]:
-    """Her ay için önceki/sonraki `window` ayın ortalama farkını havuzlanmış std ile ölçekler (t-istatistiği).
-    Eşiği aşan yerel tepeler, birbirine en az `window` ay uzaklıkta olacak şekilde döner."""
+    """For each month, scales the difference between the means of the preceding/following `window` months by the
+    pooled std (t-statistic). Returns local peaks above the threshold that are at least `window` months apart."""
     values = s.to_numpy(dtype=float)
     n = len(values)
     if n < 2 * window:
@@ -132,7 +133,7 @@ def audit_panel(
     transforms: dict[str, str] | None = None,
     companions: set[frozenset[str]] | None = None,
 ) -> QualityReport:
-    """`companions`: aynı ham seriden türeyen feature çiftleri (ör. aofm / aofm_son); kolineerlik sayılmaz."""
+    """`companions`: feature pairs derived from the same raw series (e.g. aofm / aofm_son); not counted as collinearity."""
     t = thresholds or QualityThresholds()
     companions = companions or set()
     as_of_month = pd.Timestamp(as_of).to_period("M")
@@ -162,16 +163,16 @@ def audit_panel(
         )  # fmt: skip
 
         if months_since > t.stale_months:
-            issues.append(Issue(Severity.HIGH, name, "stale", f"Son gözlem {last.date()} ({months_since} ay önce); serinin yayımı durdurulmuş ya da kodu değiştirilmiş olabilir."))
+            issues.append(Issue(Severity.HIGH, name, "stale", f"Son gözlem {last.date()} ({months_since} ay önce). Serinin yayımı durdurulmuş ya da seri kodu değiştirilmiş olabilir (stale seri)."))
         if missing > t.missing_ratio:
-            issues.append(Issue(Severity.MEDIUM, name, "missing", f"Gözlem aralığı içinde eksik oranı %{missing * 100:.1f}."))
+            issues.append(Issue(Severity.MEDIUM, name, "missing", f"Gözlem aralığındaki eksik değer oranı {tr_pct(missing * 100)}."))
         if outliers:
             sample = ", ".join(str(d.date()) for d in outliers[:5])
-            issues.append(Issue(Severity.MEDIUM, name, "outliers", f"{len(outliers)} aykırı değer (robust z>{t.outlier_z:g}): {sample}"))
+            issues.append(Issue(Severity.MEDIUM, name, "outliers", f"{len(outliers)} outlier (robust z > {tr_num(t.outlier_z, 'g')}): {sample}"))
         for b in breaks:
-            context = f" — eşleşen bilinen olay: {b.event}" if b.event else " — bilinen bir olayla eşleşmedi; incelenmelidir"
+            context = f"; eşleşen bilinen olay: {b.event}" if b.event else "; bilinen bir olayla eşleşmiyor, incelenmesi gerekir"
             severity = Severity.INFO if b.event else Severity.MEDIUM
-            issues.append(Issue(severity, name, "structural_break", f"{b.date:%Y-%m} civarında ortalama kayması (t={b.t_stat:+.1f}){context}."))
+            issues.append(Issue(severity, name, "structural_break", f"{b.date:%Y-%m} civarında ortalamada kayma (t={tr_num(b.t_stat, '+.1f')}){context}."))
         if valid.nunique() <= 1:
             issues.append(Issue(Severity.HIGH, name, "constant", "Seri sabit; model için bilgi taşımaz."))
 
@@ -192,18 +193,18 @@ def audit_panel(
                     notable.append((a, b, round(float(value), 3), "yüksek korelasyon; birlikte kullanılmadan önce değerlendirilmelidir"))
                 if abs(value) >= t.collinearity:
                     pairs.append((a, b, round(float(value), 3)))
-                    issues.append(Issue(Severity.MEDIUM, f"{a} ~ {b}", "collinearity", f"Korelasyon {value:+.2f}; değişkenlerden biri bilgi tekrarına yol açıyor olabilir."))
+                    issues.append(Issue(Severity.MEDIUM, f"{a} ~ {b}", "collinearity", f"Korelasyon {tr_num(value, '+.2f')}; değişkenlerden biri aynı bilgiyi tekrar ediyor olabilir."))
 
     diagnostics = diagnose_panel(panel, transforms)
     for d in diagnostics:
-        if d.stationarity == "birim_kök":
-            issues.append(Issue(Severity.INFO, d.feature, "nonstationary", f"ADF t={d.adf_t}, KPSS={d.kpss_stat}: birim kök (seviye durağan değil)."))
-        elif d.stationarity == "kırılma_şüphesi":
-            issues.append(Issue(Severity.INFO, d.feature, "nonstationary", f"ADF ve KPSS ikisi de reddediyor (t={d.adf_t}, KPSS={d.kpss_stat}): kırılma/rejim şüphesi."))
+        if d.stationarity == "unit_root":
+            issues.append(Issue(Severity.INFO, d.feature, "nonstationary", f"ADF t={tr_num(d.adf_t, 'g')}, KPSS={tr_num(d.kpss_stat, 'g')}: birim kök var (düzey durağan değil)."))
+        elif d.stationarity == "break_suspected":
+            issues.append(Issue(Severity.INFO, d.feature, "nonstationary", f"ADF ve KPSS ikisi de reddediyor (t={tr_num(d.adf_t, 'g')}, KPSS={tr_num(d.kpss_stat, 'g')}): structural break ya da rejim değişikliği şüphesi."))
         if d.managed_path:
-            issues.append(Issue(Severity.INFO, d.feature, "managed_path", "Kontrollü patika: son 12 ayda değişim pozitif ve istikrarlı, oynaklık düşük. Seri rastgele yürüyüş özelliği göstermiyor; ani kırılma riski dağılımın kuyruğunda yoğunlaşıyor."))
+            issues.append(Issue(Severity.INFO, d.feature, "managed_path", "Kontrollü patika: son 12 ayda değişim pozitif ve istikrarlı, oynaklık düşük. Seri random walk gibi davranmıyor; ani kırılma riski dağılımın kuyruğunda yoğunlaşıyor."))
         if d.excess_kurtosis is not None and d.excess_kurtosis > 3:
-            issues.append(Issue(Severity.INFO, d.feature, "heavy_tails", f"Fazla basıklık {d.excess_kurtosis:.1f}: kalın kuyruk (şoklar)."))
+            issues.append(Issue(Severity.INFO, d.feature, "heavy_tails", f"Fazla basıklık {tr_num(d.excess_kurtosis, '.1f')}: kalın kuyruk (şoklar)."))
 
     order = {Severity.HIGH: 0, Severity.MEDIUM: 1, Severity.INFO: 2}
     issues.sort(key=lambda i: (order[i.severity], i.feature))

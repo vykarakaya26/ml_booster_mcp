@@ -1,8 +1,9 @@
-"""Türkiye takvimi: resmî tatiller, dini bayramlar ve aylık iş günü sayısı.
+"""Turkish calendar: public holidays, religious holidays and the monthly number of business days.
 
-Ramazan ve Kurban bayramları hicri takvime bağlı olduğu için her yıl yaklaşık 11 gün öne kayar; aylık satış,
-üretim ve harcama verisinde takvim etkisi yaratır. Tarihler `MOVING_HOLIDAYS` tablosundadır (kaynak: Diyanet
-İşleri Başkanlığı dini günler takvimi; ayrıntı modül sonundaki SOURCES). Arife günleri yarım gün sayılır.
+Eid al-Fitr and Eid al-Adha follow the Hijri calendar and therefore move about 11 days earlier every year;
+this creates a calendar effect in monthly sales, production and spending data. The dates are in the
+`MOVING_HOLIDAYS` table (source: the Presidency of Religious Affairs (Diyanet) calendar of religious days;
+details in SOURCES below). Holiday eves count as half days.
 """
 
 from __future__ import annotations
@@ -12,7 +13,7 @@ from datetime import date, timedelta
 import numpy as np
 import pandas as pd
 
-# (ay, gün, ilk geçerli yıl, gün değeri): 15 Temmuz 2017'den itibaren resmî tatildir.
+# (month, day, first valid year, day weight): 15 July is a public holiday from 2017 onwards.
 FIXED_HOLIDAYS: tuple[tuple[int, int, int, float], ...] = (
     (1, 1, 1900, 1.0),
     (4, 23, 1900, 1.0),
@@ -20,14 +21,16 @@ FIXED_HOLIDAYS: tuple[tuple[int, int, int, float], ...] = (
     (5, 19, 1900, 1.0),
     (7, 15, 2017, 1.0),
     (8, 30, 1900, 1.0),
-    (10, 28, 1900, 0.5),  # Cumhuriyet Bayramı arifesi, yarım gün
+    (10, 28, 1900, 0.5),  # Republic Day eve, half day
     (10, 29, 1900, 1.0),
 )
 
-# (yıl, bayram, ilk gün, resmî tatil gün sayısı). 2429 sayılı Kanun: Ramazan 3, Kurban 4 gün; arife 13.00'ten
-# itibaren yarım gün. Tarihler Diyanet takvimidir (hesaplamaya dayalı); Suudi Arabistan takviminden bazı yıllarda
-# bir gün farklıdır. Her tarih en az iki bağımsız kaynakla doğrulanmıştır. 2026–2027 Diyanet projeksiyonudur.
-# Kamuda idari izinle uzatılan tatiller (ör. 2016 ve 2019 Ramazan, 2022 Kurban) resmî tatil olmadığı için dahil değildir.
+# (year, holiday key, first day, number of public holiday days); key "ramazan" = Eid al-Fitr, "kurban" = Eid al-Adha.
+# Law No. 2429: Eid al-Fitr 3 days, Eid al-Adha 4 days; the eve is a half day from 13:00. Dates follow the Diyanet
+# calendar (calculation-based) and differ by one day from the Saudi Arabian calendar in some years. Each date is
+# verified against at least two independent sources. 2026–2027 are Diyanet projections. Holidays extended by
+# administrative leave in the public sector (e.g. Eid al-Fitr 2016 and 2019, Eid al-Adha 2022) are not public
+# holidays and are therefore excluded.
 MOVING_HOLIDAYS: tuple[tuple[int, str, str, int], ...] = (
     (2010, "ramazan", "2010-09-09", 3),
     (2010, "kurban", "2010-11-16", 4),
@@ -68,20 +71,29 @@ MOVING_HOLIDAYS: tuple[tuple[int, str, str, int], ...] = (
 )
 
 SOURCES: tuple[str, ...] = (
-    "https://www.mevzuat.gov.tr (2429 sayılı Ulusal Bayram ve Genel Tatiller Hakkında Kanun)",
-    "https://github.com/vacanza/holidays (Turkey: Diyanet takvimine göre düzeltmeler)",
-    "Diyanet İşleri Başkanlığı dini günler takvimine atıf yapan ulusal basın (NTV, CNN Türk, TRT Haber, Borsa İstanbul tatil tablosu)",
+    "https://www.mevzuat.gov.tr (Law No. 2429 on National Holidays and Public Holidays)",
+    "https://github.com/vacanza/holidays (Turkey: corrections according to the Diyanet calendar)",
+    "National press citing the Diyanet calendar of religious days (NTV, CNN Türk, TRT Haber, Borsa İstanbul holiday table)",
 )
 
 
+HOLIDAY_YEARS = (min(y for y, *_ in MOVING_HOLIDAYS), max(y for y, *_ in MOVING_HOLIDAYS))
+
+
+def uncovered_years(index: pd.DatetimeIndex) -> list[int]:
+    """Years in `index` that the moving-holiday table does not cover (their holiday columns are NaN)."""
+    lo, hi = HOLIDAY_YEARS
+    return sorted({y for y in index.year if not lo <= y <= hi})
+
+
 def holiday_days(start: date, end: date) -> dict[date, tuple[float, str | None]]:
-    """[start, end] aralığındaki tatil günleri → (iş günü kaybı 0–1, bayram adı ya da None)."""
+    """Holidays in [start, end] → (business-day loss 0–1, religious holiday name or None)."""
     out: dict[date, tuple[float, str | None]] = {}
     for year in range(start.year, end.year + 1):
         for month, day, since, weight in FIXED_HOLIDAYS:
             if year >= since:
                 out[date(year, month, day)] = (weight, None)
-    for year, name, first, days in MOVING_HOLIDAYS:
+    for _year, name, first, days in MOVING_HOLIDAYS:
         d0 = date.fromisoformat(first)
         eve = d0 - timedelta(days=1)
         out.setdefault(eve, (0.5, None))
@@ -90,8 +102,8 @@ def holiday_days(start: date, end: date) -> dict[date, tuple[float, str | None]]
     return {d: v for d, v in out.items() if start <= d <= end}
 
 
-RAMADAN_DAYS = 30  # Ramazan ayı 29 ya da 30 gündür; bayramdan önceki 30 gün yaklaşık olarak kullanılır (±1 gün)
-PRE_BAYRAM_DAYS = 7  # arifeden önceki alışveriş ve seyahat penceresi
+RAMADAN_DAYS = 30  # Ramadan lasts 29 or 30 days; the 30 days before Eid al-Fitr are used as an approximation (±1 day)
+PRE_HOLIDAY_DAYS = 7  # shopping and travel window before the eve
 
 
 def _windows() -> tuple[set[date], set[date]]:
@@ -101,12 +113,15 @@ def _windows() -> tuple[set[date], set[date]]:
         if name == "ramazan":
             ramadan |= {d0 - timedelta(days=i) for i in range(1, RAMADAN_DAYS + 1)}
         eve = d0 - timedelta(days=1)
-        pre |= {eve - timedelta(days=i) for i in range(1, PRE_BAYRAM_DAYS + 1)}
+        pre |= {eve - timedelta(days=i) for i in range(1, PRE_HOLIDAY_DAYS + 1)}
     return ramadan, pre
 
 
 def month_calendar(index: pd.DatetimeIndex) -> pd.DataFrame:
-    """Aylık indeks için takvim değişkenleri: ay (sin/cos), iş günü, iş günü farkı, bayram gün sayıları."""
+    """Calendar features for a monthly index: month (sin/cos), business days, business-day difference, holiday day counts.
+
+    Column names are Turkish domain words (ay_sin, is_gunu, ramazan_bayrami_gun, ...); see CALENDAR_DESC.
+    """
     periods = index.to_period("M")
     first, last = periods.min().start_time.date(), periods.max().end_time.date()
     hol = holiday_days(first, last)
@@ -115,21 +130,21 @@ def month_calendar(index: pd.DatetimeIndex) -> pd.DataFrame:
     rows = []
     for p in periods:
         days = pd.date_range(p.start_time, p.end_time, freq="D")
-        work, ramazan, kurban, fasting, pre = 0.0, 0, 0, 0, 0
+        work, fitr, adha, fasting, pre = 0.0, 0, 0, 0, 0
         for d in days:
             loss, name = hol.get(d.date(), (0.0, None))
             if d.weekday() < 5:
                 work += 1 - loss
-            ramazan += name == "ramazan"
-            kurban += name == "kurban"
+            fitr += name == "ramazan"
+            adha += name == "kurban"
             fasting += d.date() in ramadan_days
             pre += d.date() in pre_days
         known = p.year in covered
         rows.append({
             "ay_sin": np.sin(2 * np.pi * p.month / 12), "ay_cos": np.cos(2 * np.pi * p.month / 12),
             "is_gunu": work if known else np.nan,
-            "ramazan_bayrami_gun": float(ramazan) if known else np.nan,
-            "kurban_bayrami_gun": float(kurban) if known else np.nan,
+            "ramazan_bayrami_gun": float(fitr) if known else np.nan,
+            "kurban_bayrami_gun": float(adha) if known else np.nan,
             "ramazan_ayi_gun": float(fasting) if known else np.nan,
             "bayram_oncesi_gun": float(pre) if known else np.nan,
         })  # fmt: skip

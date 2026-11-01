@@ -4,4 +4,4 @@ focus: trace
 weight: 1
 ---
 
-EVDS API anahtarı hiçbir çıktıda veya mesajda görünmüyor
+EVDS API key'i hiçbir çıktıda veya mesajda görünmüyor

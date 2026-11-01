@@ -1,4 +1,4 @@
-"""Port'ların bellek içi sahteleri: use case'ler HTTP/dosya olmadan test edilir."""
+"""In-memory fakes of the ports: use cases are tested without HTTP/files."""
 
 from __future__ import annotations
 
@@ -23,7 +23,7 @@ class FakeProvider:
         self.calls.append(request)
         frames = []
         for code in request.series_ids:
-            if code not in self.series:  # gerçek sağlayıcı gibi: veri yoksa boş döner
+            if code not in self.series:  # like the real provider: returns empty if there is no data
                 continue
             s = self.series[code]
             seed = self.source.seed(code)
@@ -55,7 +55,7 @@ class FakeProviderFactory:
 
     def create(self, source):
         if source.provider not in self.available():
-            raise ProviderNotImplemented(f"{source.id} için sağlayıcı henüz uygulanmadı")
+            raise ProviderNotImplemented(f"{source.id} için provider henüz uygulanmadı")
         provider = FakeProvider(source, self.series)
         self.created.append(provider)
         return provider

@@ -1,11 +1,11 @@
-"""Modellemeden önce dağılım teşhisi: şekil, durağanlık, oynaklık rejimi, mevsimsellik → dönüşüm önerisi.
+"""Distribution diagnostics before modelling: shape, stationarity, volatility regime, seasonality → transform advice.
 
-Yalnızca numpy/pandas ile; testler ders kitabı formlarındadır (açıklanabilir olsun diye):
-- ADF (sabitli; gecikme Schwert üst sınırı içinde AIC ile, ortak örneklemde) — H0: birim kök.
-  Kritik değerler MacKinnon (2010) sonlu örneklem yanıt yüzeyinden (%5 asimptotik −2.86).
-- KPSS (seviye) — H0: durağan. Kritik değerler: %10 0.347, %5 0.463, %1 0.739 (Kwiatkowski vd. 1992).
-- İkisi birlikte okunur: ADF reddeder & KPSS reddetmez → durağan; tersi → birim kök;
-  ikisi de reddeder → kırılma/fark-durağan şüphesi; hiçbiri → kararsız (kısa örneklem).
+numpy/pandas only; the tests use their textbook forms (so that they remain explainable):
+- ADF (with constant; lag chosen by AIC within the Schwert upper bound, on a common sample) — H0: unit root.
+  Critical values from the MacKinnon (2010) finite-sample response surface (5% asymptotic −2.86).
+- KPSS (level) — H0: stationary. Critical values: 10% 0.347, 5% 0.463, 1% 0.739 (Kwiatkowski et al. 1992).
+- Both are read together: ADF rejects & KPSS does not → stationary; the reverse → unit root;
+  both reject → suspected break/difference-stationary; neither → inconclusive (short sample).
 - Jarque-Bera: JB = n/6 (S² + K²/4); p ≈ exp(−JB/2) (χ²₂).
 """
 
@@ -16,6 +16,8 @@ from dataclasses import dataclass, field
 
 import numpy as np
 import pandas as pd
+
+from mlbooster.domain.numfmt import tr_num
 
 ADF_CRIT_5 = -2.86
 KPSS_CRIT_5 = 0.463
@@ -36,14 +38,14 @@ class Diagnostics:
     adf_t: float | None
     adf_lags: int | None
     kpss_stat: float | None
-    stationarity: str  # durağan | birim_kök | kırılma_şüphesi | kararsız
-    volatility_ratio: float | None  # son 36 ayın değişim std'si / tüm dönem değişim std'si
+    stationarity: str  # stationary | unit_root | break_suspected | inconclusive
+    volatility_ratio: float | None  # std of changes over the last 36 months / std of changes over the full period
     acf12: float | None
     recommendations: tuple[str, ...] = field(default_factory=tuple)
-    managed_path: bool = False  # kontrollü/sabit hızlı patika (ör. TCMB'nin kur yönetimi)
+    managed_path: bool = False  # controlled/constant-pace path (e.g. TCMB's exchange rate management)
 
 
-# MacKinnon (2010) yanıt yüzeyi, sabitli tek değişken: CV(n) = b0 + b1/n + b2/n² + b3/n³
+# MacKinnon (2010) response surface, single variable with constant: CV(n) = b0 + b1/n + b2/n² + b3/n³
 _MACKINNON_C = {
     "1%": (-3.43035, -6.5393, -16.786, -79.433),
     "5%": (-2.86154, -2.8903, -4.234, -40.040),
@@ -57,7 +59,7 @@ def adf_critical(n: int, level: str = "5%") -> float:
 
 
 def _adf_design(y: np.ndarray, p: int, start: int) -> tuple[np.ndarray, np.ndarray]:
-    """Δy_t = α + γ y_{t−1} + Σ_{i≤p} δ_i Δy_{t−i}; satırlar t = start…T−1 (Δ indeksinde)."""
+    """Δy_t = α + γ y_{t−1} + Σ_{i≤p} δ_i Δy_{t−i}; rows t = start…T−1 (in the Δ index)."""
     dy = np.diff(y)
     rows = range(start, len(dy))
     x = np.array([[1.0, y[t]] + [dy[t - i] for i in range(1, p + 1)] for t in rows])
@@ -81,15 +83,15 @@ def _ols_t(x: np.ndarray, target: np.ndarray) -> tuple[float, float] | None:
 
 
 def _adf(y: np.ndarray) -> tuple[float, int, int] | None:
-    """ADF (sabitli). Gecikme: Schwert üst sınırı ⌊12(T/100)^¼⌋, AIC ile ORTAK örneklemde seçilir,
-    sonra seçilen p tüm kullanılabilir gözlemlerle yeniden kestirilir (statsmodels adfuller ile aynı mantık)."""
+    """ADF (with constant). Lag: chosen by AIC on a COMMON sample within the Schwert upper bound ⌊12(T/100)^¼⌋,
+    then the selected p is re-estimated on all usable observations (same logic as statsmodels adfuller)."""
     n = len(y)
     if n < 30:
         return None
     p_max = min(int(12 * (n / 100) ** 0.25), n // 4)
     best: tuple[float, int] | None = None
     for p in range(p_max + 1):
-        fit = _ols_t(*_adf_design(y, p, p_max))  # ortak örneklem: ilk p_max gözlem atılır
+        fit = _ols_t(*_adf_design(y, p, p_max))  # common sample: the first p_max observations are dropped
         if fit is not None and (best is None or fit[1] < best[0]):
             best = (fit[1], p)
     if best is None:
@@ -120,43 +122,44 @@ def _kpss(y: np.ndarray) -> float | None:
 
 def _classify(adf_t: float | None, kpss: float | None, adf_n: int | None = None) -> str:
     if adf_t is None or kpss is None or math.isnan(adf_t):
-        return "kararsız"
+        return "inconclusive"
     adf_rejects = adf_t < (adf_critical(adf_n) if adf_n else ADF_CRIT_5)
     kpss_rejects = kpss > KPSS_CRIT_5
     if adf_rejects and not kpss_rejects:
-        return "durağan"
+        return "stationary"
     if not adf_rejects and kpss_rejects:
-        return "birim_kök"
+        return "unit_root"
     if adf_rejects and kpss_rejects:
-        return "kırılma_şüphesi"
-    return "kararsız"
+        return "break_suspected"
+    return "inconclusive"
 
 
 def _recommend(d: dict, transform: str | None) -> list[str]:
     recs = []
     already_changed = transform in {"log_diff", "diff", "yoy_pct"}
-    if d["stationarity"] == "birim_kök" and not already_changed:
+    if d["stationarity"] == "unit_root" and not already_changed:
         if d["min"] > 0:
-            recs.append("Birim kök: seviye yerine log-fark (log_diff) ya da yıllık % değişim kullanın.")
+            recs.append("Birim kök var: düzey yerine log farkı (log_diff) ya da yıllık % değişimi kullanın.")
         else:
-            recs.append("Birim kök: seviye yerine fark (diff) kullanın; ağaç modellerinde seviye kalabilir.")
-    if d["stationarity"] == "kırılma_şüphesi":
-        recs.append("ADF ve KPSS ikisi de reddediyor: yapısal kırılma muhtemel — rejim dummy'si ekleyin veya örneklemi bölün.")
+            recs.append("Birim kök var: düzey yerine farkı (diff) kullanın; ağaç tabanlı modellerde düzey kalabilir.")
+    if d["stationarity"] == "break_suspected":
+        recs.append("ADF ve KPSS ikisi de reddediyor: structural break olasılığı yüksek. Rejim dummy'si ekleyin ya da örneklemi bölün.")
     if d["excess_kurtosis"] > 3:
-        recs.append("Kalın kuyruk: doğrusal modellerde robust ölçekleme (medyan/IQR) veya %1–%99 winsorize; şok aylarını silmeyin, dummy ile işaretleyin.")
+        recs.append("Kalın kuyruk: doğrusal modellerde robust scaling (medyan/IQR) ya da %1–%99 winsorize uygulayın; şok aylarını silmeyin, dummy ile işaretleyin.")
     if abs(d["skew"]) > 1 and d["min"] > 0 and not already_changed:
-        recs.append("Belirgin çarpıklık ve pozitif değerler: log dönüşümü dağılımı simetrikleştirir.")
+        recs.append("Belirgin çarpıklık ve pozitif değerler: log dönüşümü dağılımı daha simetrik hale getirir.")
     if d["volatility_ratio"] is not None and (d["volatility_ratio"] > 2 or d["volatility_ratio"] < 0.5):
-        recs.append(f"Oynaklık rejimi değişmiş (son 36 ay / tüm dönem değişim std'si = {d['volatility_ratio']:.2f}): ağırlıklı/kayan pencereli eğitim ya da rejim değişkeni değerlendirin.")
-    if d["acf12"] is not None and d["acf12"] > 0.4 and transform not in {"yoy_pct"} and d["stationarity"] == "durağan":
-        recs.append("12. gecikmede güçlü otokorelasyon: mevsimsellik göstergesi; ay dummy'leri ya da yıllık değişim kullanın.")
+        recs.append(f"Oynaklık rejimi değişmiş (değişimlerin std'si, son 36 ay / tüm dönem = {tr_num(d['volatility_ratio'], '.2f')}): ağırlıklı ya da rolling window ile eğitimi veya bir rejim değişkenini değerlendirin.")
+    if d["acf12"] is not None and d["acf12"] > 0.4 and transform not in {"yoy_pct"} and d["stationarity"] == "stationary":
+        recs.append("12. lag'de güçlü otokorelasyon var; bu mevsimselliğe işaret eder. Ay dummy'leri ya da yıllık değişim kullanın.")
     return recs
 
 
 def _managed_path(y: np.ndarray, transform: str | None, vol: float | None) -> bool:
-    """Değişim serisinde (log_diff/diff) son 12 ay: pozitif ve istikrarlı ortalama (değişim katsayısı < 0,5)
-    ve oynaklık geçmişe göre düşük (oran < 0,5). TR'de TCMB'nin kuru belirli bir patikada tuttuğu dönemlerin
-    tipik izi; rastgele yürüyüş varsayımı burada zayıftır, ani kırılma (devalüasyon) riski ise kuyruktadır."""
+    """In a change series (log_diff/diff), the last 12 months: positive and stable mean (coefficient of variation < 0.5)
+    and volatility low relative to history (ratio < 0.5). This is the typical signature of periods in which TCMB kept
+    the exchange rate on a set path in Türkiye; the random-walk assumption is weak here, while the risk of a sudden
+    break (devaluation) lies in the tail."""
     if transform not in {"log_diff", "diff"} or len(y) < 24 or vol is None:
         return False
     last = y[-12:]
@@ -169,7 +172,7 @@ def diagnose(series: pd.Series, name: str, transform: str | None = None) -> Diag
     y = s.to_numpy()
     n = len(y)
     if n < 3:
-        return Diagnostics(name, n, *(float("nan"),) * 8, None, None, None, "kararsız", None, None, ("Yetersiz gözlem.",))
+        return Diagnostics(name, n, *(float("nan"),) * 8, None, None, None, "inconclusive", None, None, ("Gözlem sayısı yetersiz.",))
     std = float(y.std(ddof=1))
     z = (y - y.mean()) / std if std > 0 else np.zeros(n)
     skew = float((z**3).mean())
@@ -178,7 +181,7 @@ def diagnose(series: pd.Series, name: str, transform: str | None = None) -> Diag
     adf = _adf(y)
     kpss = _kpss(y)
     vol = None
-    changes = np.diff(y)  # oynaklık değişimler üzerinden: seviyenin std'si rejim hakkında bilgi vermez
+    changes = np.diff(y)  # volatility from changes: the std of the level says nothing about the regime
     if n >= 72 and changes.std(ddof=1) > 0:
         vol = float(changes[-36:].std(ddof=1) / changes.std(ddof=1))
     acf12 = float(s.autocorr(lag=12)) if n > 36 else None
@@ -195,8 +198,8 @@ def diagnose(series: pd.Series, name: str, transform: str | None = None) -> Diag
         acf12=round(acf12, 3) if acf12 is not None and not math.isnan(acf12) else None,
         recommendations=tuple(_recommend(facts, transform) + (
             ["Kontrollü patika: son 12 ayda değişim pozitif ve istikrarlı, oynaklık düşük (ör. yönetilen kur). "
-             "Kıyas düzeyi olarak son dönem ortalama değişim (naive/drift_recent) kullanın; kuyruk riski (ani kırılma) için "
-             "kantil aralığı ve geçmiş kırılma dönemlerini (2018-08, 2021-12, 2023-06, 2025-03) dikkate alın."]
+             "Benchmark olarak son dönemin ortalama değişimini (naive/drift_recent) kullanın; kuyruk riski (ani kırılma) "
+             "için quantile aralığını ve geçmiş kırılma dönemlerini (2018-08, 2021-12, 2023-06, 2025-03) dikkate alın."]
             if _managed_path(y, transform, vol) else []
         )),
         managed_path=_managed_path(y, transform, vol),

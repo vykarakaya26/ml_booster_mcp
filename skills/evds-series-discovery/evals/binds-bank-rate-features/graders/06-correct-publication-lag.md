@@ -4,4 +4,4 @@ focus: trace
 weight: 1
 ---
 
-Haftalık faiz serileri için yayın gecikmesini gerçek yayın takvimine uygun (yaklaşık 14 gün) veriyor ya da verinin son tarihinden gerekçelendiriyor
+Haftalık faiz serileri için publication lag'i gerçek yayın takvimine uygun veriyor (yaklaşık 14 gün) ya da verinin son tarihine dayanarak gerekçelendiriyor

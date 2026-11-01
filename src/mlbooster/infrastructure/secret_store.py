@@ -1,4 +1,4 @@
-"""Sır değer nesnesi: repr/str/log çıktısında asla açık değer göstermez."""
+"""Secret value object: never shows the plain value in repr/str/log output."""
 
 from __future__ import annotations
 
@@ -11,7 +11,7 @@ class Secret:
 
     def __init__(self, value: str):
         if not value:
-            raise ValueError("Boş sır")
+            raise ValueError("Empty secret")
         self._value = value
 
     def reveal(self) -> str:
@@ -22,8 +22,8 @@ class Secret:
 
     __str__ = __repr__
 
-    def __reduce__(self):  # pickle ile sızmayı engelle
-        raise TypeError("Secret serileştirilemez")
+    def __reduce__(self):  # prevent leaking via pickle
+        raise TypeError("Secret cannot be serialized")
 
 
 class EnvSecretProvider:
@@ -33,7 +33,7 @@ class EnvSecretProvider:
 
 
 def redact(text: str, secrets: Iterable[Secret | None]) -> str:
-    """Hata mesajlarına sızabilecek sır değerlerini maskeler (ör. sunucunun yankıladığı header)."""
+    """Masks secret values that could leak into error messages (e.g. a header echoed back by the server)."""
     for secret in secrets:
         if secret is not None:
             text = text.replace(secret.reveal(), "********")

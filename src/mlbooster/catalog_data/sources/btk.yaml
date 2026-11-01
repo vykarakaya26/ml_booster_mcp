@@ -8,6 +8,6 @@ license: {attribution: required, notes: "Kamuya açık yayın."}
 frequency: [Q]
 formats: [pdf]
 sectors: [telekom]
-publication_lag_days: 100  # tahmini; Ç4 raporu Ocak'tan geç yayımlanıyor
+publication_lag_days: 100  # estimated; the Q4 report is published after January
 verification_status: reported
 priority: 7

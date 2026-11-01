@@ -1,5 +1,5 @@
-"""Silver: Parquet + DuckDB. Her yazım yeni bir vintage dosyasıdır; okumada her anahtar için
-`as_of` anına kadarki en son vintage seçilir (revizyonlar korunur, look-ahead yok)."""
+"""Silver: Parquet + DuckDB. Every write is a new vintage file; on read, the latest vintage up to
+`as_of` is selected for each key (revisions are preserved, no look-ahead)."""
 
 from __future__ import annotations
 
@@ -41,13 +41,13 @@ class ParquetObservationStore:
         self._root = root
 
     def _dir(self, source_id: str) -> Path:
-        return self._root / f"source_id={slug(source_id, 'kaynak')}"
+        return self._root / f"source_id={slug(source_id, 'source')}"
 
     def write(self, observations: pd.DataFrame) -> None:
         if observations.empty:
             return
         df = validate_observations(observations)
-        table = pa.Table.from_pandas(df, schema=ARROW_SCHEMA, preserve_index=False)  # tip doğrulaması
+        table = pa.Table.from_pandas(df, schema=ARROW_SCHEMA, preserve_index=False)  # type validation
         for source_id in df["source_id"].unique():
             part = table.filter(pc.equal(table["source_id"], source_id))
             directory = ensure_private_dir(self._dir(source_id))
@@ -62,7 +62,7 @@ class ParquetObservationStore:
         as_of: datetime | None = None,
     ) -> pd.DataFrame:
         directory = self._dir(source_id)
-        codes = series_codes(series_ids) if series_ids else ()  # önce doğrula, sonra dosyaya bak
+        codes = series_codes(series_ids) if series_ids else ()  # validate first, then look at the files
         if not any(directory.glob("*.parquet")):
             return empty_observations()
         where, params = ["TRUE"], [str(directory / "*.parquet")]
@@ -72,7 +72,7 @@ class ParquetObservationStore:
         if as_of is not None:
             where.append("vintage_ts <= ?")
             params.append(as_of)
-        # Tüm değerler parametre olarak bağlanır; SQL'e yalnızca sabit kolon adları girer.
+        # All values are bound as parameters; only fixed column names enter the SQL.
         query = f"""
             SELECT {", ".join(OBSERVATION_COLUMNS)}
             FROM read_parquet(?, union_by_name = true, hive_partitioning = false)

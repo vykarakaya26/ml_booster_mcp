@@ -1,8 +1,9 @@
-"""Frekans hizalama: her şey aylık dönem sonu takvimine indirgenir.
+"""Frequency alignment: everything is converted to a month-end calendar.
 
-Nokta-zamanlı kural: bir gözlem, yayımlandığı tarihin (`gözlem/dönem sonu + publication_lag_days`)
-düştüğü ayın satırına yazılır. Sık serilerde bu kayma her gözleme toplamadan önce uygulanır; seyrek
-serilerde dönem sonuna. Böylece t ayının satırında yalnızca t sonunda bilinen veri olur (look-ahead yok).
+Point-in-time rule: an observation is written to the row of the month in which its publication date
+(`observation/period end + publication_lag_days`) falls. For high-frequency series this shift is applied
+to each observation before aggregation; for low-frequency series, to the period end. The row for month t
+therefore contains only data known at the end of t (no look-ahead).
 """
 
 from __future__ import annotations
@@ -28,10 +29,11 @@ def to_monthly(
     kind: SeriesKind = SeriesKind.LEVEL,
     publication_lag_days: int = 0,
 ) -> pd.Series:
-    """Tarih indeksli seriyi aylık dönem sonu serisine çevirir.
+    """Converts a date-indexed series to a month-end series.
 
-    Sık→aylık: seviye için `avg` (varsayılan), akım için `sum`. Günlük seride eksik son ay atılır.
-    Seyrek→aylık: yayın gecikmesine göre kaydırılıp yalnızca ileriye doldurulur.
+    Higher→monthly: `avg` (default) for levels, `sum` for flows. For daily series an incomplete last
+    month is dropped.
+    Lower→monthly: shifted by the publication lag and only forward-filled.
     """
     s = s.dropna().sort_index()
     if s.empty:
@@ -39,8 +41,8 @@ def to_monthly(
     s.index = pd.DatetimeIndex(s.index)
 
     if freq.is_high:
-        # Gecikme TOPLAMADAN ÖNCE her gözleme uygulanır: t ayının satırı, t içinde yayımlanmış
-        # gözlemlerin özetidir. (Toplamadan sonra kaydırmak ay içi bilgiyi bir ay geç gösterirdi.)
+        # The lag is applied to each observation BEFORE aggregation: the row for month t summarises
+        # the observations published during t. (Shifting after aggregation would show intra-month data a month late.)
         if publication_lag_days:
             s.index = s.index + pd.Timedelta(days=publication_lag_days)
         default = Aggregation.SUM if kind is SeriesKind.FLOW else Aggregation.AVG
@@ -54,12 +56,12 @@ def to_monthly(
         monthly.index = _month_end(monthly.index)
 
     if publication_lag_days and not freq.is_high:
-        # Seyrek seride gecikme SABİT bir ay kaymasıdır: gözlemlerin yayın ayına uzaklıklarının en
-        # büyüğü. Gözlem başına kaydırmak, ay uzunlukları farklı olduğu için iki dönemi aynı aya
-        # düşürürdü (Ocak+30g = 2 Mart, Şubat+30g = 30 Mart → Ocak kaybolur). En büyüğü almak
-        # hiçbir değerin yayımlanmadan önce görünmemesini garanti eder.
+        # For low-frequency series the lag is a FIXED month shift: the largest distance between an
+        # observation and its publication month. Shifting per observation would map two periods to the
+        # same month because month lengths differ (Jan+30d = 2 Mar, Feb+30d = 30 Mar → Jan is lost). Taking
+        # the largest guarantees that no value appears before it is published.
         available = _month_end(pd.DatetimeIndex(monthly.index + pd.Timedelta(days=publication_lag_days)))
-        shift = int(max((a.to_period("M") - p.to_period("M")).n for a, p in zip(available, monthly.index)))
+        shift = int(max((a.to_period("M") - p.to_period("M")).n for a, p in zip(available, monthly.index, strict=True)))
         monthly.index = _month_end(monthly.index + pd.offsets.MonthEnd(shift)) if shift else monthly.index
 
     monthly = monthly.dropna()
@@ -70,7 +72,7 @@ def to_monthly(
     return monthly
 
 
-# --- Haftalık / iş günlük panel ----------------------------------------------------------------
+# --- Weekly / business-day panel --------------------------------------------------------------
 
 PANEL_FREQS = {"M": "ME", "W": "W-FRI", "B": "B"}
 PERIODS_PER_YEAR = {"M": 12, "W": 52, "B": 252}
@@ -84,20 +86,20 @@ def to_frequency(
     kind: SeriesKind = SeriesKind.LEVEL,
     publication_lag_days: int = 0,
 ) -> pd.Series:
-    """Seriyi hedef panel frekansına (M aylık, W haftalık-Cuma, B iş günü) nokta-zamanlı taşır.
+    """Moves the series point-in-time to the target panel frequency (M monthly, W weekly-Friday, B business day).
 
-    Her gözlem önce yayın tarihine kaydırılır (gözlem/dönem sonu + gecikme). Hedeften sık seriler bu
-    tarihe göre hedef dönemlere toplanır; seyrek seriler yalnızca yayımlandıkları günden itibaren ileriye
-    doldurulur. Böylece bir satırda yalnızca o satırın tarihinde yayımlanmış veri bulunur."""
+    Each observation is first shifted to its publication date (observation/period end + lag). Series with a
+    higher frequency than the target are aggregated into target periods by that date; lower-frequency series
+    are only forward-filled from their publication date. A row therefore contains only data published by its date."""
     if target == "M":
         return to_monthly(s, freq, agg, kind, publication_lag_days)
     if target not in PANEL_FREQS:
-        raise ValueError(f"Panel frekansı {list(PANEL_FREQS)} olmalı: {target}")
+        raise ValueError(f"Panel frekansı şunlardan biri olmalıdır: {list(PANEL_FREQS)} (verilen: {target})")
     s = s.dropna().sort_index()
     if s.empty:
         return s
     rule = PANEL_FREQS[target]
-    s.index = pd.DatetimeIndex(s.index) + pd.Timedelta(days=publication_lag_days)  # yayın tarihi
+    s.index = pd.DatetimeIndex(s.index) + pd.Timedelta(days=publication_lag_days)  # publication date
     finer = (target == "W" and freq in {Frequency.DAILY, Frequency.BUSINESS, Frequency.HOURLY}) or (
         target == "B" and freq is Frequency.HOURLY
     )
@@ -106,10 +108,10 @@ def to_frequency(
         out = s.resample(rule).agg(_PANDAS_AGG[agg or default])
         last = s.index.max()
         if target == "W" and last < (last + pd.offsets.Week(weekday=4, n=0)).normalize():
-            out = out.iloc[:-1]  # tamamlanmamış son hafta
+            out = out.iloc[:-1]  # incomplete last week
     else:
-        # Aynı ya da daha seyrek: yayın tarihinden itibaren ileriye doldur (as-of birleştirme).
-        # Son değer, bir sonraki dönemin yayımına kadar geçerlidir: ileriye doldurma ufku ≈ bir dönem.
+        # Same or lower frequency: forward-fill from the publication date (as-of join).
+        # The last value is valid until the next period is published: forward-fill horizon ≈ one period.
         horizon = pd.Timedelta(days=max(7, int(freq.min_period_days * 1.15)))
         grid = pd.date_range(s.index.min().normalize(), s.index.max().normalize() + horizon, freq=rule)
         s = s[~s.index.duplicated(keep="last")]
