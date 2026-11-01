@@ -124,3 +124,15 @@ def test_cli_web_command_is_registered():
 
     out = CliRunner().invoke(cli.app, ["web", "--help"])
     assert out.exit_code == 0 and "127.0.0.1" in out.output
+
+
+def test_free_port_skips_busy_port():
+    import socket
+
+    from mlbooster.interfaces.cli import _free_port
+
+    with socket.socket() as busy:
+        busy.bind(("127.0.0.1", 0))
+        busy.listen()
+        port = busy.getsockname()[1]
+        assert _free_port(port) not in (None, port)

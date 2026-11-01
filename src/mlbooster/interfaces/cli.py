@@ -445,6 +445,20 @@ def version(check: Annotated[bool, typer.Option("--check", help="GitHub'daki en 
             typer.echo("Kurulu sürüm güncel.")
 
 
+def _free_port(start: int, attempts: int = 20) -> int | None:
+    """127.0.0.1 üzerinde `start`tan başlayarak bağlanılabilen ilk portu döner."""
+    import socket
+
+    for port in range(start, min(start + attempts, 65536)):
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+            try:
+                sock.bind(("127.0.0.1", port))
+            except OSError:
+                continue
+            return port
+    return None
+
+
 @app.command()
 def web(
     port: Annotated[int, typer.Option(min=1024, max=65535, help="Yerel port")] = 8765,
@@ -458,6 +472,12 @@ def web(
 
     from mlbooster.interfaces.web import create_app
 
+    free = _free_port(port)
+    if free is None:
+        _fail(Exception(f"{port}–{port + 19} aralığında boş port yok; --port ile başka bir port verin."))
+    if free != port:
+        typer.echo(f"{port} numaralı port kullanımda; {free} kullanılıyor.")
+    port = free
     url = f"http://127.0.0.1:{port}/"
     typer.echo(f"ML Booster paneli: {url}  (durdurmak için Ctrl+C)")
     if open_browser:
