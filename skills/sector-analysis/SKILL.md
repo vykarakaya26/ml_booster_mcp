@@ -9,8 +9,8 @@ allowed-tools:
 # Sektör analizi
 
 Kullanıcının seçtiği sektör için veriyi baştan sona otonom hazırla ve tek bir HTML rapor teslim et.
-Rapordaki her sayı, bu akışın ürettiği dosyalardan gelmelidir. Okuyucu bu raporla karar veya
-modelleme yapacağı için uydurma ya da tahmini bir rakam güveni bozar.
+Rapordaki her sayı, bu akışın ürettiği dosyalardan gelmelidir. Okur bu raporu karar ve modelleme
+için kullanacağından, kaynağı olmayan ya da tahmine dayalı bir rakam raporun güvenilirliğini zedeler.
 
 ## Araçlar
 
@@ -32,7 +32,7 @@ MLB="${CLAUDE_SKILL_DIR}/../_shared/bin/mlb"
   dosyasına `EVDS_API_KEY=...` satırıyla koymasını söyle. Anahtar evds3.tcmb.gov.tr → Benim Sayfam →
   Profilim → "API KEY KOPYALA" yolundan alınır. Anahtarı sohbete yapıştırmasını isteme, dosyayı okuma
   ve anahtarı hiçbir çıktıya yazma.
-- `fail` görürsen hata mesajını kullanıcıya aynen ilet. Durmuş seri ve kod değişikliği gibi bilinen
+- `fail` görürsen hata mesajını kullanıcıya aynen ilet. Güncelliğini yitirmiş seri ve kod değişikliği gibi bilinen
   sorunlar için `evds-series-discovery` skill'ine yönlendir.
 
 ### 1. Sektörü ve çalışma klasörünü belirle
@@ -43,7 +43,7 @@ SECTOR=otomotiv; OUT="mlbooster-reports/${SECTOR}-$(date +%Y%m%d)"; mkdir -p "$O
 Sektörler: bankacilik, sigorta, telekom, otomotiv, akaryakit, perakende, turizm, konut ve
 makro_genel (günlük, haftalık ve aylık geniş makro havuzu). Kullanıcının sektörü katalogda yoksa
 en yakın sektörü öner ve farkı açıkça söyle (ör. "beyaz eşya"
-için otomotiv + perakende proxy'leri). Yoksa bir sektör uydurma.
+için otomotiv + perakende proxy'leri). Katalogda olmayan bir sektör tanımlama.
 
 ### 1b. Girdileri ve varsayımları al → `$OUT/assumptions.json`
 Yorum içeren her çıktı, okurun dayanağı ayırt edebileceği biçimde varsayımlara bağlanır. Bunun için
@@ -98,12 +98,12 @@ referans model) ve somut sonraki adımlar (keşif bekleyen feature'lar, hedef i�
 `panel.csv` ML'e hazır çıktıdır; bunu da belirt.
 Kur, enflasyon ya da faiz görünümü sektör için kritikse (ör. otomotivde kur geçişkenliği),
 `${CLAUDE_SKILL_DIR}/../_shared/references/external-forecasts.md` dosyasına göre kurumların yıl sonu
-tahminlerini derle ve rapora `--external` ile ekle. Bunlar varsayımdır; konsensüs kuralı ve bayatlık
-otomatik uygulanır.
+tahminlerini derle ve rapora `--external` ile ekle. Bunlar varsayımdır; konsensüs kuralı ve güncellik
+kontrolü otomatik uygulanır.
 
-## Kalite çıtası
-- **Hedef değişken var mı?** Sektörün asıl hedefi (satış, prim, abone vb.) panelde yoksa, örneğin
-  pazar payı kaynağının sağlayıcısı olmadığı için, bunu raporun ilk bulgusu yap ve bugün hangi
+## Kalite ölçütleri
+- **Hedef değişkenin varlığı.** Sektörün asıl hedefi (satış, prim, abone vb.) panelde yoksa, örneğin
+  pazar payı kaynağının sağlayıcısı olmadığı için, bunu raporun ilk bulgusu yap ve mevcut veriyle hangi
   modelin kurulamayacağını açıkça yaz.
 - Rakamlar yalnızca üretilen dosyalardan gelir. Eksik veri varsa "veri yok" yaz, tahmin etme.
 - Nokta-zamanlı hizalamayı bozma. Panelde bir ayın satırı, o ay sonunda bilinen bilgidir. Bunu
@@ -111,12 +111,19 @@ otomatik uygulanır.
 - Kaynak atfı raporda otomatik bulunur. Veriyi başka bir ürüne koymayı öneriyorsan EVDS'nin "ek
   ücret olarak yansıtılamaz" koşulunu hatırlat.
 
-## Dayanak kuralı (yanıltıcı değil, güçlendirici)
+## Dayanak kuralı (şeffaflık ve izlenebilirlik)
 Her ifade dört dayanaktan birine bağlanır ve bu dayanak metinde görünür (ayrıntı:
 `${CLAUDE_SKILL_DIR}/../_shared/references/assumptions-guide.md`):
 - **Veri**: yayımlanmış gözlem; ay ve kaynakla.
-- **Varsayım**: `(A2)` gibi kimlikle. Onaysız ya da bayat varsayıma dayanan sonuç koşullu yazılır.
+- **Varsayım**: `(A2)` gibi kimlikle. Onaysız ya da güncelliğini yitirmiş varsayıma dayanan sonuç koşullu yazılır.
 - **Model**: tahmin veya backtest sonucu; yöntem, örneklem ve belirsizlikle.
 - **Yorum**: analistin çıkarımı; güven düzeyiyle ("muhtemel, orta güven"). Nedensellik iddia edilmez.
 Bulguyu zayıflatan kanıtı da yaz: dönem seçimi, kısa rejim örneklemi, baz etkisi, nominal yanılsama.
 Belirsizliği gizlemek okuru yanıltır; doğru ölçüde vermek ise kararı güçlendirir.
+
+## Bütünsel akıştaki yeri
+Bu skill zincirin başlangıcıdır (`${CLAUDE_SKILL_DIR}/../_shared/references/workflow.md`). Kullanıcı model kurmak
+istiyorsa rapordan sonra şu sırayı öner ve aynı çalışma klasörüyle sürdür: `data-quality-audit` (veri sorunları) →
+`data-prep` (dağılıma göre hazırlık) → `feature-engineering` (sektöre özgü değişkenler ve seçim) →
+`forecast-baseline` (`--panel-file` ve `--eval-start` ile katkı ölçümü). Oyuncu düzeyinde bir soru varsa
+`market-share` skill'ini aynı sektörle çalıştır.

@@ -8,7 +8,7 @@ rate_limit:
   rps: 2
   backoff: exponential
   max_obs_per_call: 1000
-  notes: "TCMB sayısal limit yayımlamıyor; 1000 gözlem limiti borsapy'den, doğrulanmadı (başka kaynak 150 diyor)."
+  notes: "TCMB sayısal limit yayımlamıyor; 1000 gözlem limiti borsapy'den, doğrulanmadı (başka bir kaynak 150 olarak belirtiyor)."
 license:
   commercial: true
   redistribution: true

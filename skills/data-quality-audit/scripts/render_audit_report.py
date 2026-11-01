@@ -33,7 +33,7 @@ def build(audit: dict, dates: list[date], columns: dict, sector: str, notes: str
                 [
                     ("Dönem", f"{audit['months']} ay", f"{dates[0]:%Y-%m} → {dates[-1]:%Y-%m}" if dates else None),
                     ("Feature", str(len(series)), f"{len(audit['skipped_features'])} atlandı" if audit["skipped_features"] else None),
-                    ("Yüksek önem", str(counts["high"]), "önce bunlar"),
+                    ("Yüksek önem", str(counts["high"]), "öncelikli"),
                     ("Orta önem", str(counts["medium"]), None),
                     ("Bilgi", str(counts["info"]), "bilinen şoklarla eşleşen"),
                 ]
@@ -62,12 +62,12 @@ def build(audit: dict, dates: list[date], columns: dict, sector: str, notes: str
             if d in dates:
                 v = values[dates.index(d)]
                 if v is not None:
-                    flags.append(Flag(d, v, f"Aykırı: {d_iso[:7]} = {v:,.4g}"))
+                    flags.append(Flag(d, v, f"Aykırı değer: {d_iso[:7]} = {v:,.4g}"))
         charts.append(line_chart(LineChart(dates, [Series(name, values)], name, markers, flags)))
     legend = (
         '<p class="muted">Dikey çizgi: tespit edilen ortalama kayması · '
-        '<span class="badge serious"><span aria-hidden="true">▲</span> nokta</span>: robust z ile aykırı değer. '
-        "Grafiklerin üzerine gelince değerler görünür.</p>"
+        '<span class="badge serious"><span aria-hidden="true">▲</span> nokta</span>: robust z ile tespit edilen aykırı değer. '
+        "Değerler, imleç grafiğin üzerine getirildiğinde görüntülenir.</p>"
     )
     sections.append(H.section("Seriler", legend + f'<div class="grid-2">{"".join(charts)}</div>', "seriler"))
 
@@ -118,7 +118,7 @@ def build(audit: dict, dates: list[date], columns: dict, sector: str, notes: str
         f"Veri kalitesi denetimi — {sector}",
         f"Denetim tarihi {audit['as_of']} · nokta-zamanlı aylık panel",
         sections,
-        "Kaynak: TCMB EVDS ve katalogdaki diğer kurumlar. Kırılma eşleştirmesi bilinen TR şok tarihlerine göre yapılır; nedensellik iddiası değildir.",
+        "Kaynak: TCMB EVDS ve katalogdaki diğer kurumlar. Kırılma eşleştirmesi, Türkiye'deki bilinen şok tarihlerine göre yapılır; nedensellik iddiası taşımaz.",
         nav=[("ozet", "Özet")] + ([("varsayimlar", "Varsayımlar")] if assumptions else []) + ([("oneriler", "Öneriler")] if notes else [])
         + [("bulgular", "Bulgular"), ("dagilim", "Dağılım"), ("seriler", "Seriler"), ("seri-ozeti", "Seri özeti")],
     )
@@ -135,7 +135,7 @@ def main() -> None:
     args = ap.parse_args()
     assumptions = A.load(args.assumptions) if args.assumptions else None
     if assumptions is None:
-        print("Uyarı: --assumptions verilmedi; raporda girdiler ve varsayımlar bölümü olmayacak.", file=sys.stderr)
+        print("Uyarı: --assumptions verilmedi; raporda girdiler ve varsayımlar bölümü yer almayacak.", file=sys.stderr)
     dates, columns = read_panel_csv(args.panel)
     notes = args.notes.read_text(encoding="utf-8") if args.notes else None
     args.out.parent.mkdir(parents=True, exist_ok=True)

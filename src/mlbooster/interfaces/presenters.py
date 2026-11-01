@@ -136,6 +136,7 @@ def backtest_dict(result: BacktestResult, sector_id: str, max_predictions: int |
         "config": {
             "target": c.target, "horizon": c.horizon, "min_train": c.min_train, "lags": list(c.lags),
             "alpha": c.alpha, "models": list(c.models), "exogenous": c.exogenous, "anchor": c.anchor,
+            "eval_start": c.eval_start.date().isoformat() if c.eval_start is not None else None,
         },
         "best_model": result.best_model,
         "common_origins": result.common_origins,
@@ -145,3 +146,73 @@ def backtest_dict(result: BacktestResult, sector_id: str, max_predictions: int |
         "features_used": list(result.features_used),
         "predictions": [{k: _clean(v) for k, v in row.items()} for row in preds.to_dict(orient="records")],
     }  # fmt: skip
+
+
+def _deep(value):
+    """İç içe yapılar için _clean: numpy skalerleri Python türüne çevrilir."""
+    if isinstance(value, dict):
+        return {str(k): _deep(v) for k, v in value.items()}
+    if isinstance(value, (list, tuple)):
+        return [_deep(v) for v in value]
+    if hasattr(value, "item") and not isinstance(value, (str, bytes)):
+        value = value.item()
+    return _clean(value)
+
+
+def _profile_dict(p) -> dict:
+    return _deep({
+        "feature": p.feature, "n": p.n, "missing_ratio": p.missing_ratio, "mean": p.mean, "std": p.std, "median": p.median,
+        "mad": p.mad, "iqr": p.iqr, "skew": p.skew, "excess_kurtosis": p.excess_kurtosis, "min": p.min, "max": p.max,
+        "outlier_share": p.outlier_share, "stationarity": p.stationarity, "center_scale": p.center_scale, "reasons": p.reasons,
+    })  # fmt: skip
+
+
+def prep_dict(result, sector_id: str, skipped: dict[str, str] | None = None) -> dict:
+    cfg = result.config
+    after = {p.feature: p for p in result.after}
+    return {
+        "sector": sector_id,
+        "config": {"target": cfg.target, "train_end": result.train_end.isoformat(), "model_family": cfg.model_family,
+                   "missing": cfg.missing, "max_gap": cfg.max_gap, "outliers": cfg.outliers, "outlier_k": cfg.outlier_k,
+                   "power": cfg.power, "scaling": cfg.scaling, "difference": cfg.difference},  # fmt: skip
+        "columns": [
+            {"feature": plan.feature, "is_target": plan.is_target, "before": _profile_dict(prof),
+             "after": _profile_dict(after[plan.feature]), "steps": _deep(plan.steps)}
+            for prof, plan in zip(result.profiles, result.plans)
+        ],  # fmt: skip
+        "added_columns": [c for c in result.panel.columns if "__" in c],
+        "period": {"first": result.panel.index[0].date().isoformat(), "last": result.panel.index[-1].date().isoformat(),
+                   "rows": len(result.panel)},  # fmt: skip
+        "notes": result.notes,
+        "skipped": skipped or {},
+    }
+
+
+def features_dict(result, sector_id: str, max_screening: int = 150, skipped_panel: dict[str, str] | None = None) -> dict:
+    families: dict[str, int] = {}
+    for s in result.specs:
+        families[s.family] = families.get(s.family, 0) + 1
+    specs = {s.name: s for s in result.specs}
+    screening = []
+    if result.screening is not None:
+        for row in result.screening.head(max_screening).to_dict("records"):
+            spec = specs.get(row["name"])
+            row["family"] = spec.family if spec else None
+            row["description"] = spec.description if spec else None
+            screening.append(_deep(row))
+    return {
+        "sector": sector_id,
+        "label": result.label,
+        "train_end": result.train_end.isoformat() if result.train_end else None,
+        "n_features": len(result.specs),
+        "families": families,
+        "recipes": [{"name": s.name, "inputs": list(s.inputs), "description": s.description, **_deep(s.params)}
+                    for s in result.specs if s.family == "sektor_tarifi"],  # fmt: skip
+        "skipped_recipes": result.skipped,
+        "skipped_panel": skipped_panel or {},
+        "selected": [{"name": n, "family": specs[n].family, "description": specs[n].description} for n in result.selected],
+        "screening": screening,
+        "period": {"first": result.features.index[0].date().isoformat(), "last": result.features.index[-1].date().isoformat(),
+                   "rows": len(result.features)},  # fmt: skip
+        "notes": result.notes,
+    }

@@ -22,3 +22,10 @@ macro_features:
 sector_sources: []
 market_share_sources: []
 ml_use_cases: ["Makro nowcasting", "Rejim tespiti", "Feature havuzu"]
+feature_recipes:
+  - {name: reel_faiz_ex_ante, op: spread, inputs: [aofm, pka_enflasyon_beklentisi], note: "İleriye dönük reel faiz"}
+  - {name: reel_faiz_ex_post, op: spread, inputs: [aofm, tufe_yoy], note: "Gerçekleşen reel faiz"}
+  - {name: aofm_politika_farki, op: spread, inputs: [aofm, politika_faizi], note: "Efektif politika duruşu"}
+  - {name: ufe_tufe_farki, op: spread, inputs: [ufe_yoy, tufe_yoy], note: "Maliyet baskısı"}
+  - {name: beklenti_gerceklesme_farki, op: spread, inputs: [pka_enflasyon_beklentisi, tufe_yoy], note: "Beklenen ve gerçekleşen enflasyon farkı (dezenflasyon beklentisi)"}
+  - {name: reel_kur_sapma_12, op: gap, inputs: [reel_efektif_kur], window: 12, note: "Reel kur sapması"}

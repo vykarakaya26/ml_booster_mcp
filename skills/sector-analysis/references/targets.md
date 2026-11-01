@@ -12,9 +12,9 @@ Ufuk (horizon), ilgili ML kullanımının karar sıklığına göre seçilir.
 | akaryakit | `usdtry_logdiff` (1) | `tufe_yoy` (3) | Ürün fiyatı kur geçişkenliğiyle belirlenir |
 
 Notlar:
-- `log_diff` hedeflerinde (kur) naive modeli geçmek zordur; geçilemiyorsa bunu raporda dürüstçe yaz.
+- `log_diff` hedeflerinde (kur) naive modeli geçmek zordur; geçilemiyorsa bunu raporda açıkça belirt.
   Bu, kurun kısa vadede tahmin edilemezliğini gösterir.
 - `yoy_pct` hedeflerinde ufuk ≥ 3 ise drift ve ridge genelde naive'e yakındır. Mevsimsel naive
-  kötüdür, çünkü YoY serisi zaten mevsimsellikten arındırılmıştır.
+  zayıf kalır, çünkü YoY serisi mevsimsellikten zaten arındırılmıştır.
 - Aylık ortalama hedeflerde (aofm, haftalık faizler) panelde `_son` kolonu varsa `--anchor` ver.
-  Yoksa düz naive çıtası yanıltıcı derecede düşük kalır.
+  Yoksa düz naive kıyas düzeyi yanıltıcı derecede düşük kalır.

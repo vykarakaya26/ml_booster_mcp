@@ -55,7 +55,7 @@ class FakeProviderFactory:
 
     def create(self, source):
         if source.provider not in self.available():
-            raise ProviderNotImplemented(f"{source.id} için sağlayıcı henüz yazılmadı")
+            raise ProviderNotImplemented(f"{source.id} için sağlayıcı henüz uygulanmadı")
         provider = FakeProvider(source, self.series)
         self.created.append(provider)
         return provider

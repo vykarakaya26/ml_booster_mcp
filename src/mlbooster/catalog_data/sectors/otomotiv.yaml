@@ -15,3 +15,11 @@ sector_sources: [odmd]
 market_share_sources:
   - {source: odmd, metric: "marka / model / segment satış adedi payı"}
 ml_use_cases: ["Talep ve satış tahmini", "Fiyat esnekliği"]
+feature_recipes:
+  - {name: kur_sepeti_logdiff, op: mean, inputs: [usdtry_logdiff, eurtry_logdiff], note: "Eşit ağırlıklı USD/EUR sepeti; ithal araç ve parça maliyeti"}
+  - {name: reel_tasit_kredisi_faizi, op: spread, inputs: [tasit_kredisi_faizi, tufe_yoy], note: "Taşıt kredisi faizi − yıllık TÜFE (seri kodu bağlandığında)"}
+  - {name: reel_fonlama_faizi, op: spread, inputs: [aofm, tufe_yoy], note: "Genel finansman koşulu"}
+  - {name: guven_sapma_12, op: gap, inputs: [tuketici_guveni], window: 12, note: "Tüketici güveninin son 12 ay ortalamasından sapması"}
+  - {name: kart_arac_z_24, op: zscore, inputs: [kart_arac_reel_yoy], window: 24, note: "Araç harcamasının son 24 aya göre standart skoru (talep ivmesi)"}
+events:
+  - {name: otv_indirimi_2018, start: "2018-11", end: "2019-06", kind: step, note: "Binek araçlarda geçici ÖTV indirimi (iki kez uzatıldı, 30 Haziran 2019'da sona erdi)", source: "Resmî Gazete; basın (birgun.net, takvim.com.tr, 2019-03-21)"}

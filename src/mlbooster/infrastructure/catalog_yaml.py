@@ -15,6 +15,8 @@ from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_valida
 
 from mlbooster.domain.errors import InconsistentCatalog
 from mlbooster.domain.model import (
+    FeatureRecipe,
+    SectorEvent,
     Access,
     Aggregation,
     AuthKind,
@@ -189,6 +191,39 @@ class ShareSchema(_Strict):
     notes: str | None = None
 
 
+class RecipeSchema(_Strict):
+    name: str
+    op: str
+    inputs: list[str]
+    window: int | None = None
+    note: str | None = None
+
+    @field_validator("name")
+    @classmethod
+    def _name(cls, v: str) -> str:
+        return slug(v, "türetilmiş değişken adı")
+
+    def to_domain(self) -> FeatureRecipe:
+        return FeatureRecipe(self.name, self.op, tuple(self.inputs), self.window, self.note)
+
+
+class EventSchema(_Strict):
+    name: str
+    start: str
+    kind: Literal["pulse", "step"] = "step"
+    end: str | None = None
+    note: str | None = None
+    source: str | None = None
+
+    @field_validator("name")
+    @classmethod
+    def _name(cls, v: str) -> str:
+        return slug(v, "olay adı")
+
+    def to_domain(self) -> SectorEvent:
+        return SectorEvent(**self.model_dump())
+
+
 class SectorSchema(_Strict):
     id: str
     name: str
@@ -196,6 +231,8 @@ class SectorSchema(_Strict):
     sector_sources: list[str] = Field(default_factory=list)
     market_share_sources: list[ShareSchema] = Field(default_factory=list)
     ml_use_cases: list[str] = Field(default_factory=list)
+    feature_recipes: list[RecipeSchema] = Field(default_factory=list)
+    events: list[EventSchema] = Field(default_factory=list)
 
     @field_validator("id")
     @classmethod
@@ -210,7 +247,21 @@ class SectorSchema(_Strict):
             sector_sources=tuple(self.sector_sources),
             market_share_sources=tuple(ShareSource(**m.model_dump()) for m in self.market_share_sources),
             ml_use_cases=tuple(self.ml_use_cases),
+            feature_recipes=self._recipes(),
+            events=tuple(e.to_domain() for e in self.events),
         )
+
+    def _recipes(self) -> tuple[FeatureRecipe, ...]:
+        names = {f.name for f in self.macro_features}
+        out = []
+        for r in self.feature_recipes:
+            unknown = set(r.inputs) - names
+            if unknown:
+                raise InconsistentCatalog(f"{self.id}/{r.name}: tarifte bilinmeyen değişken {sorted(unknown)}")
+            if r.name in names:
+                raise InconsistentCatalog(f"{self.id}/{r.name}: tarif adı bir makro değişkenle çakışıyor")
+            out.append(r.to_domain())
+        return tuple(out)
 
 
 def _read_yaml(path: Path) -> dict:

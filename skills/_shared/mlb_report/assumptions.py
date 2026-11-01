@@ -35,7 +35,7 @@ CONTEXT_LABELS = [
     ("target", "Hedef değişken"), ("horizon", "Ufuk"), ("units", "Birim (nominal/reel)"), ("period", "Dönem"),
 ]  # fmt: skip
 _ID = re.compile(r"^[A-Z]\d{1,3}$")
-STALE_DAYS = 92  # ~3 ay: daha eski sektör/regülasyon bilgisi "bayat — doğrula"
+STALE_DAYS = 92  # ~3 ay: daha eski sektör/regülasyon bilgisi "güncel değil — doğrulanmalı"
 CONFIDENCE = {"low": "düşük", "medium": "orta", "high": "yüksek"}
 
 
@@ -101,7 +101,7 @@ def section(data: dict) -> str:
 
     def when(a: dict) -> str:
         text = H.esc(a.get("as_of") or "—")
-        return text + (' <span class="badge serious"><span aria-hidden="true">▲</span> bayat — doğrula</span>' if a["id"] in old else "")
+        return text + (' <span class="badge serious"><span aria-hidden="true">▲</span> güncel değil — doğrulanmalı</span>' if a["id"] in old else "")
 
     rows = [
         (a["id"], H.esc(a["topic"]), H.esc(a["statement"]), _kind_badge(a["kind"], a["confirmed"]),
@@ -120,8 +120,8 @@ def section(data: dict) -> str:
         )
     if old:
         body += (
-            f'<p><span class="badge serious"><span aria-hidden="true">▲</span> Bayat</span> {len(old)} varsayımın bilgisi '
-            f"{STALE_DAYS} günden eski ({H.esc(', '.join(sorted(old)))}); birincil kaynaktan doğrulanmalı.</p>"
+            f'<p><span class="badge serious"><span aria-hidden="true">▲</span> Güncel değil</span> {len(old)} varsayıma ilişkin bilgi '
+            f"{STALE_DAYS} günden eski ({H.esc(', '.join(sorted(old)))}); birincil kaynaktan doğrulanmalıdır.</p>"
         )
     body += "<h3>Varsayımlar</h3>" + H.table(
         ["#", "Konu", "Varsayım", "Tür", "Güven", "Kaynak", "Tarih", "Etkisi", "Nasıl kontrol edilir"],

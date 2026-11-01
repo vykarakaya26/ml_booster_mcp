@@ -20,3 +20,10 @@ market_share_sources:
   - {source: tbb, metric: "aktif / nakdi kredi / mevduat / şube payı (banka bazlı)"}
   - {source: bddk, metric: "banka grubu payları (aylık bülten)"}
 ml_use_cases: ["Kredi riski (PD)", "Mevduat ve kredi hacmi tahmini", "Churn"]
+feature_recipes:
+  - {name: reel_faiz_ex_ante, op: spread, inputs: [aofm, pka_enflasyon_beklentisi], note: "Efektif fonlama maliyeti − 12 ay sonrası enflasyon beklentisi (ileriye dönük reel faiz)"}
+  - {name: reel_faiz_ex_post, op: spread, inputs: [aofm, tufe_yoy], note: "Efektif fonlama maliyeti − yıllık TÜFE (gerçekleşen reel faiz)"}
+  - {name: aofm_politika_farki, op: spread, inputs: [aofm, politika_faizi], note: "AOFM − politika faizi; repo ihalesine ara verilen dönemlerde pozitif açılır"}
+  - {name: tlref_aofm_farki, op: spread, inputs: [tlref, aofm], note: "Gecelik piyasa faizi ile fonlama maliyeti arasındaki fark"}
+  - {name: kredi_mevduat_farki, op: spread, inputs: [kredi_faizi, mevduat_faizi], note: "Net faiz marjı göstergesi (seri kodları keşfedildiğinde hesaplanır)"}
+  - {name: tufe_sapma_12, op: gap, inputs: [tufe_yoy], window: 12, note: "Yıllık enflasyonun son 12 ay ortalamasından sapması"}

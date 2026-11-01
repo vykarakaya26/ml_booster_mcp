@@ -11,3 +11,9 @@ sector_sources: [tsb, odmd]
 market_share_sources:
   - {source: tsb, metric: "prim üretimi payı (şirket × branş: trafik, kasko, sağlık, hayat)"}
 ml_use_cases: ["Prim tahmini", "Hasar enflasyonu", "Fiyatlama"]
+feature_recipes:
+  - {name: kur_sepeti_logdiff, op: mean, inputs: [usdtry_logdiff, eurtry_logdiff], note: "Hasar maliyetinde ithal parça payı için kur sepeti"}
+  - {name: tufe_sapma_12, op: gap, inputs: [tufe_yoy], window: 12, note: "Enflasyon ivmesi; prim tavanı ile hasar enflasyonu arasındaki açığın göstergesi"}
+  - {name: binek_uretim_z_24, op: zscore, inputs: [osd_binek_uretim_yoy], window: 24, note: "Yeni araç arzı (kasko portföyü büyümesi)"}
+events:
+  - {name: deprem_2023_02, start: "2023-02", kind: pulse, note: "6 Şubat 2023 Kahramanmaraş depremleri: DASK ve yangın branşlarında talep ve hasar şoku"}

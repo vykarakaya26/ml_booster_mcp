@@ -8,7 +8,7 @@
 | Tüketici güveni | "tüketici güven" | `bie_mbgven2` güncel grup, `bie_mbgven` arşivdir |
 | Reel kesim güveni | "reel kesim güven" | `bie_rkgey2` |
 | Enflasyon beklentisi | "beklenti", "sektörel enflasyon beklentileri" | Güncel PKA beklentisi `bie_enfbek` grubunda; `bie_bekodtufe` arşivdir |
-| TÜFE | "tüketici fiyat endeksi 2025" | 2003=100 grupları arşivde ya da durmuş durumda |
+| TÜFE | "tüketici fiyat endeksi 2025" | 2003=100 grupları arşivlenmiş ya da güncellenmiyor |
 | Dış borç | "brüt dış borç" | `bie_dbdborc` kaldırıldı |
 | Politika faizi / fonlama | "fonlama", "apifon" | `TP.APIFON4` = AOFM |
 | Kart harcamaları | "kart harcama", "kartlı" | Sektörel kırılımlar alt serilerde |
@@ -54,8 +54,8 @@ ve Turizm Bakanlığı kaynakları).
 
 ## Bilinen yayın gecikmeleri (`--lag`, gün; dönem sonuna göre)
 Gecikme, değerin **dönem sonundan kaç gün sonra** yayımlandığıdır. Ay içinde yayımlanan seriler için
-0 verilir. Gecikme verilmezse varsayılan muhafazakârdır (aylık 30 gün → 2 ay kayma) ve feature'ı
-gereksiz yere bir ay geç gösterir. Biliniyorsa mutlaka verin.
+0 verilir. Gecikme verilmezse varsayılan değer ihtiyatlıdır (aylık 30 gün → 2 ay kayma) ve feature'ı
+gerektiğinden bir ay geç gösterir. Gecikme biliniyorsa belirtilmelidir.
 
 | Seri | Yayın | `--lag` |
 |---|---|---|
@@ -66,9 +66,9 @@ gereksiz yere bir ay geç gösterir. Biliniyorsa mutlaka verin.
 | Kur, AOFM (günlük) | Ertesi iş günü | 1 |
 | Dış borç (çeyreklik) | ~3 ay | 90 |
 
-## Bilinen tuzaklar
-- `TP.FG.J0` 2026-01'de durdu ama hâlâ eski veri döndürür. Hata vermez, yalnızca `stale` olarak
-  görünür.
+## Bilinen sorunlar
+- `TP.FG.J0` serisinin güncellenmesi 2026-01'de durdu; seri eski verileri döndürmeye devam eder.
+  Hata üretmez, yalnızca `stale` bulgusu olarak görünür.
 - `TP.DB.B01` HTTP 400 döndürür; seri kaldırılmıştır.
 - `/serieList` bazı gruplarda boş liste döner (kaldırılmış grup). Aramaya geri dön.
 - Frekans etiketleri tutarsızdır: "İŞ GÜNÜ", "HAFTALIK(CUMA)", "AYDA İKİ KEZ". CLI bunları

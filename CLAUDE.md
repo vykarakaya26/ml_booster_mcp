@@ -18,17 +18,19 @@ Arayüz yok — kullanım CLI (`mlbooster`) ve MCP sunucusu (`mlbooster-mcp`, st
 src/mlbooster/
   domain/            # çekirdek: model.py (frozen dataclass'lar), validation.py (izin listeleri, DateRange),
                      # observations.py (gözlem çerçevesi sözleşmesi), services/ (frekans, deflatör, feature,
-                     # chunking, sector_map). İzinli: stdlib + pandas/numpy. G/Ç YOK.
+                     # chunking, sector_map, market_share, preprocessing, feature_engineering, calendar_tr).
+                     # İzinli: stdlib + pandas/numpy (scipy YOK). G/Ç YOK.
   application/       # ports.py (Protocol'ler), dto.py (FetchRequest: girdi doğrulama kapısı), errors.py,
                      # use_cases/ (ListSectors, ListSources, GetSectorMap, DiscoverSeries, FetchSeries,
-                     # BuildPanel, RunHealthChecks). Yalnızca domain'e bağımlı.
+                     # BuildPanel, RunHealthChecks, AnalyzeMarketShare, PreparePanel, EngineerFeatures). Yalnızca domain'e bağımlı.
   infrastructure/    # port uygulamaları: providers/ (evds3, registry), http_client.py (SecureHttpClient),
-                     # catalog_yaml.py (pydantic → domain), secret_store.py, settings.py, storage/
+                     # catalog_yaml.py (pydantic → domain), secret_store.py, settings.py, storage/,
+                     # table_reader.py (pazar payı CSV/JSON girdisi; yalnızca CLI)
   interfaces/        # cli.py (typer), mcp_server.py (MCPServer), presenters.py — yalnızca use case çağırır
   bootstrap.py       # composition root: tek bağlama noktası
   catalog_data/      # sources/*.yaml, sectors/*.yaml (package-data); kullanıcı override: ~/.mlbooster/catalog/overrides.yaml
 skills/              # Claude Code plugin skill'leri (sector-analysis, evds-series-discovery, data-quality-audit,
-                     # forecast-baseline); _shared/ = stdlib-only rapor kütüphanesi + bin/mlb CLI sarmalayıcısı
+                     # forecast-baseline, market-share, data-prep, feature-engineering); _shared/ = stdlib-only rapor kütüphanesi + bin/mlb CLI sarmalayıcısı
 .claude-plugin/      # plugin.json (mcpServers: uvx --from ${CLAUDE_PLUGIN_ROOT}) + marketplace.json; kökte .mcp.json YOK —
                      # olsaydı repo klasöründe açılan oturumlar onu proje MCP'si sanıp ${CLAUDE_PLUGIN_ROOT} olmadan çalıştırırdı
 tests/               # domain/, application/ (fakes.py ile), infrastructure/ (respx), interfaces/, test_architecture.py
@@ -92,6 +94,8 @@ currency, is_proxy, vintage_ts, publication_lag_days. Anahtar: source_id, series
 - Günlük→aylık: seviye=avg (veya last), akım=sum; eksik son ay atılır. Çeyreklik/yıllık→aylık: ffill.
 - Reel = nominal / deflatör (TÜFE aylık % değişimlerinden chain-link, referans ay parametrik).
 - Pazar payı: entity_value / sector_total; proxy ise is_proxy=True ve coverage oranı ekle.
+  Analiz `domain/services/market_share.py` içindedir (HHI aralığı, eğilim |t|≥2 ve ≥0,2 puan/yıl, ikame korelasyonu,
+  kaydırma-pay). Girdi şeması: entity, date, value[, segment]; pazar toplamı `TOPLAM` satırlarıyla.
 
 ## Kabul kriterleri (MVP)
 - 10 adapter (EVDS3 ✓, TÜİK, BDDK, TBB, EPİAŞ, EPDK, BTK, TSB, ODMD, BKM) healthcheck geçer.
@@ -104,3 +108,16 @@ currency, is_proxy, vintage_ts, publication_lag_days. Anahtar: source_id, series
 - robots.txt / kullanım koşullarını ihlal eden scraping, oturum açma gerektiren alanlara erişim.
 - Kişisel veri içeren alan saklama (KVKK).
 - Ham veriyi repoya koyma; repo yalnızca kod + katalog içerir.
+
+## Ön işleme ve değişken üretimi (sızıntı kuralları)
+- Bütün parametreler (merkez, ölçek, Yeo–Johnson λ) yalnızca eğitim penceresinde (`train_end`) tahmin edilir; eksikler yalnızca
+  ileri taşınır (bfill / merkezlenmiş pencere yok); hedef değişken dönüştürülmez.
+- Üretilen her değişken nedenseldir: `tests/domain/test_feature_engineering.py::test_generated_features_are_causal` zorlar.
+- Seçim yalnızca etiketi eğitim sonuna kadar gözlenmiş satırlarda; katkı `backtest --eval-start <train_end>` ile ölçülür.
+- Sektör tarifleri (`feature_recipes`) ve olaylar (`events`) `catalog_data/sectors/*.yaml` içindedir; olay tarihi kaynaklı
+  ve doğrulanmış olmalıdır. Bayram tarihleri `domain/services/calendar_tr.py` (iki kaynakla doğrulanmış, 2010–2027).
+
+## Dil standardı
+Kullanıcıya görünen bütün metinler (rapor, hata mesajı, CLI/MCP açıklaması, skill belgeleri) nesnel ve kurumsal
+Türkçeyle yazılır: argo, mecaz, ünlem ve gündelik ifade kullanılmaz ("bayat seri" değil "güncelliğini yitirmiş seri").
+Sayılar dönem ve birimle verilir; yüzde ile yüzde puan ayrılır. Örnekler: skills/market-share/references/report-guide.md.

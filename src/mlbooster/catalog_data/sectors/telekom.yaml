@@ -10,3 +10,7 @@ sector_sources: [btk]
 market_share_sources:
   - {source: btk, metric: "abone / gelir / trafik payı, numara taşıma, churn"}
 ml_use_cases: ["ARPU tahmini", "Churn", "Abone büyümesi"]
+feature_recipes:
+  - {name: goreli_haberlesme_fiyati, op: spread, inputs: [haberlesme_tufe, tufe_yoy], note: "Haberleşme fiyat artışı − genel enflasyon (fiyatlama gücü; seri bağlandığında)"}
+  - {name: elektronik_telekom_farki, op: spread, inputs: [kart_elektronik_reel_yoy, kart_telekom_reel_yoy], note: "Cihaz ve hizmet harcaması arasındaki büyüme farkı"}
+  - {name: kart_telekom_z_24, op: zscore, inputs: [kart_telekom_reel_yoy], window: 24, note: "Telekom harcamasının son 24 aya göre standart skoru"}

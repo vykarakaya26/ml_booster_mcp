@@ -1,0 +1,5 @@
+schema_version: "1.1"
+name: otomotiv-rakip-raporu
+expected_outcome: |
+  share.json, competitors.json, narrative.md ve tek dosyalık bir HTML rapor üretilir. Rapor, Marka B'nin konumunu,
+  yoğunlaşmayı, veriye dayalı ve nitel rakip setini ve segment ayrıştırmasını dosyalardaki sayılarla, profesyonel bir dille sunar.

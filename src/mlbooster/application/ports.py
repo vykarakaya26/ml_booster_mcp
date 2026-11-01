@@ -89,3 +89,13 @@ class UpdateSource(Protocol):
     def latest_version(self) -> str | None:
         """Yayımlanmış en son sürüm (ör. '0.4.0'); bilinmiyorsa None."""
         ...
+
+
+class TableReader(Protocol):
+    def read(self, path: Path) -> pd.DataFrame:
+        """Kullanıcının yerelde verdiği CSV/JSON tablosunu okur (yalnızca CLI; MCP dosya yolu almaz)."""
+        ...
+
+    def read_panel(self, path: Path) -> pd.DataFrame:
+        """İlk kolonu tarih olan geniş panel CSV'sini (ör. değişken matrisi) tarih indeksli okur."""
+        ...

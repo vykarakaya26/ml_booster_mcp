@@ -1,8 +1,8 @@
 # Girdi ve varsayım rehberi
 
 Amaç: yorum içeren her çıktıda okur, neyin **veri**, neyin **varsayım**, neyin **model sonucu** ve neyin
-**yorum** olduğunu ayırt edebilsin. Yanıltıcı olan belirsizliği gizlemektir; güçlendirici olan, onu
-ölçülü ve izlenebilir vermektir.
+**yorum** olduğunu ayırt edebilsin. Belirsizliği gizlemek okuru yanıltır; onu ölçülü ve izlenebilir
+biçimde sunmak ise analizi güçlendirir.
 
 ## 1. Analizden önce sor (tek seferde en fazla 3–4 soru)
 İstekten çıkarılabilenleri sorma. Yalnızca sonucu değiştirecek eksikleri sor ve seçenekli sun.
@@ -18,7 +18,7 @@ Amaç: yorum içeren her çıktıda okur, neyin **veri**, neyin **varsayım**, n
 5. **Sektöre özgü varsayımlar.** `sector-assumptions.md` dosyasındaki seçeneklerden. Bilinen tek seferlik
    olayları da sor (planlı tarife artışı, düzenleme değişikliği).
 6. **Çıktı biçimi ve kabul edilebilir belirsizlik.** Nokta, aralık, senaryo ya da olasılık?
-7. **Fikrini ne değiştirir?** Değerlendirme ölçütünü baştan belirle.
+7. **Sonucu değiştirecek kanıt.** Hangi bulgunun değerlendirmeyi değiştireceğini baştan belirle.
 
 Kullanıcı yanıt vermezse ya da "sen karar ver" derse sektör varsayılanlarıyla devam et ve onları
 `confirmed: false` olarak kaydet. Asla kullanıcı adına onaylanmış gibi yazma.
@@ -33,7 +33,7 @@ Kullanıcı yanıt vermezse ya da "sen karar ver" derse sektör varsayılanları
 | `kind` | ✓ | `user` (kullanıcı söyledi), `sector` (sektör bilgisi), `default` (analist varsayılanı), `data` (veriden) |
 | `confirmed` | ✓ | Kullanıcı onayladı mı? `user` her zaman true |
 | `source` | önerilir | Belge, URL, "kullanıcı yanıtı" |
-| `as_of` | önerilir | Bilginin tarihi (YYYY-AA-GG). 3 aydan eskiyse rapor "bayat — doğrula" diye işaretler |
+| `as_of` | önerilir | Bilginin tarihi (YYYY-AA-GG). 3 aydan eskiyse rapor "güncel değil — doğrulanmalı" olarak işaretler |
 | `confidence` | önerilir | `low` / `medium` / `high` |
 | `impact` | önerilir | Varsayım yanlışsa sonuç nasıl değişir? |
 | `check` | önerilir | Nasıl doğrulanır? |
@@ -51,9 +51,9 @@ onaylamasını iste.
 Bölüm sırası (merkez bankası pratiğine yakın):
 1. Veri ve kalite notları
 2. Varsayımlar
-3. Ufuk başına sonuçlar ve çıtalar
+3. Ufuk başına sonuçlar ve kıyas düzeyleri
 4. Senaryolar ve duyarlılık
-5. Riskler ve "bunu ne çürütür"
+5. Riskler ve sonucu çürütebilecek gelişmeler
 6. Sınırlar
 
 ## 4. Senaryo ve duyarlılık
@@ -81,19 +81,19 @@ Olasılık sözcüklerini tutarlı kullan ve olasılık ile güveni ayrı söyle
 
 Ölçek ICD-203 tarzıdır; kaynak ikincildir.
 
-Belirsizlik yüksekken temkinli ol: Armstrong vd.'nin
-["Golden Rule"](https://faculty.wharton.upenn.edu/wp-content/uploads/2016/10/Golden-Rule-of-Forcasting_Be-Conservative_2.pdf)
-kuralı. Bunu mekanik uygulama.
+Belirsizlik yüksekken ihtiyatlı ol (Armstrong vd.,
+["Golden Rule"](https://faculty.wharton.upenn.edu/wp-content/uploads/2016/10/Golden-Rule-of-Forcasting_Be-Conservative_2.pdf));
+ancak bu ilkeyi mekanik biçimde uygulama.
 
 ## 6. Abartıya karşı kontrol listesi
-- **Nedensellik yok.** Korelasyondan ya da Granger testinden sonra "etkiler" deme; "ilişkili",
-  "örneklem içinde k ay önden gidiyor" de.
+- **Nedensellik yok.** Korelasyondan ya da Granger testinden sonra "etkiler" ifadesini kullanma;
+  "ilişkili" ya da "örneklem içinde k ay öncü" gibi ifadeler kullan.
 - **Sahte regresyon.** Durağan olmayan seviyelerle regresyonu eşbütünleşme testi olmadan yorumlama.
 - **Çoklu deneme.** Denenen tüm spesifikasyonların sayısını raporla; final testi bir kez yap.
 - **Dönem seçimi.** Başlangıç tarihini sonuçlara bakarak seçme. Tam dönemi ve rejim alt dönemlerini göster.
-- **Nominal yanılsama.** Nominal TL büyümesine reel karşılığı olmadan "büyüme" deme.
+- **Nominal yanılsama.** Nominal TL büyümesine reel karşılığı olmadan "büyüme" ifadesini kullanma.
 - **Baz etkisi.** Mekanik YoY düşüşünü politikaya bağlama.
 - **Küçük rejim örneklemi.** Bir rejimde 36 aydan az gözleme dayanan sonucu "gösterge niteliğinde" diye
   etiketle `[sezgisel]`.
-- **İyileşme iddiası.** Yalnızca çıtaya karşı, ufuk başına ve mümkünse DM testiyle yap.
+- **İyileşme iddiası.** Yalnızca kıyas düzeyine karşı, ufuk başına ve mümkünse DM testiyle yap.
 - **Gelecek değer.** Kullanıcı açıkça senaryo istemedikçe nokta tahmin ya da yatırım tavsiyesi verme.

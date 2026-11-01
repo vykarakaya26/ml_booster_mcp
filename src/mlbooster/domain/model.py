@@ -212,6 +212,56 @@ class MacroFeature:
         return self.series is not None
 
 
+RECIPE_OPS = ("spread", "ratio", "mean", "sum", "product", "gap", "zscore")
+
+
+@dataclass(frozen=True)
+class FeatureRecipe:
+    """Sektöre özgü türetilmiş değişken: girdiler sektörün makro değişken adlarıdır.
+
+    spread: a − b · ratio: a / b · mean/sum: girdilerin ortalaması/toplamı · product: a × b (etkileşim)
+    gap: a − a'nın geçmiş `window` dönem ortalaması · zscore: geçmiş `window` döneme göre standart skor
+    """
+
+    name: str
+    op: str
+    inputs: tuple[str, ...]
+    window: int | None = None
+    note: str | None = None
+
+    def __post_init__(self) -> None:
+        if self.op not in RECIPE_OPS:
+            raise InconsistentCatalog(f"{self.name}: bilinmeyen işlem {self.op} ({', '.join(RECIPE_OPS)})")
+        need = {"spread": 2, "ratio": 2, "product": 2, "gap": 1, "zscore": 1}.get(self.op)
+        if need is not None and len(self.inputs) != need:
+            raise InconsistentCatalog(f"{self.name}: {self.op} işlemi {need} girdi gerektirir")
+        if self.op in {"mean", "sum"} and len(self.inputs) < 2:
+            raise InconsistentCatalog(f"{self.name}: {self.op} işlemi en az iki girdi gerektirir")
+        if self.op in {"gap", "zscore"} and not (self.window and 3 <= self.window <= 60):
+            raise InconsistentCatalog(f"{self.name}: {self.op} işlemi 3–60 arasında window gerektirir")
+
+
+@dataclass(frozen=True)
+class SectorEvent:
+    """Sektöre özgü düzenleme ya da şok: darbe (yalnızca başlangıç ayı) veya rejim (başlangıç–bitiş arası)."""
+
+    name: str
+    start: str  # YYYY-AA
+    kind: str = "step"  # pulse | step
+    end: str | None = None  # YYYY-AA; step için boşsa açık uçlu
+    note: str | None = None
+    source: str | None = None
+
+    def __post_init__(self) -> None:
+        if self.kind not in {"pulse", "step"}:
+            raise InconsistentCatalog(f"{self.name}: olay türü pulse ya da step olmalıdır")
+        for value in (self.start, self.end):
+            if value is not None and not (len(value) == 7 and value[4] == "-" and value[:4].isdigit() and value[5:].isdigit()):
+                raise InconsistentCatalog(f"{self.name}: tarih YYYY-AA biçiminde olmalıdır ({value})")
+        if self.end is not None and self.end < self.start:
+            raise InconsistentCatalog(f"{self.name}: bitiş başlangıçtan önce olamaz")
+
+
 @dataclass(frozen=True)
 class ShareSource:
     source: str
@@ -228,6 +278,8 @@ class Sector:
     sector_sources: tuple[str, ...] = ()
     market_share_sources: tuple[ShareSource, ...] = ()
     ml_use_cases: tuple[str, ...] = ()
+    feature_recipes: tuple[FeatureRecipe, ...] = ()
+    events: tuple[SectorEvent, ...] = ()
 
     def referenced_sources(self) -> list[str]:
         ids = [f.source for f in self.macro_features] + list(self.sector_sources)

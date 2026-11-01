@@ -158,7 +158,7 @@ def test_set_feature_rejects_unknown_feature_and_stale_series(deps):
     with pytest.raises(InvalidInput, match="feature"):
         SetFeatureSeries(catalog, providers, None)("bankacilik", "yok_boyle", "TP.TUKFIY2025.GENEL")
     providers.series["TP.TUKFIY2025.GENEL"] = pd.Series([1.0], index=pd.to_datetime(["2025-01-31"]))
-    with pytest.raises(ProviderError, match="durmuş"):
+    with pytest.raises(ProviderError, match="güncelliğini yitirmiş"):
         SetFeatureSeries(catalog, providers, None)("bankacilik", "kredi_faizi", "TP.TUKFIY2025.GENEL")
 
 

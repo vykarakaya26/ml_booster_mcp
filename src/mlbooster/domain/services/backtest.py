@@ -5,7 +5,7 @@ Panelin kendisi zaten nokta-zamanlıdır (yayın gecikmesi uygulanmış), bu yü
 `t` ayının sonunda bilinen bilgiyi içerir. Hedef `t+h` için doğrudan (direct) strateji kullanılır.
 
 Modeller
-- Basit çıtalar: naive, seasonal_naive, drift, drift_recent (son 6 ayın eğimi; kontrollü kur
+- Basit kıyas düzeyleri: naive, seasonal_naive, drift, drift_recent (son 6 ayın eğimi; kontrollü kur
   patikasını yakalar), mean12 (Atkeson–Ohanian), median12 (sapmalı veride dayanıklı), anchor_naive.
 - ridge: gecikmeli, değişimi tabandan (çapa ya da son değer) öğrenir.
 - qr: kantil regresyon (τ = 0.1/0.5/0.9); nokta tahmin medyandır, aralık modelin kendisinden gelir.
@@ -51,12 +51,15 @@ class BacktestConfig:
     models: tuple[str, ...] = MODELS
     exogenous: bool = True  # ridge için diğer panel kolonlarını da kullan
     # Çapa: hedefin bilgi açısından daha güncel bir versiyonu (ör. aylık ortalama hedef için ay sonu değeri).
-    # Verilirse "anchor_naive" modeli = anchor[t]; aylık ortalama hedeflerde gerçek çıta budur.
+    # Verilirse "anchor_naive" modeli = anchor[t]; aylık ortalama hedeflerde gerçek kıyas düzeyi budur.
     anchor: str | None = None
     recent_window: int = 6  # drift_recent için ay
     # auto_robust: geçmiş değişimlerde fazla basıklık ya da aykırı oranı bu eşikleri aşarsa medyan kombinasyonu.
     robust_kurtosis: float = 3.0
     robust_outlier_share: float = 0.05
+    # Değerlendirme başlangıcı: değişken seçimi bir eğitim penceresinde yapıldıysa, metrikler yalnızca bu tarihten
+    # sonraki başlangıç noktalarında hesaplanır (seçimde kullanılan dönemde ölçmek iyimser sonuç verir).
+    eval_start: pd.Timestamp | None = None
 
     def __post_init__(self) -> None:
         if not 1 <= self.horizon <= 24:
@@ -327,10 +330,15 @@ def rolling_origin_backtest(panel: pd.DataFrame, config: BacktestConfig) -> Back
     train_y = y.iloc[: config.min_train].dropna()
     scale = float((train_y - train_y.shift(h)).abs().mean())
     # Adil karşılaştırma: metrikler yalnızca TÜM modellerin tahmin ürettiği başlangıç noktalarında hesaplanır.
-    n_models = predictions["model"].nunique()
-    per_origin = predictions.groupby("origin")["model"].nunique()
+    pool = predictions
+    if config.eval_start is not None:
+        pool = predictions[predictions["origin"] > pd.Timestamp(config.eval_start)]
+        if pool.empty:
+            raise InvalidInput(f"Değerlendirme başlangıcından ({pd.Timestamp(config.eval_start).date()}) sonra tahmin noktası yok")
+    n_models = pool["model"].nunique()
+    per_origin = pool.groupby("origin")["model"].nunique()
     common = per_origin[per_origin == n_models].index
-    scored = predictions[predictions["origin"].isin(common)] if len(common) else predictions
+    scored = pool[pool["origin"].isin(common)] if len(common) else pool
     used = tuple(ridge_x.columns) if ridge_x is not None else ()
     return BacktestResult(
         config,

@@ -1,6 +1,6 @@
 ---
 name: forecast-baseline
-description: Türkiye makro/sektör panelindeki bir hedef seri (enflasyon, kur, faiz, kredi faizi, güven endeksi…) için look-ahead korumalı rolling-origin backtest yapar. Naive/çapa, drift, son 12 ay ortalama/medyan, ridge, kantil regresyon (%10–%90 aralık) ve ortalama/medyan kombinasyonlarını (sapma yüksekse medyana geçen otomatik kural dahil) MAE, RMSE, aralık kapsaması ve pinball kaybıyla karşılaştırır. Büyük bankaların ve TCMB anketinin yıl sonu tahminlerini konsensüs olarak yanına koyar ve fan chart'lı HTML rapor üretir. Kullanıcı "tahmin", "forecast", "baseline", "backtest", "hangi model", "bu seriyi tahmin edebilir miyiz", "modelim iyi mi, neyle kıyaslayayım" dediğinde ya da bir ML modelinin geçmesi gereken çıtayı belirlemek istediğinde kullan. Also: "baseline forecast / backtest for Turkish macro series".
+description: Türkiye makro/sektör panelindeki bir hedef seri (enflasyon, kur, faiz, kredi faizi, güven endeksi…) için look-ahead korumalı rolling-origin backtest yapar. Naive/çapa, drift, son 12 ay ortalama/medyan, ridge, kantil regresyon (%10–%90 aralık) ve ortalama/medyan kombinasyonlarını (sapma yüksekse medyana geçen otomatik kural dahil) MAE, RMSE, aralık kapsaması ve pinball kaybıyla karşılaştırır. Büyük bankaların ve TCMB anketinin yıl sonu tahminlerini konsensüs olarak yanına koyar ve fan chart'lı HTML rapor üretir. Kullanıcı "tahmin", "forecast", "baseline", "backtest", "hangi model", "bu seriyi tahmin edebilir miyiz", "modelim iyi mi, neyle kıyaslayayım" dediğinde ya da bir ML modelinin geçmesi gereken kıyas düzeyini belirlemek istediğinde kullan. Also: "baseline forecast / backtest for Turkish macro series".
 allowed-tools:
   - Bash(${CLAUDE_SKILL_DIR}/../_shared/bin/mlb *)
   - Bash(python3 ${CLAUDE_SKILL_DIR}/scripts/render_backtest_report.py *)
@@ -8,8 +8,8 @@ allowed-tools:
 
 # Referans tahmin (baseline) backtest'i
 
-Bu skill bir üretim modeli kurmaz, **çıtayı** ölçer. Kullanıcının modeli bu referansları geçmiyorsa
-modelin değeri yoktur. Bu yüzden sonuçları abartmadan, olduğu gibi raporla.
+Bu skill bir üretim modeli kurmaz; **kıyas düzeyini** (referans performansı) ölçer. Kullanıcının modeli bu
+referansları geçemiyorsa ek değer üretmiyor demektir. Bu nedenle sonuçları abartmadan, olduğu gibi raporla.
 
 ## Akış
 
@@ -21,9 +21,9 @@ SECTOR=otomotiv; OUT="mlbooster-reports/${SECTOR}-forecast-$(date +%Y%m%d)"; mkd
 ```
 
 1. **Hedef ve çapa**: hedef, `panel.csv` başlığındaki kolonlardan biri olmalıdır. Hedef günlük bir
-   serinin **aylık ortalamasıysa** (aofm, kur, haftalık faizler), ay sonu değeri çok daha güncel bilgi
-   taşır. Panelde `<hedef>_son` kolonu varsa (ör. `aofm_son`) `--anchor aofm_son` ver. Gerçek çıta
-   "çapa naive" modelidir ve düz naive'i geçmek bir başarı sayılmaz. Çapa kolonu yoksa bunu rapordaki
+   serinin **aylık ortalamasıysa** (aofm, kur, haftalık faizler), ay sonu değeri belirgin biçimde daha
+   güncel bilgi taşır. Panelde `<hedef>_son` kolonu varsa (ör. `aofm_son`) `--anchor aofm_son` ver. Asıl kıyas düzeyi
+   "çapa naive" modelidir; yalnızca düz naive'i geçmek yeterli kabul edilmez. Çapa kolonu yoksa bunu rapordaki
    sınırlar kısmında belirt. Kullanıcı ham bir seri istiyorsa
    (ör. "taşıt kredisi faizi") panelde hangi feature olduğunu bul. Panelde yoksa
    `evds-series-discovery` skill'iyle önce bağla.
@@ -31,21 +31,21 @@ SECTOR=otomotiv; OUT="mlbooster-reports/${SECTOR}-forecast-$(date +%Y%m%d)"; mkd
    bütçe ve planlama için 3–6 ay. Gerekirse birkaç ufku ayrı JSON'larla koş.
 3. **Model seçimi ve sapma.** Varsayılan set şunları içerir: naive, drift, drift_recent, mean12,
    median12, ridge, qr (kantil regresyon), combo_mean, combo_median, auto_robust. Denetimde ya da
-   `diagnostics` alanında kalın kuyruk veya çok aykırı değer varsa medyan temelli sonuçları öne çıkar
-   (`references/methodology.md` → "Sapmalı veride ortalama mı medyan mı?"). Kur gibi `managed_path`
+   `diagnostics` alanında kalın kuyruk ya da yüksek aykırı değer oranı varsa medyan temelli sonuçları öne
+   çıkar (`references/methodology.md` → "Sapmalı veride ortalama ve medyan seçimi"). Kur gibi `managed_path`
    işaretli serilerde kontrollü rejimi ve kuyruk riskini ayrıca yaz.
 4. **Dış tahminler (kullanıcı yıl sonu görüşü istiyorsa ya da hedef kur/enflasyon/faizse).**
    `${CLAUDE_SKILL_DIR}/../_shared/references/external-forecasts.md` dosyasına göre güncel kurum
    tahminlerini WebSearch ile derle ve `$OUT/external_forecasts.json` dosyasına kaynak ve tarihle
-   yaz; uydurma rakam koyma. Rapora `--external "$OUT/external_forecasts.json"` ile, gerekirse
+   yaz; kaynağı doğrulanmamış rakam ekleme. Rapora `--external "$OUT/external_forecasts.json"` ile, gerekirse
    `--latest usdtry=YYYY-AA:değer` ile ekle. Bu tahminleri `assumptions.json` içine
    `kind: external, confirmed: false` olarak da kaydet.
 5. **Varyantlar** (gerekirse): `--no-exog` ile ridge'i yalnızca hedefin geçmişiyle dene. Dış
-   değişkenler fayda sağlamıyorsa raporda bunu söyle. Tek modeli görmek için `--models naive,ridge`
+   değişkenler katkı sağlamıyorsa bunu raporda belirt. Tek modeli görmek için `--models naive,ridge`
    kullan.
-6. **Yorum** → `$OUT/notes.md` (kısa Markdown): en iyi model, çıtaya göre MAE farkı, ortak nokta
+6. **Yorum** → `$OUT/notes.md` (kısa Markdown): en iyi model, kıyas düzeyine göre MAE farkı, ortak nokta
    sayısı, `regime_metrics` alanına göre rejim bazında sonuçlar (2021 öncesi, 2021-12–2023, 2024+;
-   sıralama rejime göre değişiyorsa bunu söyle) ve üretim modeli için çıta. Ayrıntı
+   sıralama rejime göre değişiyorsa bunu belirt) ve üretim modeli için kıyas düzeyi. Ayrıntı
    `references/methodology.md` dosyasında.
 7. **Rapor**:
    ```bash
@@ -71,25 +71,33 @@ Yorum içeren her çıktı, okurun dayanağı ayırt edebileceği biçimde varsa
 - **Nokta ve aralık ayrı değerlendirilir.** En düşük MAE'yi veren model ile en düşük pinball kaybını
   veren model farklı olabilir; ikisini de raporla. %80 kapsama belirgin biçimde düşükse aralıkların
   belirsizliği olduğundan dar gösterdiğini yaz.
-- **Çıta en güçlü naive'dir.** Çapa verildiyse çapa naive, verilmediyse naive. Bir model yalnızca
-  bu çıtayı ortak örneklemde geçtiğinde "çıtayı geçti" denebilir.
-- **Naive kazanırsa** bu bir bulgudur. Kısa vadede kur ya da YoY enflasyon için olağandır. "Model
-  başarısız" deme; "bu ufukta seri, son değerden daha iyi tahmin edilemiyor; çıta naive MAE = X" de.
-- **MASE > 1** TR verisinde sık görülür, çünkü test dönemi ilk eğitim dönemine göre daha oynaktır.
-  Bunu açıkla.
-- Metrikleri yalnızca `common_origins` noktada karşılaştır. Rapor bunu otomatik yapar; sen de
+- **Kıyas düzeyi en güçlü naive'dir.** Çapa verildiyse çapa naive, verilmediyse naive. Bir model yalnızca
+  bu kıyas düzeyini ortak örneklemde geçtiğinde "kıyas düzeyini geçti" denebilir.
+- **Naive en iyi sonucu verirse** bu da bir bulgudur. Kısa vadede kur ya da yıllık (YoY) enflasyon için
+  olağandır. "Model başarısız" ifadesini kullanma; "bu ufukta seri, son değerden daha iyi tahmin
+  edilemiyor; kıyas düzeyi naive MAE = X" biçiminde yaz.
+- **MASE > 1** Türkiye verisinde sık görülür, çünkü test dönemi ilk eğitim dönemine göre daha
+  oynaktır. Bunu açıkla.
+- Metrikleri yalnızca `common_origins` noktada karşılaştır. Rapor bunu otomatik yapar; yorumda da
   `n` değerini belirt.
 - Tek bir backtest'e dayanarak "X modeli daha iyidir" genellemesi yapma. Dönem ve ufuk bağımlılığını
-  söyle.
+  belirt.
 - Gelecek değer tahmini (ör. "gelecek ay kur şu olur") verme. Bu skill geçmiş performansı ölçer;
   yatırım tavsiyesi değildir.
 
-## Dayanak kuralı (yanıltıcı değil, güçlendirici)
+## Dayanak kuralı (şeffaflık ve izlenebilirlik)
 Her ifade dört dayanaktan birine bağlanır ve bu dayanak metinde görünür (ayrıntı:
 `${CLAUDE_SKILL_DIR}/../_shared/references/assumptions-guide.md`):
 - **Veri**: yayımlanmış gözlem; ay ve kaynakla.
-- **Varsayım**: `(A2)` gibi kimlikle. Onaysız ya da bayat varsayıma dayanan sonuç koşullu yazılır.
+- **Varsayım**: `(A2)` gibi kimlikle. Onaysız ya da güncelliğini yitirmiş varsayıma dayanan sonuç koşullu yazılır.
 - **Model**: tahmin veya backtest sonucu; yöntem, örneklem ve belirsizlikle.
 - **Yorum**: analistin çıkarımı; güven düzeyiyle ("muhtemel, orta güven"). Nedensellik iddia edilmez.
 Bulguyu zayıflatan kanıtı da yaz: dönem seçimi, kısa rejim örneklemi, baz etkisi, nominal yanılsama.
 Belirsizliği gizlemek okuru yanıltır; doğru ölçüde vermek ise kararı güçlendirir.
+
+## Bütünsel akıştaki yeri
+`feature-engineering` çıktısındaki seçilen değişkenlerin katkısı bu skill ile ölçülür:
+`"$MLB" backtest ... --panel-file <features_selected.csv> --eval-start <eğitim sonu>`. `--eval-start`, değişken seçimi
+ve ön işlemede kullanılan eğitim penceresi sonudur; metrikler yalnızca sonraki başlangıç noktalarında hesaplanır.
+Aynı `--eval-start` ile sektör paneli de koşulur ve iki sonuç yan yana raporlanır. Akış:
+`${CLAUDE_SKILL_DIR}/../_shared/references/workflow.md`.

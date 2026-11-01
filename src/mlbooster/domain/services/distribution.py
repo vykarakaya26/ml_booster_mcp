@@ -147,9 +147,9 @@ def _recommend(d: dict, transform: str | None) -> list[str]:
     if abs(d["skew"]) > 1 and d["min"] > 0 and not already_changed:
         recs.append("Belirgin çarpıklık ve pozitif değerler: log dönüşümü dağılımı simetrikleştirir.")
     if d["volatility_ratio"] is not None and (d["volatility_ratio"] > 2 or d["volatility_ratio"] < 0.5):
-        recs.append(f"Oynaklık rejimi değişmiş (son 36 ay / tüm dönem değişim std'si = {d['volatility_ratio']:.2f}): ağırlıklı/kayan pencereli eğitim veya rejim değişkeni düşünün.")
+        recs.append(f"Oynaklık rejimi değişmiş (son 36 ay / tüm dönem değişim std'si = {d['volatility_ratio']:.2f}): ağırlıklı/kayan pencereli eğitim ya da rejim değişkeni değerlendirin.")
     if d["acf12"] is not None and d["acf12"] > 0.4 and transform not in {"yoy_pct"} and d["stationarity"] == "durağan":
-        recs.append("12. gecikmede güçlü otokorelasyon: mevsimsellik — ay dummy'leri veya yıllık değişim.")
+        recs.append("12. gecikmede güçlü otokorelasyon: mevsimsellik göstergesi; ay dummy'leri ya da yıllık değişim kullanın.")
     return recs
 
 
@@ -195,8 +195,8 @@ def diagnose(series: pd.Series, name: str, transform: str | None = None) -> Diag
         acf12=round(acf12, 3) if acf12 is not None and not math.isnan(acf12) else None,
         recommendations=tuple(_recommend(facts, transform) + (
             ["Kontrollü patika: son 12 ayda değişim pozitif ve istikrarlı, oynaklık düşük (ör. yönetilen kur). "
-             "Çıta olarak son dönem ortalama değişim (naive/drift_recent) kullanın; kuyruk riski (ani kırılma) için "
-             "kantil aralığa ve geçmiş kırılma dönemlerine (2018-08, 2021-12, 2023-06, 2025-03) bakın."]
+             "Kıyas düzeyi olarak son dönem ortalama değişim (naive/drift_recent) kullanın; kuyruk riski (ani kırılma) için "
+             "kantil aralığı ve geçmiş kırılma dönemlerini (2018-08, 2021-12, 2023-06, 2025-03) dikkate alın."]
             if _managed_path(y, transform, vol) else []
         )),
         managed_path=_managed_path(y, transform, vol),
