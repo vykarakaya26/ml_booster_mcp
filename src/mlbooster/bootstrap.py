@@ -14,11 +14,15 @@ from mlbooster.application.ports import (
     ObservationStore,
     PanelStore,
     ProviderFactory,
+    TableReader,
     UpdateSource,
 )
 from mlbooster.application.use_cases import (
+    AnalyzeMarketShare,
     AuditPanel,
     BuildPanel,
+    EngineerFeatures,
+    PreparePanel,
     CheckForUpdates,
     RunBacktest,
     SearchSeries,
@@ -37,6 +41,7 @@ from mlbooster.infrastructure.settings import Settings
 from mlbooster.infrastructure.storage.observation_store import ParquetObservationStore
 from mlbooster.infrastructure.storage.panel_store import ParquetPanelStore
 from mlbooster.infrastructure.storage.raw_store import RawStore
+from mlbooster.infrastructure.table_reader import LocalTableReader
 from mlbooster.infrastructure.update_check import GitHubReleaseSource
 
 
@@ -48,6 +53,7 @@ class Container:
     panels: PanelStore
     overrides: CatalogOverrides
     updates: UpdateSource | None = None
+    tables: TableReader | None = None
 
     @cached_property
     def list_sectors(self) -> ListSectors:
@@ -99,6 +105,22 @@ class Container:
     def run_backtest(self) -> RunBacktest:
         return RunBacktest(self.build_panel)
 
+    @cached_property
+    def prepare_panel(self) -> PreparePanel:
+        return PreparePanel(self.build_panel)
+
+    @cached_property
+    def engineer_features(self) -> EngineerFeatures:
+        return EngineerFeatures(self.build_panel)
+
+    @cached_property
+    def table_reader(self) -> TableReader:
+        return self.tables or LocalTableReader()
+
+    @cached_property
+    def market_share(self) -> AnalyzeMarketShare:
+        return AnalyzeMarketShare(self.build_panel, self.tables or LocalTableReader())
+
 
 class _NoUpdates:
     def latest_version(self) -> str | None:
@@ -115,4 +137,5 @@ def build_container(settings: Settings | None = None) -> Container:
         observations=ParquetObservationStore(settings.data_dir / "silver"),
         panels=ParquetPanelStore(settings.data_dir / "gold"),
         updates=GitHubReleaseSource(settings.data_dir / "update_check.json"),
+        tables=LocalTableReader(),
     )

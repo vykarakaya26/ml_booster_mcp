@@ -1,7 +1,7 @@
 # Yönetici özeti yazım rehberi
 
-Okur bir veri bilimci, ürün yöneticisi ya da analisttir. Raporu iki dakikada okuyup "bu veriyle
-ne yapabilirim, nelere dikkat etmeliyim" sorusunun cevabını almak ister.
+Okur bir veri bilimci, ürün yöneticisi ya da analisttir. İki dakikalık bir okumayla iki sorunun
+yanıtını almak ister: bu veriyle ne yapılabilir ve nelere dikkat edilmelidir.
 
 ## Yapı (narrative.md)
 
@@ -14,8 +14,8 @@ ne yapabilirim, nelere dikkat etmeliyim" sorusunun cevabını almak ister.
 - Kalite denetiminin yüksek ve orta bulgularından modellemeyi etkileyenler.
 
 ## Modelleme için öneriler
-- Hangi dönüşüm ve hedef mantıklı, hangi rejim dummy'leri gerekli, hangi feature'lar gereksiz (kolineer).
-- Backtest sonucu: en iyi referans model ve naive'e göre fark; üretim modeli için çıta.
+- Hangi dönüşüm ve hedef uygun, hangi rejim dummy'leri gerekli, hangi feature'lar bilgi tekrarı yaratıyor (kolineer).
+- Backtest sonucu: en iyi referans model ve naive'e göre fark; üretim modeli için kıyas düzeyi.
 
 ## Sınırlar
 - Keşif bekleyen ve sağlayıcısı olmayan kaynaklar, proxy uyarıları.
@@ -24,10 +24,10 @@ ne yapabilirim, nelere dikkat etmeliyim" sorusunun cevabını almak ister.
 ## Türkiye verisini yorumlarken
 - **Rejimler**: 2018-08 kur şoku, 2020-03 COVID, 2021-12 kur şoku ve KKM, 2023-06 sonrası parasal
   sıkılaştırma, 2026-01 TÜFE baz değişikliği. Denetimdeki kırılmaları bu dönemlerle ilişkilendir;
-  nedensellik iddia etme ("bu döneme denk geliyor" de).
+  nedensellik iddia etme ("bu dönemle eşzamanlı" ifadesini kullan).
 - **Kur (`log_diff`)**: aylık log değişim ≈ aylık % değişim. Ortalama düşük, kuyruklar kalındır;
-  aykırı değerler genelde şok aylarıdır ve veri hatası değildir.
-- **Enflasyon (`yoy_pct`)**: 12 aylık değişim olduğu için yavaş döner. 2022'deki zirve aykırı
+  aykırı değerler genellikle şok aylarına karşılık gelir ve veri hatası değildir.
+- **Enflasyon (`yoy_pct`)**: 12 aylık değişim olduğu için yön değişimi gecikmeli gerçekleşir. 2022'deki zirve aykırı
   görünür ama gerçektir; modelde rejim değişkeni ile ele alınmalıdır.
 - **Faizler (seviye)**: politika döngüleri yapısal kırılma olarak görünür. Ağaç tabanlı
   modellerde seviye, doğrusal modellerde fark tercih edilebilir.
@@ -35,6 +35,6 @@ ne yapabilirim, nelere dikkat etmeliyim" sorusunun cevabını almak ister.
   (TÜİK/TCMB tanımı).
 
 ## Dil
-- Kısa, aktif cümleler kur. Rakamları Türkçe biçimde yaz (%31,5; 2026-09).
-- Belirsizliği açık yaz: "backtest'te naive modeli geçemedi" doğrudur, "iyi sonuç" muğlaktır.
+- Kısa, net ve etken cümleler kur; resmi ve analitik bir üslup kullan. Rakamları Türkçe biçimde yaz (%31,5; 2026-09).
+- Belirsizliği açık yaz: "backtest'te naive modeli geçemedi" doğru bir ifadedir, "iyi sonuç" ise muğlaktır.
 - Yatırım ya da finansal tavsiye verme; analizi veri ve modelleme bağlamında tut.

@@ -2,7 +2,7 @@
 
 Türkiye için ücretsiz veri kaynaklarını sektör bazında haritalayan ve ML'e hazır **aylık panel** üreten araç. Üç şekilde kullanılabilir:
 
-- **Claude Code plugin'i**: MCP sunucusu ve otonom çalışan 4 skill. Doğal dille "otomotiv sektörünü analiz et" dediğinizde paylaşılabilir bir HTML rapor alırsınız.
+- **Claude Code plugin'i**: MCP sunucusu ve uçtan uca, birbirine bağlı çalışan 7 skill. "Otomotiv sektörünü analiz et" gibi doğal dilde bir istek, paylaşılabilir bir HTML rapor üretir.
 - **MCP sunucusu**: Claude Code ya da Claude Desktop'tan araç olarak.
 - **CLI / Python paketi**: `mlbooster`.
 
@@ -38,21 +38,24 @@ claude plugin install ml-booster --marketplace vykarakaya26/ml_booster_mcp
 
 Claude Code içinden de kurulabilir: `/plugin install ml-booster --marketplace vykarakaya26/ml_booster_mcp`
 
-**Kendini güncelleme.** Plugin, `main` dalındaki her merge'i yeni sürüm olarak görür; MCP sunucusu ve skill'ler plugin'in kendi kopyasından çalışır (`uvx --from ${CLAUDE_PLUGIN_ROOT}`). Otomatik güncelleme üçüncü taraf marketplace'lerde varsayılan kapalıdır ve yalnızca kullanıcı açabilir; bir kez açmanız yeterlidir:
+**Otomatik güncelleme.** Plugin, `main` dalındaki her merge'i yeni sürüm olarak görür; MCP sunucusu ve skill'ler plugin'in kendi kopyasından çalışır (`uvx --from ${CLAUDE_PLUGIN_ROOT}`). Otomatik güncelleme üçüncü taraf marketplace'lerde varsayılan kapalıdır ve yalnızca kullanıcı açabilir; bir kez açmanız yeterlidir:
 
 1. Claude Code'da `/plugin` → **Marketplaces** → `ml-booster-tools` → **Enable auto-update**.
-2. Güncelleme indiğinde Claude Code `Plugin updated: ml-booster · Run /reload-plugins to apply` der. `/reload-plugins` yeni sürümü hemen yükler; yazmazsanız bir sonraki oturumda yüklenir.
+2. Güncelleme indiğinde Claude Code `Plugin updated: ml-booster · Run /reload-plugins to apply` mesajını gösterir. `/reload-plugins` yeni sürümü hemen yükler; komut çalıştırılmazsa yeni sürüm bir sonraki oturumda yüklenir.
 
 Ek olarak:
-- `check_updates` MCP aracı ve `mlbooster version --check` yeni sürüm olup olmadığını söyler. Sonuç 24 saat önbellekte tutulur; kontrolü kapatmak için `MLBOOSTER_NO_UPDATE_CHECK=1` kullanın.
-- **Veri de kendini yeniler.** Panel kurulurken yerel önbellek serinin frekansına göre tazelik süresini aşmışsa (günlük 12 saat, haftalık 1 gün, aylık 3 gün, çeyreklik 7 gün) veri kaynaktan yeniden çekilir. Her çekim ayrı bir sürüm olarak saklanır, eski sürümler korunur.
+- `check_updates` MCP aracı ve `mlbooster version --check` yeni sürüm olup olmadığını bildirir. Sonuç 24 saat önbellekte tutulur; kontrolü kapatmak için `MLBOOSTER_NO_UPDATE_CHECK=1` kullanın.
+- **Veri önbelleğinin yenilenmesi.** Panel kurulurken yerel önbellek serinin frekansına göre tazelik süresini aşmışsa (günlük 12 saat, haftalık 1 gün, aylık 3 gün, çeyreklik 7 gün) veri kaynaktan yeniden çekilir. Her çekim ayrı bir sürüm olarak saklanır, eski sürümler korunur.
 
 | Skill | Ne yapar | Örnek istem |
 |---|---|---|
 | `sector-analysis` | Kaynak haritası, panel, kalite özeti ve tahmin referanslarını yorumlu bir HTML raporda birleştirir | "Otomotiv sektörü için veri analizi ve rapor hazırla" |
 | `evds-series-discovery` | EVDS'de güncel seri kodunu bulur, canlı doğrular ve feature'a bağlar | "Bankacılıkta kredi faizi feature'ı eksik, EVDS'den bul" |
-| `data-quality-audit` | Bayat seri, eksik, aykırı değer, yapısal kırılma ve kolineerlik denetimi yapar (HTML) | "Sigorta panelindeki veriler temiz mi?" |
-| `forecast-baseline` | Look-ahead korumalı backtest yapar. Karşılaştırılan modeller:<br>• çapa/naive, drift ve son dönem eğimi<br>• son 12 ay ortalaması ve medyanı<br>• ridge<br>• kantil regresyon (%10–%90 aralık)<br>• ortalama/medyan kombinasyonları (sapma yüksekse medyana geçen otomatik kural dahil)<br>Ölçütler: aralık kapsaması ve pinball kaybı. Kurumların yıl sonu tahminlerinin konsensüsünü yanına koyar (fan chart'lı HTML) | "Dolar/TL için yenmemiz gereken çıta ne, bankalar yıl sonu ne diyor?" |
+| `data-quality-audit` | Güncelliğini yitirmiş seri, eksik gözlem, aykırı değer, yapısal kırılma ve kolineerlik denetimi yapar (HTML) | "Sigorta panelindeki verilerin kalitesini denetle" |
+| `forecast-baseline` | Look-ahead korumalı backtest yapar. Karşılaştırılan modeller:<br>• çapa/naive, drift ve son dönem eğimi<br>• son 12 ay ortalaması ve medyanı<br>• ridge<br>• kantil regresyon (%10–%90 aralık)<br>• ortalama/medyan kombinasyonları (sapma yüksekse medyana geçen otomatik kural dahil)<br>Ölçütler: aralık kapsaması ve pinball kaybı. Kurumların yıl sonu tahminlerinin konsensüsünü yanına koyar (fan chart'lı HTML) | "USD/TRY için geçilmesi gereken referans kıyas düzeyi nedir; kurumların yıl sonu tahminleri ne düzeyde?" |
+| `market-share` | Pazar payı ve rekabet analizi: paylar (aylık akımda son 12 ay tabanı), yoğunlaşma (HHI aralığı, CR3/CR5, istikrarsızlık endeksi), oyuncu bazında eğilim, veriye dayalı rakip seti (ikame korelasyonu, segment örtüşmesi) ve nitel rakip değerlendirmesi, kaydırma-pay ayrıştırması, pazar büyümesinin makro sürücüleri (HTML) | "Elimdeki ODMD verisiyle Marka X'in pazar payını ve rakiplerini analiz et" |
+| `data-prep` | Dağılıma dayalı ön işleme: her değişken için eğitim penceresinde ortalama/standart sapma ile medyan/MAD/IQR seçimi, nedensel Hampel filtresiyle aykırı değer kırpma ya da işaretleme, log/Yeo–Johnson, birim kökte fark alma, standart/robust ölçekleme; bütün parametreler yalnızca eğitimden (HTML) | "Telekom panelini ridge modeline hazırla; medyan mı ortalama mı karar ver" |
+| `feature-engineering` | Sektöre özgü otomatik değişken üretimi (gecikme, hareketli istatistik, momentum, standart skor, reel faiz ve faiz farkı tarifleri, iş günü ve bayram takvimi, ÖTV/eşel mobil/deprem gibi olaylar) ve etkin örneklem + Benjamini–Hochberg ile sızıntısız seçim; katkısı seçim sonrası dönemde backtest ile ölçülür (HTML) | "Enflasyonu 1 ay ileri tahmin etmek için feature üret ve seç" |
 
 Raporlar çalışma dizininde `mlbooster-reports/<sektör>-<tarih>/` altına yazılır. Raporlar tek dosyadır, açık/koyu temayı destekler ve dış kaynak yüklemez.
 
@@ -64,13 +67,15 @@ Analiz içeren skill'ler işe başlamadan önce kullanıcıdan şu girdileri al�
 - nominal ya da reel çalışılacağı
 - sektör varsayımları
 
-Bu girdiler `assumptions.json` dosyasına kaydedilir. Raporun **Girdiler ve varsayımlar** bölümü her varsayımın türünü (kullanıcı onaylı, sektör varsayımı, onaysız varsayılan ya da veriden), güven düzeyini ve tarihini gösterir. 3 aydan eski bilgiler "bayat — doğrula" diye işaretlenir. Rapordaki her ifade dört dayanaktan birine bağlıdır: **veri**, **varsayım (A#)**, **model** ya da **yorum**. Onaysız bir varsayıma dayanan sonuç koşullu yazılır.
+Bu girdiler `assumptions.json` dosyasına kaydedilir. Raporun **Girdiler ve varsayımlar** bölümü her varsayımın türünü (kullanıcı onaylı, sektör varsayımı, onaysız varsayılan ya da veriden), güven düzeyini ve tarihini gösterir. 3 aydan eski bilgiler "güncel değil — doğrulanmalı" olarak işaretlenir. Rapordaki her ifade dört dayanaktan birine bağlıdır: **veri**, **varsayım (A#)**, **model** ya da **yorum**. Onaysız bir varsayıma dayanan sonuç koşullu yazılır.
 
-### Know-how belgeleri (`skills/_shared/references/`)
+Skill'ler tek bir analiz zincirinin halkalarıdır ve aynı çalışma klasörünü, varsayım kaydını ve eğitim penceresini paylaşır: `sector-analysis` → `data-quality-audit` → `data-prep` → `feature-engineering` → `forecast-baseline`, oyuncu düzeyinde `market-share` (ayrıntı: `skills/_shared/references/workflow.md`; kaynakça, O'Reilly ve serbest erişimli kitaplar dahil: `skills/_shared/references/literature.md`).
+
+### Metodoloji belgeleri (`skills/_shared/references/`)
 
 | Belge | İçerik |
 |---|---|
-| `analysis-playbook.md` | Dağılım teşhisi (ADF ve KPSS birlikte, kalın kuyruk, oynaklık rejimi, mevsimsellik); yüksek enflasyona özgü kurallar (log-fark, YoY baz etkisi, reel faiz, efektif politika duruşu, olay takvimi); sızıntı kontrol listesi; rolling-origin değerlendirme ve çıtalar |
+| `analysis-playbook.md` | Dağılım teşhisi (ADF ve KPSS birlikte, kalın kuyruk, oynaklık rejimi, mevsimsellik); yüksek enflasyona özgü kurallar (log-fark, YoY baz etkisi, reel faiz, efektif politika duruşu, olay takvimi); sızıntı kontrol listesi; rolling-origin değerlendirme ve kıyas düzeyleri |
 | `assumptions-guide.md` | Analiz öncesi sorulacak sorular, varsayım kaydı, veri/varsayım/model/yorum etiketleri, senaryo ve duyarlılık, ölçülü olasılık dili, abartıya karşı kontrol listesi |
 | `sector-assumptions.md` | Bankacılık, sigorta, telekom, otomotiv ve akaryakıt için belirleyiciler, açıkça yazılması gereken varsayımlar ve birincil kontrol kaynakları. Regülasyon rakamları sabit olarak gömülmez |
 
@@ -81,7 +86,7 @@ pip install "git+https://github.com/vykarakaya26/ml_booster_mcp.git"
 claude mcp add mlbooster -- mlbooster-mcp
 ```
 
-Araçlar: `list_sectors`, `list_sources`, `show_map`, `search_series`, `discover_series`, `set_feature_series`, `fetch_series`, `build_panel`, `audit_panel`, `run_backtest`, `health`.
+Araçlar: `list_sectors`, `list_sources`, `show_map`, `search_series`, `discover_series`, `set_feature_series`, `fetch_series`, `build_panel`, `audit_panel`, `run_backtest`, `prepare_panel`, `engineer_features`, `analyze_market_share`, `health`, `check_updates`.
 
 Seri kodlarını keşfetmek için TCMB'nin resmi EVDS-MCP sunucusu da eklenebilir:
 `claude mcp add --transport http evds https://mcp.tcmb.gov.tr/tcmb-mcp/evds/mcp`
@@ -99,6 +104,10 @@ mlbooster build-panel --sector otomotiv --out otomotiv.csv  # .parquet veya .csv
 mlbooster build-panel --sector makro_genel --freq W --out makro_haftalik.csv  # haftalık (Cuma) panel
 mlbooster audit --sector otomotiv --json audit.json
 mlbooster backtest --sector bankacilik --target aofm --anchor aofm_son --json bt.json  # kantil/kombinasyon dahil
+mlbooster prep --sector makro_genel --target tufe_yoy --train-end 2022-12 --out hazir.csv --json prep.json
+mlbooster features --sector makro_genel --target tufe_yoy --train-end 2022-12 --selected-out secilen.csv --json features.json
+mlbooster backtest --sector makro_genel --target tufe_yoy --panel-file secilen.csv --eval-start 2022-12  # seçim sonrası dönemde ölç
+mlbooster market-share --input pay.csv --focus "Marka X" --unit adet --sector otomotiv --json share.json
 mlbooster health
 ```
 

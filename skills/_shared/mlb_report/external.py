@@ -102,7 +102,7 @@ def section(data: dict, today: date | None = None, latest: dict[str, tuple[str, 
         ))  # fmt: skip
         for f in sorted(items, key=lambda x: x["published"], reverse=True):
             age = (today - date.fromisoformat(f["published"])).days
-            flag = ' <span class="badge serious"><span aria-hidden="true">▲</span> bayat</span>' if age > STALE_DAYS else ""
+            flag = ' <span class="badge serious"><span aria-hidden="true">▲</span> güncel değil</span>' if age > STALE_DAYS else ""
             kind = "birincil" if f.get("primary") else "ikincil (haber/özet)"
             link = f'<a href="{H.esc(f["source_url"])}" rel="noopener noreferrer">kaynak</a>'
             detail_rows.append((
@@ -111,10 +111,10 @@ def section(data: dict, today: date | None = None, latest: dict[str, tuple[str, 
             ))  # fmt: skip
 
     body = (
-        '<p class="muted">Dış tahminler veri değil, <strong>varsayım</strong>tır. Görüş dağılımı genişse '
+        '<p class="muted">Dış tahminler veri değil, <strong>varsayım</strong> niteliğindedir. Görüş dağılımı genişse '
         f"(çeyrekler arası açıklık medyanın %{int(DISPERSION_RULE * 100)}'undan fazlaysa) konsensüs olarak medyan "
         "kullanılır, çünkü ortalama tek bir aykırı görüşe duyarlıdır. "
-        f"{STALE_DAYS} günden eski tahminler 'bayat' diye işaretlenir.</p>"
+        f"{STALE_DAYS} günden eski tahminler 'güncel değil' olarak işaretlenir.</p>"
         + H.table(
             ["Değişken", "Ufuk", "n", "Konsensüs", "Kural", "Medyan", "Ortalama", "Aralık", "Son değere göre"],
             summary_rows, numeric=[2, 3, 5, 6], raw=[0, 1, 3, 4, 7, 8],
@@ -124,5 +124,5 @@ def section(data: dict, today: date | None = None, latest: dict[str, tuple[str, 
                   numeric=[3], raw=[0, 1, 2, 3, 4, 5, 6, 7])  # fmt: skip
     )
     if data.get("retrieved"):
-        body += f'<p class="muted">Derlenme tarihi: {H.esc(data["retrieved"])}. Değerler kurum notlarından ve haberlerden derlenmiştir; birincil kaynaktan doğrulayın.</p>'
+        body += f'<p class="muted">Derlenme tarihi: {H.esc(data["retrieved"])}. Değerler kurum notlarından ve haber kaynaklarından derlenmiştir; birincil kaynaktan doğrulanması önerilir.</p>'
     return H.section("Dış tahminler ve konsensüs", body, "dis-tahminler")

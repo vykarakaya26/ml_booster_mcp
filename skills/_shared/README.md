@@ -5,7 +5,7 @@
 kullanır, böylece script'ler `mlbooster` kurulu olmayan bir Python ile de çalışır.
 
 - `mlb_report/svg.py` — tek eksenli çizgi grafik (küçük çoklu panel), dikey olay işaretleri, nokta vurguları, yatay çubuk
-- `mlb_report/html.py` — kendi kendine yeten HTML sayfa: tema token'ları (açık/koyu), tablo, rozet, güvenli Markdown
+- `mlb_report/html.py` — bağımsız (self-contained) HTML sayfa: tema token'ları (açık/koyu), tablo, rozet, güvenli Markdown
 - `mlb_report/data.py` — CSV/JSON okuma yardımcıları
 - `mlb_report/assets/` — `report.css`, `report.js` (tooltip + crosshair; DOM'a yalnızca `textContent` yazar)
 

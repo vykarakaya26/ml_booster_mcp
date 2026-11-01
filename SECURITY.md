@@ -1,8 +1,8 @@
 # Güvenlik
 
-## Açık bildirme
+## Güvenlik açığı bildirimi
 
-Güvenlik açığı bulduysanız lütfen herkese açık issue açmayın. GitHub'daki **Security → Report a vulnerability** (private advisory) ile bildirin.
+Güvenlik açıkları herkese açık issue olarak bildirilmemelidir. GitHub'daki **Security → Report a vulnerability** (private advisory) ile bildirin.
 
 ## Tehdit modeli ve önlemler
 

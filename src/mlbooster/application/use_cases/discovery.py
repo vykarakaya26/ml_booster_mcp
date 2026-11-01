@@ -109,7 +109,7 @@ class SetFeatureSeries:
         freq = Frequency(df["freq"].iloc[0])
         last = max(df["date"])
         if (today - last).days > freq.max_staleness_days:
-            raise ProviderError(f"{code}: son gözlem {last}; seri durmuş görünüyor, güncel bir kod seçin")
+            raise ProviderError(f"{code}: son gözlem {last}; seri güncelliğini yitirmiş görünüyor; güncel bir kod seçin")
 
         seed = SeedSeries(
             code=code,

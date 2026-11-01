@@ -25,7 +25,18 @@ from mlbooster.application.use_cases.panel import DEFAULT_START
 from mlbooster.bootstrap import Container, build_container
 from mlbooster.domain.errors import DomainError, InvalidInput
 from mlbooster.domain.services.backtest import MODELS, BacktestConfig
-from mlbooster.interfaces.presenters import backtest_dict, health_dict, quality_dict, sector_map_markdown, source_dict
+from mlbooster.domain.services.feature_engineering import FeatureConfig
+from mlbooster.domain.services.market_share import ShareConfig
+from mlbooster.domain.services.preprocessing import PrepConfig
+from mlbooster.interfaces.presenters import (
+    backtest_dict,
+    features_dict,
+    health_dict,
+    prep_dict,
+    quality_dict,
+    sector_map_markdown,
+    source_dict,
+)
 
 log = logging.getLogger(__name__)
 F = TypeVar("F", bound=Callable[..., Any])
@@ -144,7 +155,7 @@ def build_panel(sector: str, start: str = DEFAULT_START.isoformat(), end: str | 
 @server.tool(annotations=READ_REMOTE)
 @safe_tool
 def health(source: str | None = None) -> list[dict]:
-    """Kanarya testleri: sağlayıcıların kritik serilerden son gözlemleri çekip çekemediği."""
+    """Sağlık kontrolü (canary): sağlayıcıların kritik serilerden son gözlemleri çekip çekemediğini doğrular."""
     return [health_dict(r) for r in container().health(source)]
 
 
@@ -171,7 +182,7 @@ def set_feature_series(
     agg: str | None = None,
 ) -> dict:
     """Bir sektör feature'ına seri kodu bağlar; create=True ise yeni feature ekler (transform: level, diff,
-    log_diff, yoy_pct; agg: avg, last, sum). Kod önce canlı doğrulanır (son 2 yılda veri, seri durmamış).
+    log_diff, yoy_pct; agg: avg, last, sum). Kod önce canlı doğrulanır (son 2 yılda gözlem bulunmalı ve seri güncel olmalı).
     Kullanıcının yerel override dosyasına yazar; paket kataloğu değişmez."""
     b = container().set_feature_series(
         sector, feature, series, name, kind, publication_lag_days, datagroup,
@@ -186,8 +197,8 @@ def set_feature_series(
 @server.tool(annotations=WRITES_LOCAL)
 @safe_tool
 def audit_panel(sector: str, start: str = DEFAULT_START.isoformat(), end: str | None = None) -> dict:
-    """Sektör panelinin veri kalitesini denetler: bayat/durmuş seri, eksik oranı, aykırı değer (robust z),
-    yapısal kırılma (bilinen TR şoklarıyla eşleştirilmiş), aşırı korelasyon."""
+    """Sektör panelinin veri kalitesini denetler: güncelliğini yitirmiş seri, eksik oranı, aykırı değer (robust z),
+    yapısal kırılma (Türkiye'deki bilinen şoklarla eşleştirilmiş), aşırı korelasyon."""
     report, result = container().audit_panel(sector, _iso(start, "start"), _iso(end, "end") if end else None)
     return quality_dict(report, result.skipped)
 
@@ -208,7 +219,7 @@ def run_backtest(
     """Panel hedef kolonu için rolling-origin backtest (look-ahead korumalı). Modeller: naive, seasonal_naive,
     drift, ridge (gecikmeli; exogenous=True ise diğer feature'larla). Metrikler: MAE, RMSE, sMAPE, MASE.
     anchor: hedefin daha güncel versiyonu (ör. aofm_son); verilirse anchor_naive modeli eklenir — aylık
-    ortalama hedeflerde gerçek çıta budur. Son 24 tahmin noktası döner."""
+    ortalama hedeflerde asıl kıyas düzeyi budur. Son 24 tahmin noktası döner."""
     config = BacktestConfig(
         target=target, horizon=horizon, min_train=min_train, models=tuple(models or MODELS), exogenous=exogenous,
         anchor=anchor,
@@ -217,11 +228,70 @@ def run_backtest(
     return backtest_dict(result, sector, max_predictions=24)
 
 
+@server.tool(annotations=WRITES_LOCAL)
+@safe_tool
+def prepare_panel(
+    sector: str,
+    target: str | None = None,
+    train_end: str | None = None,
+    model_family: str = "linear",
+    start: str = DEFAULT_START.isoformat(),
+) -> dict:
+    """Dağılıma dayalı ön işleme planı. Her değişken için eğitim penceresinde profil (ortalama/std, medyan/MAD/IQR,
+    çarpıklık, basıklık, aykırı oranı, durağanlık) ve seçilen adımlar (eksik doldurma, fark, aykırı değer kırpma/işaretleme,
+    log/Yeo–Johnson, standart/robust ölçekleme) gerekçeleriyle döner. train_end: YYYY-AA-GG; parametreler yalnızca bu
+    tarihe kadarki veriden tahmin edilir. Hedef kolonun dağılımı değiştirilmez."""
+    config = PrepConfig(target=target, train_end=_iso(train_end, "train_end") if train_end else None, model_family=model_family)
+    result, panel = container().prepare_panel(sector, config, _iso(start, "start"))
+    return prep_dict(result, sector, panel.skipped)
+
+
+@server.tool(annotations=WRITES_LOCAL)
+@safe_tool
+def engineer_features(
+    sector: str,
+    target: str | None = None,
+    horizon: int = 1,
+    train_end: str | None = None,
+    prep: bool = True,
+    start: str = DEFAULT_START.isoformat(),
+) -> dict:
+    """Sektöre özgü otomatik değişken üretimi: gecikmeler, hareketli ortalama/oynaklık, momentum, standart skor, üstel
+    ortalama, sektör tarifleri (reel faiz, faiz farkı, kur sepeti…), takvim (iş günü, bayram) ve olay göstergeleri.
+    target verilirse yalnızca eğitim penceresinde h dönem sonrasına göre taranır (Spearman, etkin örneklem,
+    Benjamini–Hochberg, alt dönem istikrarı, fazlalık eleme) ve seçilen değişkenler döner."""
+    fcfg = FeatureConfig(target=target, horizon=horizon, train_end=_iso(train_end, "train_end") if train_end else None)
+    pcfg = PrepConfig(target=target, train_end=fcfg.train_end) if prep else None
+    result, _, panel = container().engineer_features(sector, fcfg, pcfg, _iso(start, "start"))
+    return features_dict(result, sector, max_screening=60, skipped_panel=panel.skipped)
+
+
+@server.tool(annotations=WRITES_LOCAL)
+@safe_tool
+def analyze_market_share(
+    records: list[dict],
+    focus: str | None = None,
+    measure: str = "value",
+    kind: str = "flow",
+    unit: str = "",
+    total_entity: str = "TOPLAM",
+    basis: str = "auto",
+    sector: str | None = None,
+) -> dict:
+    """Pazar payı analizi. records: [{entity, date, value, segment?}] (date: YYYY-AA, YYYY-Qn, YYYY ya da YYYY-AA-GG).
+    measure: value (tutar/adet) | share (yüzde pay); kind: flow | stock. Pazar toplamı `total_entity` adlı satırlarla
+    verilirse kapsam oranı hesaplanır. Çıktı: paylar, HHI/CR-k, oyuncu bazında yıllık değişim ve eğilim, odak oyuncu
+    için rakip adayları ve gerekçeleri, segment kaydırma-pay ayrıştırması; sector verilirse pazar büyümesinin makro
+    değişkenlerle gecikmeli korelasyonu."""
+    config = ShareConfig(focus=focus, measure=measure, kind=kind, unit=unit[:40], total_entity=total_entity, basis=basis)
+    return container().market_share.from_records(records, config, sector)
+
+
 @server.tool(annotations=READ_REMOTE)
 @safe_tool
 def check_updates() -> dict:
-    """Kurulu mlbooster sürümünü GitHub'daki en son sürümle karşılaştırır; güncelleme varsa nasıl yapılacağını söyler.
-    Kullanıcıya oturum başında bir kez göstermek yeterlidir."""
+    """Kurulu mlbooster sürümünü GitHub'daki en son sürümle karşılaştırır; güncelleme varsa yöntemini bildirir.
+    Sonucun kullanıcıya oturum başında bir kez gösterilmesi yeterlidir."""
     return container().check_updates()
 
 

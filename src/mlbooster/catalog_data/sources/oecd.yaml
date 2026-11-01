@@ -4,7 +4,7 @@ owner: OECD
 base_url: https://sdmx.oecd.org/public/rest/data/
 access: rest_api
 auth: {type: none}
-rate_limit: {rps: 0.5, backoff: exponential, notes: "OECD anonim kullanımda dakikalık istek sınırı uygular; yavaş çek."}
+rate_limit: {rps: 0.5, backoff: exponential, notes: "OECD anonim kullanımda dakikalık istek sınırı uygular; istek hızı düşük tutulmalıdır."}
 license:
   commercial: true
   redistribution: true

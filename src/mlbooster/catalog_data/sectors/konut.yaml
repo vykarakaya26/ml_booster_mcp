@@ -13,3 +13,10 @@ sector_sources: [tuik]
 market_share_sources:
   - {source: tuik, metric: "il bazında konut satış payı", is_proxy: false}
 ml_use_cases: ["Fiyat ve talep modeli", "Bölgesel pay", "Kredi koşulları etkisi"]
+feature_recipes:
+  - {name: reel_konut_fiyat_artisi, op: spread, inputs: [kfe_yoy, tufe_yoy], note: "Konut fiyat artışı − yıllık TÜFE"}
+  - {name: reel_konut_kredisi_faizi, op: spread, inputs: [konut_kredisi_faizi, tufe_yoy], note: "Konut kredisi faizi − yıllık TÜFE"}
+  - {name: maliyet_fiyat_farki, op: spread, inputs: [ufe_yoy, kfe_yoy], note: "İnşaat maliyet baskısı göstergesi (ÜFE − konut fiyatı)"}
+  - {name: satis_z_24, op: zscore, inputs: [konut_satis_yoy], window: 24, note: "Konut satışlarının son 24 aya göre standart skoru"}
+events:
+  - {name: deprem_2023_02, start: "2023-02", kind: pulse, note: "6 Şubat 2023 Kahramanmaraş depremleri ve sonrasındaki yeniden yapılanma talebi"}

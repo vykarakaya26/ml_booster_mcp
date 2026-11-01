@@ -63,7 +63,7 @@ def build(m: dict, dates: list[date], columns: dict, audit: dict, backtests: lis
     sections.append(
         H.section(
             "Güncel görünüm",
-            H.kpis(tiles) + '<h3>Feature grafikleri</h3><p class="muted">Tek eksen, her feature kendi ölçeğinde. Üzerine gelince değerler görünür.</p>'
+            H.kpis(tiles) + '<h3>Feature grafikleri</h3><p class="muted">Her grafik tek eksenlidir; her feature kendi ölçeğinde gösterilir. Değerler, imleç grafiğin üzerine getirildiğinde görüntülenir.</p>'
             + f'<div class="grid-2">{charts}</div>',
             "gorunum",
         )
@@ -89,7 +89,7 @@ def build(m: dict, dates: list[date], columns: dict, audit: dict, backtests: lis
     c = audit["counts"]
     top = [(H.badge(i["severity"]), i["feature"], i["message"]) for i in audit["issues"] if i["severity"] != "info"][:8]
     body = H.kpis([("Yüksek", str(c["high"]), None), ("Orta", str(c["medium"]), None), ("Bilgi", str(c["info"]), "bilinen şoklar")])
-    body += H.table(["Önem", "Feature", "Bulgu"], top, raw=[0]) if top else "<p>Önemli bulgu yok.</p>"
+    body += H.table(["Önem", "Feature", "Bulgu"], top, raw=[0]) if top else "<p>Yüksek veya orta önemde bulgu yok.</p>"
     sections.append(H.section("Veri kalitesi", body, "kalite"))
 
     if backtests:
@@ -158,7 +158,7 @@ def main() -> None:
     assumptions = A.load(args.assumptions) if args.assumptions else None
     external = X.load(args.external) if args.external else None
     if assumptions is None:
-        print("Uyarı: --assumptions verilmedi; raporda girdiler ve varsayımlar bölümü olmayacak.", file=sys.stderr)
+        print("Uyarı: --assumptions verilmedi; raporda girdiler ve varsayımlar bölümü yer almayacak.", file=sys.stderr)
     dates, columns = read_panel_csv(args.panel)
     html = build(
         read_json(args.map), dates, columns, read_json(args.audit),

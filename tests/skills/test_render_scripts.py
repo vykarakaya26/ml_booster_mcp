@@ -153,7 +153,7 @@ def test_stale_assumptions_flagged():
     data = json.loads((SKILLS / "_shared/assets/assumptions.example.json").read_text(encoding="utf-8"))
     data["assumptions"][0]["as_of"] = "2025-01-01"
     assert [a["id"] for a in stale(data, _d(2026, 10, 30))] == ["A1"]
-    assert "bayat — doğrula" in section(data)
+    assert "güncel değil — doğrulanmalı" in section(data)
 
 
 def _external(values, published="2026-10-01"):
@@ -186,4 +186,73 @@ def test_external_consensus_rule_and_validation():
     old = _external([50.0, 51.0, 52.0], published="2026-01-01")
     old["forecasts"][0]["institution"] = EVIL
     html = section(old, latest={"usdtry": ("2026-10", 49.7)})
-    assert "bayat" in html and EVIL not in html and "Son değere göre" in html
+    assert "güncel değil" in html and EVIL not in html and "Son değere göre" in html
+
+
+def test_market_share_report(tmp_path):
+    from mlbooster.domain.services.market_share import ShareConfig, analyze
+
+    sample = pd.read_csv(SKILLS / "market-share/assets/ornek_pazar_payi.csv")
+    sample.loc[sample["entity"] == "Marka G", "entity"] = EVIL[:60]
+    (tmp_path / "share.json").write_text(json.dumps(analyze(sample, ShareConfig(focus="Marka B"))), encoding="utf-8")
+    comp = json.loads((SKILLS / "market-share/assets/competitors.example.json").read_text(encoding="utf-8"))
+    comp["competitors"][0]["evidence"] += EVIL
+    (tmp_path / "competitors.json").write_text(json.dumps(comp, ensure_ascii=False), encoding="utf-8")
+    (tmp_path / "narrative.md").write_text(f"## Ana bulgu\nPay %26,5 {EVIL}", encoding="utf-8")
+    out = tmp_path / "report.html"
+    _run(SKILLS / "market-share/scripts/render_share_report.py", "--analysis", str(tmp_path / "share.json"),
+         "--competitors", str(tmp_path / "competitors.json"), "--narrative", str(tmp_path / "narrative.md"),
+         "--source", "Sentetik örnek", "--out", str(out))  # fmt: skip
+    html = out.read_text(encoding="utf-8")
+    _assert_safe(html)
+    for heading in ("Pazar yapısı ve yoğunlaşma", "Oyuncular ve pay dinamikleri", "Rakip seti", "Segment kırılımı", "Yöntem"):
+        assert heading in html
+    assert "Doğrudan rakip" in html and "pay etkisi" in html and "data-chart=" in html
+
+
+def test_competitors_validation():
+    sys.path.insert(0, str(SKILLS / "market-share/scripts"))
+    from render_share_report import CompetitorsError, validate_competitors
+
+    validate_competitors(json.loads((SKILLS / "market-share/assets/competitors.example.json").read_text(encoding="utf-8")))
+    for broken in (
+        {"competitors": [{"entity": "A", "tier": "rakip"}]},
+        {"competitors": [{"entity": "A", "tier": "doğrudan", "confidence": "kesin"}]},
+        {"competitors": [{"entity": "A", "tier": "doğrudan", "source_url": "javascript:alert(1)"}]},
+        {"competitors": [{"tier": "doğrudan"}]},
+    ):
+        with pytest.raises(CompetitorsError):
+            validate_competitors(broken)
+
+
+def test_prep_and_feature_reports(tmp_path):
+    from mlbooster.domain.services.feature_engineering import FeatureConfig, engineer
+    from mlbooster.domain.services.preprocessing import PrepConfig, prepare
+    from mlbooster.interfaces.presenters import features_dict, prep_dict
+
+    rng = np.random.default_rng(4)
+    idx = pd.date_range("2013-01-31", periods=140, freq="ME")
+    panel = pd.DataFrame({"hedef": np.cumsum(rng.normal(0, 1, 140)), EVIL: rng.lognormal(0, 1, 140), "x": rng.normal(0, 1, 140)}, index=idx)
+    panel.index.name = "date"
+    prep = prepare(panel, PrepConfig(target="hedef", train_end=date(2021, 12, 31)))
+    (tmp_path / "prep.json").write_text(json.dumps(prep_dict(prep, "telekom")), encoding="utf-8")
+    panel.to_csv(tmp_path / "raw.csv", date_format="%Y-%m-%d")
+    prep.panel.to_csv(tmp_path / "prepared.csv", date_format="%Y-%m-%d")
+    out = tmp_path / "prep.html"
+    _run(SKILLS / "data-prep/scripts/render_prep_report.py", "--prep", str(tmp_path / "prep.json"), "--raw", str(tmp_path / "raw.csv"),
+         "--prepared", str(tmp_path / "prepared.csv"), "--out", str(out))  # fmt: skip
+    html = out.read_text(encoding="utf-8")
+    _assert_safe(html)
+    assert "Dağılım profili ve uygulanan adımlar" in html and "Yeo–Johnson" in html and "(hedef)" in html
+
+    fe = engineer(prep.panel, [], FeatureConfig(target="hedef", train_end=date(2021, 12, 31)))
+    (tmp_path / "fe.json").write_text(json.dumps(features_dict(fe, "telekom")), encoding="utf-8")
+    bt = {"config": {"eval_start": "2021-12-31"}, "best_model": "naive", "common_origins": 20,
+          "metrics": [{"model": "naive", "mae": 1.0}, {"model": "ridge", "mae": 0.9}]}  # fmt: skip
+    (tmp_path / "bt.json").write_text(json.dumps(bt), encoding="utf-8")
+    out = tmp_path / "fe.html"
+    _run(SKILLS / "feature-engineering/scripts/render_feature_report.py", "--features", str(tmp_path / "fe.json"),
+         "--bt-base", str(tmp_path / "bt.json"), "--bt-features", str(tmp_path / "bt.json"), "--out", str(out))  # fmt: skip
+    html = out.read_text(encoding="utf-8")
+    _assert_safe(html)
+    assert "Değişken aileleri" in html and "Seçimin tahmin performansına katkısı" in html and "%10,0" in html

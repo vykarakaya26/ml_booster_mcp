@@ -21,7 +21,7 @@ class RunHealthChecks:
                 with open_provider(self._providers, source) as provider:
                     results.append(provider.healthcheck())
             except ProviderNotImplemented:
-                results.append(HealthResult(source.id, HealthStatus.SKIPPED, "sağlayıcı henüz yazılmadı"))
+                results.append(HealthResult(source.id, HealthStatus.SKIPPED, "sağlayıcı henüz uygulanmadı"))
             except ProviderError as exc:  # ör. sağlayıcı kurulamadı (host sabitleme)
                 results.append(HealthResult(source.id, HealthStatus.FAIL, f"{type(exc).__name__}: {exc}"))
         return results

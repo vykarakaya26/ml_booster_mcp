@@ -176,7 +176,7 @@ def test_healthcheck_fails_on_stale_series(evds):
 
     respx.get(url__startswith=BASE).mock(side_effect=responder)
     result = evds.healthcheck()
-    assert result.status is HealthStatus.FAIL and "durmuş" in result.detail
+    assert result.status is HealthStatus.FAIL and "durdurulmuş" in result.detail
 
 
 @pytest.mark.parametrize(("label", "freq"), [("İŞ GÜNÜ", "B"), ("İŞGÜNÜ", "B"), ("ÜÇ AYLIK", "Q"), ("aylık", "M"), ("GÜNLÜK", "D"),

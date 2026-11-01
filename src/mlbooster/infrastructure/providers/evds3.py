@@ -56,7 +56,7 @@ _FREQ_LABELS = {  # anahtarlar boşluksuz
     "ALTIAYLIK": "S", "6AYLIK": "S", "SEMIANNUAL": "S", "SEMI-ANNUAL": "S", "SIXMONTH": "S",
     "YILLIK": "A", "ANNUAL": "A", "YEARLY": "A",
 }  # fmt: skip
-_HEALTH_LOOKBACK_DAYS = {"D": 30, "B": 30, "W": 60, "SM": 90, "M": 400, "Q": 800, "S": 1200, "A": 2200}  # bayatlıktan geniş
+_HEALTH_LOOKBACK_DAYS = {"D": 30, "B": 30, "W": 60, "SM": 90, "M": 400, "Q": 800, "S": 1200, "A": 2200}  # güncellik eşiğinden geniş
 
 _DMY = re.compile(r"^(\d{1,2})-(\d{1,2})-(\d{4})$")
 _YM = re.compile(r"^(\d{4})-(\d{1,2})$")
@@ -176,11 +176,11 @@ class Evds3Provider:
         if status in (401, 403):
             raise AuthenticationFailed(f"EVDS kimlik doğrulama hatası {status}: {redact(response.text(), [key])}")
         if 300 <= status < 400:
-            raise UnexpectedResponse(f"EVDS {status} yönlendirmesi; eski uç mu kullanılıyor? {url}")
+            raise UnexpectedResponse(f"EVDS {status} yönlendirmesi; eski bir uç nokta kullanılıyor olabilir: {url}")
         if status != 200:
             raise ProviderError(f"EVDS HTTP {status}: {url}")
         if "html" in response.content_type or response.content.lstrip()[:1] == b"<":
-            raise UnexpectedResponse(f"EVDS JSON yerine HTML döndü (uç değişmiş olabilir): {url}")
+            raise UnexpectedResponse(f"EVDS JSON yerine HTML döndü (uç nokta değişmiş olabilir): {url}")
         if not response.content.strip():
             raise UnexpectedResponse(f"EVDS boş yanıt döndü: {url}")
 
@@ -368,7 +368,7 @@ class Evds3Provider:
                 if age > seed.freq.max_staleness_days:
                     # Seri veri dönüyor ama durmuş: kod arşive taşınmış olabilir (ör. TP.FG.J0, 2026-01).
                     return HealthResult(
-                        self.source.id, HealthStatus.FAIL, f"{seed.code}: son gözlem {last['date']} ({age} gün önce), seri durmuş olabilir"
+                        self.source.id, HealthStatus.FAIL, f"{seed.code}: son gözlem {last['date']} ({age} gün önce); serinin yayımı durdurulmuş olabilir"
                     )
                 details.append(f"{seed.code} son={last['date']} değer={last['value']:g}")
         except ProviderError as exc:

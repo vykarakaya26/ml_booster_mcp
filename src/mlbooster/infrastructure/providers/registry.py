@@ -42,5 +42,5 @@ class ProviderRegistry:
     def create(self, source: Source) -> SeriesProvider:
         cls = PROVIDERS.get(source.provider or "")
         if cls is None:
-            raise ProviderNotImplemented(f"{source.id} için sağlayıcı henüz yazılmadı")
+            raise ProviderNotImplemented(f"{source.id} için sağlayıcı henüz uygulanmadı")
         return cls(source, http=self._http_factory(source), secrets=self._secrets, raw_store=self._raw_store)

@@ -15,3 +15,12 @@ sector_sources: [bkm, tuik]
 market_share_sources:
   - {source: bkm, metric: "sektörel kart harcaması (talep vekili; firma payı değil)", is_proxy: true}
 ml_use_cases: ["Satış tahmini", "Enflasyon geçişkenliği", "Sepet/kategori talebi"]
+feature_recipes:
+  - {name: market_toplam_farki, op: spread, inputs: [kart_market_reel_yoy, kart_toplam_reel_yoy], note: "Temel tüketimin toplam harcamaya göre büyüme farkı"}
+  - {name: yemek_toplam_farki, op: spread, inputs: [kart_yemek_reel_yoy, kart_toplam_reel_yoy], note: "Dışarıda yemek harcamasının göreli büyümesi"}
+  - {name: online_toplam_farki, op: spread, inputs: [kart_internet_reel_yoy, kart_toplam_reel_yoy], note: "Çevrim içi kanalın göreli büyümesi"}
+  - {name: guven_sapma_12, op: gap, inputs: [tuketici_guveni], window: 12, note: "Tüketici güveninin son 12 ay ortalamasından sapması"}
+  - {name: guven_ortalama, op: mean, inputs: [tuketici_guveni, oecd_tuketici_guveni], note: "TÜİK ve OECD güven göstergelerinin ortalaması (ölçek farkına dikkat)"}
+events:
+  - {name: asgari_ucret_ara_artis_2022, start: "2022-07", kind: pulse, note: "Yıl ortası asgari ücret artışı (Temmuz 2022)"}
+  - {name: asgari_ucret_ara_artis_2023, start: "2023-07", kind: pulse, note: "Yıl ortası asgari ücret artışı (Temmuz 2023); Temmuz 2024'te ara artış yapılmadı"}

@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from datetime import date
 
+import pandas as pd
+
 from mlbooster.application.dto import PanelResult
 from mlbooster.application.use_cases.panel import DEFAULT_START, BuildPanel
 from mlbooster.domain.errors import InvalidInput
@@ -47,8 +49,15 @@ class RunBacktest:
         config: BacktestConfig,
         start: date = DEFAULT_START,
         end: date | None = None,
+        panel: pd.DataFrame | None = None,
     ) -> tuple[BacktestResult, PanelResult]:
-        result = self._build(sector_id, start, end, save=False)
+        """`panel` verilirse (ör. feature-engineering çıktısı) sektör paneli yerine o kullanılır."""
+        if panel is not None:
+            if not isinstance(panel.index, pd.DatetimeIndex) or panel.empty:
+                raise InvalidInput("Dış panel tarih indeksli ve boş olmayan bir tablo olmalıdır")
+            result = PanelResult(sector_id, panel)
+        else:
+            result = self._build(sector_id, start, end, save=False)
         if result.panel.empty:
             raise InvalidInput(f"{sector_id} paneli boş; atlanan feature'lar: {result.skipped}")
         return rolling_origin_backtest(result.panel, config), result

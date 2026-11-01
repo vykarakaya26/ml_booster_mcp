@@ -1,6 +1,6 @@
-"""Panel kalite denetimi: eksiklik, bayatlık, aykırı değer, yapısal kırılma, aşırı korelasyon.
+"""Panel kalite denetimi: eksiklik, güncellik, aykırı değer, yapısal kırılma, aşırı korelasyon.
 
-Bütün kontroller açıklanabilir basit istatistiklerdir. Amaç, modelden önce insanın bakması
+Bütün kontroller açıklanabilir basit istatistiklerdir. Amaç, modellemeden önce analistin incelemesi
 gereken noktaları işaretlemektir; kesin hüküm vermek değil.
 """
 
@@ -162,18 +162,18 @@ def audit_panel(
         )  # fmt: skip
 
         if months_since > t.stale_months:
-            issues.append(Issue(Severity.HIGH, name, "stale", f"Son gözlem {last.date()} ({months_since} ay önce); seri durmuş veya kodu değişmiş olabilir."))
+            issues.append(Issue(Severity.HIGH, name, "stale", f"Son gözlem {last.date()} ({months_since} ay önce); serinin yayımı durdurulmuş ya da kodu değiştirilmiş olabilir."))
         if missing > t.missing_ratio:
-            issues.append(Issue(Severity.MEDIUM, name, "missing", f"Aralık içinde eksik oranı %{missing * 100:.1f}."))
+            issues.append(Issue(Severity.MEDIUM, name, "missing", f"Gözlem aralığı içinde eksik oranı %{missing * 100:.1f}."))
         if outliers:
             sample = ", ".join(str(d.date()) for d in outliers[:5])
             issues.append(Issue(Severity.MEDIUM, name, "outliers", f"{len(outliers)} aykırı değer (robust z>{t.outlier_z:g}): {sample}"))
         for b in breaks:
-            context = f" — muhtemel neden: {b.event}" if b.event else " — bilinen bir olayla eşleşmedi, incelenmeli"
+            context = f" — eşleşen bilinen olay: {b.event}" if b.event else " — bilinen bir olayla eşleşmedi; incelenmelidir"
             severity = Severity.INFO if b.event else Severity.MEDIUM
             issues.append(Issue(severity, name, "structural_break", f"{b.date:%Y-%m} civarında ortalama kayması (t={b.t_stat:+.1f}){context}."))
         if valid.nunique() <= 1:
-            issues.append(Issue(Severity.HIGH, name, "constant", "Seri sabit; modele bilgi taşımaz."))
+            issues.append(Issue(Severity.HIGH, name, "constant", "Seri sabit; model için bilgi taşımaz."))
 
     pairs, notable = [], []
     numeric = panel.dropna(axis=1, how="all")
@@ -186,13 +186,13 @@ def audit_panel(
                 if pd.isna(value):
                     continue
                 if frozenset((a, b)) in companions:
-                    notable.append((a, b, round(float(value), 3), "aynı ham seriden türetilmiş; modelde birini kullanın"))
+                    notable.append((a, b, round(float(value), 3), "aynı ham seriden türetilmiş; modelde yalnızca biri kullanılmalıdır"))
                     continue
                 if t.notable_correlation <= abs(value) < t.collinearity:
-                    notable.append((a, b, round(float(value), 3), "yüksek korelasyon; birlikte kullanmadan önce düşünün"))
+                    notable.append((a, b, round(float(value), 3), "yüksek korelasyon; birlikte kullanılmadan önce değerlendirilmelidir"))
                 if abs(value) >= t.collinearity:
                     pairs.append((a, b, round(float(value), 3)))
-                    issues.append(Issue(Severity.MEDIUM, f"{a} ~ {b}", "collinearity", f"Korelasyon {value:+.2f}; ikisinden biri gereksiz olabilir."))
+                    issues.append(Issue(Severity.MEDIUM, f"{a} ~ {b}", "collinearity", f"Korelasyon {value:+.2f}; değişkenlerden biri bilgi tekrarına yol açıyor olabilir."))
 
     diagnostics = diagnose_panel(panel, transforms)
     for d in diagnostics:
@@ -201,7 +201,7 @@ def audit_panel(
         elif d.stationarity == "kırılma_şüphesi":
             issues.append(Issue(Severity.INFO, d.feature, "nonstationary", f"ADF ve KPSS ikisi de reddediyor (t={d.adf_t}, KPSS={d.kpss_stat}): kırılma/rejim şüphesi."))
         if d.managed_path:
-            issues.append(Issue(Severity.INFO, d.feature, "managed_path", "Kontrollü patika: son 12 ayda değişim pozitif ve istikrarlı, oynaklık düşük — rastgele yürüyüş değil, ani kırılma riski kuyrukta."))
+            issues.append(Issue(Severity.INFO, d.feature, "managed_path", "Kontrollü patika: son 12 ayda değişim pozitif ve istikrarlı, oynaklık düşük. Seri rastgele yürüyüş özelliği göstermiyor; ani kırılma riski dağılımın kuyruğunda yoğunlaşıyor."))
         if d.excess_kurtosis is not None and d.excess_kurtosis > 3:
             issues.append(Issue(Severity.INFO, d.feature, "heavy_tails", f"Fazla basıklık {d.excess_kurtosis:.1f}: kalın kuyruk (şoklar)."))
 

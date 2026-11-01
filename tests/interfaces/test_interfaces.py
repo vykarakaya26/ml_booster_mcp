@@ -1,5 +1,8 @@
 import asyncio
 
+import numpy as np
+import pandas as pd
+
 import pytest
 from typer.testing import CliRunner
 
@@ -20,6 +23,7 @@ def test_mcp_tools_registered_with_annotations():
     assert set(tools) == {
         "list_sectors", "list_sources", "show_map", "discover_series", "fetch_series", "build_panel", "health",
         "search_series", "set_feature_series", "audit_panel", "run_backtest", "check_updates",
+        "analyze_market_share", "prepare_panel", "engineer_features",
     }  # fmt: skip
     assert tools["show_map"].annotations.read_only_hint is True
     assert tools["fetch_series"].annotations.destructive_hint is False
@@ -53,3 +57,52 @@ def test_markdown_renders_every_sector():
     c = cli.container()
     for sector in c.list_sectors():
         assert "## Kaynaklar" in sector_map_markdown(c.sector_map(sector.id))
+
+
+def test_mcp_market_share_inline_records():
+    from mcp.server.mcpserver.exceptions import ToolError
+
+    records = [
+        {"entity": e, "date": f"2025-Q{q}", "value": v + q}
+        for q in (1, 2, 3, 4)
+        for e, v in (("A", 50), ("B", 30), ("C", 20))
+    ]
+    out = mcp_server.analyze_market_share(records, focus="B", kind="stock")
+    assert out["meta"]["periods_per_year"] == 4 and out["competitors"]["focus"] == "B"
+    with pytest.raises(ToolError, match="Odak oyuncu"):
+        mcp_server.analyze_market_share(records, focus="Z")
+
+
+def test_cli_market_share(tmp_path):
+    src = tmp_path / "pay.csv"
+    lines = ["entity;date;value"] + [f"{e};2025-{m:02d};{v + m},5" for m in range(1, 13) for e, v in (("A", 50), ("B", 30))]
+    src.write_text("\n".join(lines), encoding="utf-8")
+    out = CliRunner().invoke(cli.app, ["market-share", "--input", str(src), "--focus", "A", "--json", str(tmp_path / "o.json")])
+    assert out.exit_code == 0, out.output
+    assert "HHI" in out.output and (tmp_path / "o.json").exists()
+    bad = CliRunner().invoke(cli.app, ["market-share", "--input", str(tmp_path / "yok.xlsx")])
+    assert bad.exit_code == 1 and "Desteklenen" in bad.output
+
+
+def test_backtest_panel_file_and_reader(tmp_path):
+    from mlbooster.infrastructure.table_reader import LocalTableReader
+
+    idx = pd.date_range("2015-01-31", periods=80, freq="ME")
+    frame = pd.DataFrame({"date": idx.strftime("%Y-%m-%d"), "hedef": np.arange(80.0) + np.sin(np.arange(80)), "x": np.cos(np.arange(80))})
+    path = tmp_path / "secilen.csv"
+    frame.to_csv(path, index=False)
+    panel = LocalTableReader().read_panel(path)
+    assert isinstance(panel.index, pd.DatetimeIndex) and list(panel.columns) == ["hedef", "x"]
+    out = CliRunner().invoke(cli.app, ["backtest", "--sector", "makro_genel", "--target", "hedef", "--min-train", "36",
+                                       "--models", "naive,ridge", "--panel-file", str(path), "--eval-start", "2019-12"])  # fmt: skip
+    assert out.exit_code == 0, out.output
+    assert "en iyi" in out.output
+
+
+def test_period_end_reads_months_as_month_end():
+    from datetime import date
+
+    assert cli._period_end("2022-12") == date(2022, 12, 31)
+    assert cli._period_end("2024-02") == date(2024, 2, 29)
+    assert cli._period_end("2022-12-15") == date(2022, 12, 15)
+    assert cli._period_end(None) is None

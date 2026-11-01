@@ -12,3 +12,7 @@ sector_sources: [bkm]
 market_share_sources:
   - {source: bkm, metric: "konaklama/havayolu/seyahat kart harcaması (talep vekili)", is_proxy: true}
 ml_use_cases: ["Talep tahmini", "Sezon planlama", "Kur duyarlılığı"]
+feature_recipes:
+  - {name: reel_kur_sapma_12, op: gap, inputs: [reel_efektif_kur], window: 12, note: "Reel efektif kurun son 12 ay ortalamasından sapması (fiyat rekabetçiliği)"}
+  - {name: seyahat_konaklama_farki, op: spread, inputs: [kart_seyahat_reel_yoy, kart_konaklama_reel_yoy], note: "Seyahat acentesi ve konaklama harcaması arasındaki büyüme farkı"}
+  - {name: havayolu_z_24, op: zscore, inputs: [kart_havayolu_reel_yoy], window: 24, note: "Havayolu harcamasının son 24 aya göre standart skoru"}

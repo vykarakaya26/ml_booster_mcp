@@ -41,7 +41,7 @@ def build(bt: dict, notes: str | None, assumptions: dict | None = None, external
     cfg, metrics = bt["config"], bt["metrics"]
     by_model = {m["model"]: m for m in metrics}
     best = bt["best_model"]
-    # Çıta: en güçlü naive (çapa varsa çapa naive, yoksa naive).
+    # Kıyas düzeyi: en güçlü naive (çapa varsa çapa naive, yoksa naive).
     ref_name = "anchor_naive" if "anchor_naive" in by_model else "naive"
     naive = by_model.get(ref_name)
     gain = None
@@ -56,7 +56,7 @@ def build(bt: dict, notes: str | None, assumptions: dict | None = None, external
                     ("Hedef", cfg["target"], f"{cfg['horizon']} ay ileri"),
                     ("En iyi model", MODEL_LABELS.get(best, best or "—"), None),
                     ("MAE", f"{by_model[best]['mae']:,.4g}" if best else "—", f"{bt['common_origins']} ortak nokta"),
-                    ("Çıtaya göre", f"%{gain:+.1f}" if gain is not None else "—",
+                    ("Kıyas düzeyine göre", f"%{gain:+.1f}" if gain is not None else "—",
                      f"MAE iyileşmesi ({MODEL_LABELS[ref_name]})" if gain is not None else f"en iyi model: {MODEL_LABELS[ref_name]}"),
                 ]
             ),
@@ -88,7 +88,7 @@ def build(bt: dict, notes: str | None, assumptions: dict | None = None, external
             f"kurulan ampirik %80 aralığı kullanır. Olasılıksal olarak en iyi model (en düşük pinball): "
             f"<strong>{H.esc(MODEL_LABELS.get(best_p['model'], best_p['model']))}</strong>."
             + (f" Kapsaması %70'in altında kalanlar ({H.esc(', '.join(low))}) belirsizliği olduğundan dar gösteriyor; "
-               "rejim değişimlerinde aralıkları genişletin." if low else "")
+               "rejim değişimlerinde aralıkların genişletilmesi önerilir." if low else "")
             + "</p>"
         )
     if bt.get("robust_share") is not None:
@@ -105,7 +105,7 @@ def build(bt: dict, notes: str | None, assumptions: dict | None = None, external
             vals = [f"{cell[(n, m)]['mae']:,.4g} (n={cell[(n, m)]['n']})" if (n, m) in cell else "—" for n in names]
             rrows.append((MODEL_LABELS.get(m, m), *vals))
         body += "<h3>Rejimlere göre MAE</h3>" + H.table(["Model", *names], rrows, numeric=list(range(1, len(names) + 1)))
-        body += '<p class="muted">Sıralama rejimden rejime değişiyorsa tek bir "en iyi model" iddiası zayıftır; raporda bunu belirtin.</p>'
+        body += '<p class="muted">Sıralama rejimden rejime değişiyorsa tek bir "en iyi model" iddiası zayıftır; bu durum raporda belirtilmelidir.</p>'
     sections.append(H.section("Model karşılaştırması", body, "metrikler"))
 
     preds = bt["predictions"]
@@ -144,8 +144,8 @@ def build(bt: dict, notes: str | None, assumptions: dict | None = None, external
 - **Look-ahead yok:** t başlangıcında yalnızca t ve öncesi kullanılır; panel yayın gecikmesine göre hizalanmıştır.
 - **Adil karşılaştırma:** metrikler tüm modellerin tahmin ürettiği {bt['common_origins']} ortak noktada hesaplanır.
 - **Ridge:** hedefin {cfg['horizon']} adımlı değişimini {'çapadan (' + cfg['anchor'] + ')' if cfg.get('anchor') else 'son değerden'} öğrenir; gecikmeler {cfg['lags']}, alpha {cfg['alpha']}, dış değişkenler {'açık' if cfg['exogenous'] else 'kapalı'}.
-- **Çapa:** {('`' + cfg['anchor'] + '` — aylık ortalama hedefte ay sonu değeri en güçlü bilgidir; çıta çapa naive’dir.') if cfg.get('anchor') else 'kullanılmadı.'}
-- **MASE < 1** ilk eğitim penceresindeki naive hatasından iyi demektir; TR'de rejim değişimleri yüzünden 1'in üstü sık görülür.
+- **Çapa:** {('`' + cfg['anchor'] + '` — aylık ortalama hedefte ay sonu değeri en güçlü bilgidir; kıyas düzeyi çapa naive’dir.') if cfg.get('anchor') else 'kullanılmadı.'}
+- **MASE < 1**, ilk eğitim penceresindeki naive hatasından daha düşük hata anlamına gelir; Türkiye verisinde rejim değişimleri nedeniyle 1'in üzerindeki değerler sık görülür.
 - Bu modeller referans (baseline) içindir; üretim modelinin bunları geçmesi beklenir.
 """
     sections.append(H.section("Metodoloji", f'<div class="narrative">{H.markdown(method)}</div>', "metodoloji"))
@@ -184,7 +184,7 @@ def main() -> None:
     assumptions = A.load(args.assumptions) if args.assumptions else None
     external = X.load(args.external) if args.external else None
     if assumptions is None:
-        print("Uyarı: --assumptions verilmedi; raporda girdiler ve varsayımlar bölümü olmayacak.", file=sys.stderr)
+        print("Uyarı: --assumptions verilmedi; raporda girdiler ve varsayımlar bölümü yer almayacak.", file=sys.stderr)
     notes = args.notes.read_text(encoding="utf-8") if args.notes else None
     args.out.parent.mkdir(parents=True, exist_ok=True)
     args.out.write_text(build(read_json(args.backtest), notes, assumptions, external, _parse_latest(args.latest)), encoding="utf-8")
