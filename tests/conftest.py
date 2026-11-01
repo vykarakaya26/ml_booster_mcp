@@ -33,12 +33,12 @@ def data_dir(tmp_path) -> Path:
 
 @pytest.fixture(autouse=True)
 def _no_dotenv(request, monkeypatch):
-    """Offline testler geliştiricinin .env'indeki gerçek anahtarı görmesin (canlı istek atılmasın)."""
+    """Offline tests must not see the real key in the developer's .env (no live requests)."""
     if request.node.get_closest_marker("live"):
         return
     monkeypatch.setattr("mlbooster.infrastructure.settings.load_dotenv", lambda *a, **k: False)
     home = request.getfixturevalue("tmp_path") / "mlbooster-home"
-    monkeypatch.setenv("MLBOOSTER_HOME", str(home))  # override'lar gerçek ~/.mlbooster'a yazılmasın
+    monkeypatch.setenv("MLBOOSTER_HOME", str(home))  # overrides must not be written to the real ~/.mlbooster
     monkeypatch.delenv("MLBOOSTER_OVERRIDES", raising=False)
-    monkeypatch.setenv("MLBOOSTER_NO_UPDATE_CHECK", "1")  # offline testler GitHub'a gitmesin
+    monkeypatch.setenv("MLBOOSTER_NO_UPDATE_CHECK", "1")  # offline tests must not call GitHub
     monkeypatch.delenv("EVDS_API_KEY", raising=False)

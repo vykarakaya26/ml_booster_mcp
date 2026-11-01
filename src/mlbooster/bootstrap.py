@@ -1,6 +1,7 @@
-"""Composition root: port'ların somut uygulamalarını use case'lere bağlayan tek yer.
+"""Composition root: the single place that wires concrete port implementations into the use cases.
 
-Onion mimarisinde içteki katmanlar dıştakileri bilmez; bağımlılıklar burada, en dışta enjekte edilir.
+In the onion architecture the inner layers do not know the outer ones; dependencies are injected here, at the
+outermost layer.
 """
 
 from __future__ import annotations
@@ -22,6 +23,9 @@ from mlbooster.application.use_cases import (
     AuditPanel,
     BuildPanel,
     EngineerFeatures,
+    ExportTable,
+    ListReadyProviders,
+    ReadPanelFile,
     PreparePanel,
     CheckForUpdates,
     RunBacktest,
@@ -114,12 +118,24 @@ class Container:
         return EngineerFeatures(self.build_panel)
 
     @cached_property
-    def table_reader(self) -> TableReader:
-        return self.tables or LocalTableReader()
+    def ready_providers(self) -> ListReadyProviders:
+        return ListReadyProviders(self.providers)
+
+    @cached_property
+    def export_table(self) -> ExportTable:
+        return ExportTable(self.panels)
+
+    @cached_property
+    def read_panel_file(self) -> ReadPanelFile:
+        return ReadPanelFile(self._tables)
 
     @cached_property
     def market_share(self) -> AnalyzeMarketShare:
-        return AnalyzeMarketShare(self.build_panel, self.tables or LocalTableReader())
+        return AnalyzeMarketShare(self.build_panel, self._tables)
+
+    @property
+    def _tables(self) -> TableReader:
+        return self.tables or LocalTableReader()
 
 
 class _NoUpdates:

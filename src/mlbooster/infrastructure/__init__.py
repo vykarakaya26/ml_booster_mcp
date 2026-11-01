@@ -1,1 +1,1 @@
-"""Altyapı: application port'larının somut uygulamaları (HTTP, YAML, Parquet, DuckDB, .env)."""
+"""Infrastructure: concrete implementations of the application ports (HTTP, YAML, Parquet, DuckDB, .env)."""

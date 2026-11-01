@@ -1,4 +1,4 @@
-"""Bronze: ham yanıtlar, içerik hash'i ve çekim zamanıyla."""
+"""Bronze: raw responses, with content hash and fetch time."""
 
 from __future__ import annotations
 
@@ -20,13 +20,13 @@ class RawStore:
     def save(self, source_id: str, url: str, content: bytes, content_type: str) -> Path:
         digest = hashlib.sha256(content).hexdigest()
         ext = next((e for k, e in _EXT.items() if k in content_type.lower()), "bin")
-        directory = ensure_private_dir(self._root / slug(source_id, "kaynak"))
-        path = directory / f"{digest[:32]}.{ext}"  # dosya adı yalnızca hash'ten türetilir
+        directory = ensure_private_dir(self._root / slug(source_id, "source"))
+        path = directory / f"{digest[:32]}.{ext}"  # the file name is derived only from the hash
         if not path.exists():
             path.write_bytes(content)
         record = {
             "fetched_at": datetime.now(UTC).isoformat(),
-            "url": url,  # URL'de sır bulunmaz; anahtarlar header'da gider
+            "url": url,  # the URL contains no secrets; keys go in the header
             "sha256": digest,
             "content_type": content_type[:100],
             "file": path.name,

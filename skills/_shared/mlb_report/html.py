@@ -1,4 +1,4 @@
-"""Kendi kendine yeten HTML rapor sayfası (CSS/JS satır içi, dış kaynak yok)."""
+"""Self-contained HTML report page (CSS/JS inline, no external resources)."""
 
 from __future__ import annotations
 
@@ -20,14 +20,30 @@ def esc(value: object) -> str:
     return html.escape("" if value is None else str(value))
 
 
+def num(value: float | None, digits: int = 2, sign: bool = False) -> str:
+    """Turkish number format for report text: period as thousands separator, comma as decimal mark."""
+    if value is None:
+        return "—"
+    return _tr(f"{value:{'+' if sign else ''},.{digits}f}")
+
+
+def sig(value: float | None, digits: int = 4) -> str:
+    """Like `num`, but with `digits` significant digits (format spec `g`)."""
+    return "—" if value is None else _tr(f"{value:,.{digits}g}")
+
+
+def _tr(text: str) -> str:
+    return text.replace(",", "\x00").replace(".", ",").replace("\x00", ".")
+
+
 def badge(severity: str) -> str:
-    """Durum rengi asla tek başına anlam taşımaz: ikon + etiket + renk."""
+    """Status colour never carries meaning on its own: icon + label + colour."""
     cls, icon, label = SEVERITY.get(severity, ("info", "•", severity))
     return f'<span class="badge {cls}"><span aria-hidden="true">{icon}</span> {esc(label)}</span>'
 
 
 def kpis(items: Sequence[tuple[str, str, str | None]]) -> str:
-    """(etiket, değer, alt not) — tek sayının hikâyesi grafik değil, kutucuktur."""
+    """(label, value, footnote) — a single number is shown as a tile, not as a chart."""
     cards = "".join(
         f'<div class="kpi"><div class="kpi-label">{esc(label)}</div><div class="kpi-value">{esc(value)}</div>'
         + (f'<div class="kpi-note">{esc(note)}</div>' if note else "")
@@ -38,7 +54,7 @@ def kpis(items: Sequence[tuple[str, str, str | None]]) -> str:
 
 
 def table(headers: Sequence[str], rows: Sequence[Sequence[object]], numeric: Sequence[int] = (), raw: Sequence[int] = ()) -> str:
-    """`raw` indeksli hücreler önceden güvenli üretilmiş HTML'dir (ör. badge); diğerleri kaçışlanır."""
+    """Cells at `raw` indices are HTML already generated safely (e.g. badge); all others are escaped."""
     head = "".join(f'<th class="{"num" if i in numeric else ""}">{esc(h)}</th>' for i, h in enumerate(headers))
     body = []
     for row in rows:
@@ -51,7 +67,7 @@ def table(headers: Sequence[str], rows: Sequence[Sequence[object]], numeric: Seq
 
 
 def data_table(summary: str, headers: Sequence[str], rows: Sequence[Sequence[object]], numeric: Sequence[int] = ()) -> str:
-    """Grafiğin tablo görünümü (erişilebilirlik): katlanmış <details>."""
+    """Table view of a chart (accessibility): collapsed <details>."""
     return f'<details class="table-view"><summary>{esc(summary)}</summary>{table(headers, rows, numeric)}</details>'
 
 
@@ -59,7 +75,7 @@ _INLINE = [(re.compile(r"\*\*(.+?)\*\*"), r"<strong>\1</strong>"), (re.compile(r
 
 
 def markdown(text: str) -> str:
-    """Güvenli küçük Markdown alt kümesi: önce kaçış, sonra başlık/madde/kalın/kod. Ham HTML geçmez."""
+    """Safe small Markdown subset: escape first, then heading/list item/bold/code. Raw HTML is not passed through."""
     out, para, items = [], [], []
 
     def flush() -> None:
@@ -127,7 +143,7 @@ def page(title: str, subtitle: str, sections: Sequence[str], attribution: str, n
 </main>
 <footer>
   <p>{esc(attribution)}</p>
-  <p class="muted">Oluşturulma: {esc(generated)} · mlbooster · Veriler kaynak kurumların kullanım koşullarına tabidir.</p>
+  <p class="muted">Oluşturulma: {esc(generated)} · mlbooster · Veriler, kaynak kurumların kullanım koşullarına tabidir.</p>
 </footer>
 </div>
 <script>{js}</script>

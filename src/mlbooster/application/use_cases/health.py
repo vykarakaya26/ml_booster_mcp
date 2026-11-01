@@ -14,21 +14,21 @@ class RunHealthChecks:
 
     def __call__(self, source_id: str | None = None) -> list[HealthResult]:
         catalog = self._catalog.load()
-        sources = [catalog.source(slug(source_id, "kaynak"))] if source_id else catalog.sources_by_priority()
+        sources = [catalog.source(slug(source_id, "source"))] if source_id else catalog.sources_by_priority()
         results = []
         for source in sources:
             try:
                 with open_provider(self._providers, source) as provider:
                     results.append(provider.healthcheck())
             except ProviderNotImplemented:
-                results.append(HealthResult(source.id, HealthStatus.SKIPPED, "sağlayıcı henüz uygulanmadı"))
-            except ProviderError as exc:  # ör. sağlayıcı kurulamadı (host sabitleme)
+                results.append(HealthResult(source.id, HealthStatus.SKIPPED, "bu kaynak için provider henüz uygulanmadı"))
+            except ProviderError as exc:  # e.g. provider could not be constructed (host pinning)
                 results.append(HealthResult(source.id, HealthStatus.FAIL, f"{type(exc).__name__}: {exc}"))
         return results
 
 
 class CheckForUpdates:
-    """Kurulu sürümü yayımlanan en son sürümle karşılaştırır; güncelleme komutunu söyler."""
+    """Compares the installed version with the latest published version and reports the update command."""
 
     def __init__(self, current: str, source):
         self._current = current
@@ -44,8 +44,8 @@ class CheckForUpdates:
             "latest": latest,
             "update_available": available,
             "how": (
-                "Claude Code: `claude plugin update ml-booster` (ya da /plugin → Marketplaces → ml-booster-tools → "
-                "otomatik güncellemeyi aç). pip kurulumunda: "
+                "Claude Code: `claude plugin update ml-booster` (ya da /plugin → Marketplaces → ml-booster-tools "
+                "üzerinden otomatik güncellemeyi açın). pip ile kurulumda: "
                 "`pip install -U \"git+https://github.com/vykarakaya26/ml_booster_mcp.git@v" + str(latest) + "\"`"
             ) if available else None,
         }

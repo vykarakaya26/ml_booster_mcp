@@ -4,10 +4,10 @@ owner: Türkiye Bankalar Birliği
 base_url: https://verisistemi.tbb.org.tr
 access: file_download
 auth: {type: none}
-license: {attribution: required, notes: "Açık veri lisansı yayımlanmamış; ticari kullanım için site koşulları kontrol edilmeli."}
+license: {attribution: required, notes: "Açık veri lisansı yayımlanmamış; ticari kullanım için sitenin kullanım koşulları kontrol edilmelidir."}
 frequency: [Q, A]
 formats: [xlsx]
 sectors: [bankacilik]
-publication_lag_days: 75  # tahmini
+publication_lag_days: 75  # estimated
 verification_status: reported
 priority: 4

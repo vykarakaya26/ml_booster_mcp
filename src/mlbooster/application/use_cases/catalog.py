@@ -1,4 +1,4 @@
-"""Katalog sorguları (yan etkisiz)."""
+"""Catalog queries (side-effect free)."""
 
 from __future__ import annotations
 
@@ -23,8 +23,18 @@ class ListSources:
     def __call__(self, sector_id: str | None = None) -> list[Source]:
         catalog = self._catalog.load()
         if sector_id:
-            return catalog.sources_for_sector(slug(sector_id, "sektör"))
+            return catalog.sources_for_sector(slug(sector_id, "sector"))
         return catalog.sources_by_priority()
+
+
+class ListReadyProviders:
+    """`provider` keys that have an implementation, i.e. sources that can actually be fetched."""
+
+    def __init__(self, providers: ProviderFactory):
+        self._providers = providers
+
+    def __call__(self) -> set[str]:
+        return self._providers.available()
 
 
 class GetSectorMap:
@@ -33,4 +43,4 @@ class GetSectorMap:
         self._providers = providers
 
     def __call__(self, sector_id: str) -> SectorMap:
-        return build_sector_map(self._catalog.load(), slug(sector_id, "sektör"), self._providers.available())
+        return build_sector_map(self._catalog.load(), slug(sector_id, "sector"), self._providers.available())

@@ -1,4 +1,4 @@
-"""Ortam ayarları. Sırlar yalnızca ortam değişkeninden / .env'den okunur, asla katalogdan."""
+"""Environment settings. Secrets are read only from environment variables / .env, never from the catalog."""
 
 from __future__ import annotations
 
@@ -22,7 +22,7 @@ class Settings:
     def from_env(cls, load_env_files: bool = True) -> Settings:
         home = Path(os.environ.get("MLBOOSTER_HOME", Path.home() / ".mlbooster")).expanduser()
         if load_env_files:
-            # Önce çalışma dizinindeki .env, sonra $MLBOOSTER_HOME/.env. Mevcut değişkenler ezilmez.
+            # First .env in the working directory, then $MLBOOSTER_HOME/.env. Existing variables are not overwritten.
             load_dotenv(find_dotenv(usecwd=True), override=False)
             load_dotenv(home / ".env", override=False)
         return cls(
@@ -35,9 +35,9 @@ class Settings:
 
 
 def ensure_private_dir(path: Path) -> Path:
-    """Eksik dizinleri (ara dizinler dahil) yalnızca sahibinin erişebileceği izinlerle (0700) oluşturur.
-    `mkdir(parents=True, mode=...)` modu yalnızca son dizine uygular; bu yüzden tek tek oluşturulur.
-    Önceden var olan dizinlerin izinlerine dokunulmaz."""
+    """Creates missing directories (including intermediate ones) with owner-only permissions (0700).
+    `mkdir(parents=True, mode=...)` applies the mode only to the last directory, so they are created one by one.
+    Permissions of pre-existing directories are left untouched."""
     for directory in [*reversed(path.parents), path]:
         if not directory.exists():
             directory.mkdir(mode=0o700, exist_ok=True)

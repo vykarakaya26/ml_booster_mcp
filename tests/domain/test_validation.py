@@ -14,7 +14,7 @@ def test_valid_series_codes(code):
 @pytest.mark.parametrize(
     "code",
     [
-        "TP.TUKFIY2025.GENEL&type=xml",  # path parametre enjeksiyonu
+        "TP.TUKFIY2025.GENEL&type=xml",  # path parameter injection
         "../etc/passwd",
         "TP.TUKFIY2025.GENEL?x=1",
         "TP FG",

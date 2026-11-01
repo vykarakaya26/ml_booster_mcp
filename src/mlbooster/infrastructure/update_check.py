@@ -1,8 +1,8 @@
-"""Sürüm kontrolü: GitHub'daki en son `vX.Y.Z` tag'ini kurulu sürümle karşılaştırır.
+"""Version check: compares the latest `vX.Y.Z` tag on GitHub with the installed version.
 
-Gizlilik/güvenlik: istek yalnızca api.github.com'a gider (kimlik bilgisi yok), sonuç 24 saat yerelde
-önbelleğe alınır, `MLBOOSTER_NO_UPDATE_CHECK=1` ile tamamen kapatılır. Ağ hatası sessizce "bilinmiyor"
-döner; araç çalışmasını asla engellemez.
+Privacy/security: the request goes only to api.github.com (no credentials), the result is cached
+locally for 24 hours, and the check is disabled entirely with `MLBOOSTER_NO_UPDATE_CHECK=1`. A network
+error silently returns "unknown"; it never blocks the tool from running.
 """
 
 from __future__ import annotations

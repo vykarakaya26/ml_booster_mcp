@@ -1,5 +1,6 @@
 from mlbooster.application.use_cases.analysis import AuditPanel, RunBacktest
-from mlbooster.application.use_cases.catalog import GetSectorMap, ListSectors, ListSources
+from mlbooster.application.use_cases.catalog import GetSectorMap, ListReadyProviders, ListSectors, ListSources
+from mlbooster.application.use_cases.files import ExportTable, ReadPanelFile
 from mlbooster.application.use_cases.health import CheckForUpdates, RunHealthChecks
 from mlbooster.application.use_cases.market_share import AnalyzeMarketShare
 from mlbooster.application.use_cases.modeling import EngineerFeatures, PreparePanel
@@ -12,7 +13,9 @@ __all__ = [
     "AuditPanel",
     "BuildPanel",
     "EngineerFeatures",
+    "ExportTable",
     "PreparePanel",
+    "ReadPanelFile",
     "CheckForUpdates",
     "RunBacktest",
     "SearchSeries",
@@ -20,6 +23,7 @@ __all__ = [
     "DiscoverSeries",
     "FetchSeries",
     "GetSectorMap",
+    "ListReadyProviders",
     "ListSectors",
     "ListSources",
     "RunHealthChecks",

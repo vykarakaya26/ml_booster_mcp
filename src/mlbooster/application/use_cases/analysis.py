@@ -1,4 +1,4 @@
-"""Panel üzerinde analiz: kalite denetimi ve referans tahmin backtest'i."""
+"""Panel analysis: quality audit and baseline forecast backtest."""
 
 from __future__ import annotations
 
@@ -24,7 +24,7 @@ class AuditPanel:
         end: date | None = None,
         thresholds: QualityThresholds | None = None,
     ) -> tuple[QualityReport, PanelResult]:
-        result = self._build(sector_id, start, end, save=False)  # paylaşılan gold dosyasına dokunma
+        result = self._build(sector_id, start, end, save=False)  # do not touch the shared gold file
         if result.panel.empty:
             raise InvalidInput(f"{sector_id} paneli boş; atlanan feature'lar: {result.skipped}")
         features = [f for f in self._build.sector(sector_id).macro_features if f.name in result.panel.columns]
@@ -51,10 +51,10 @@ class RunBacktest:
         end: date | None = None,
         panel: pd.DataFrame | None = None,
     ) -> tuple[BacktestResult, PanelResult]:
-        """`panel` verilirse (ör. feature-engineering çıktısı) sektör paneli yerine o kullanılır."""
+        """If `panel` is given (e.g. feature-engineering output), it is used instead of the sector panel."""
         if panel is not None:
             if not isinstance(panel.index, pd.DatetimeIndex) or panel.empty:
-                raise InvalidInput("Dış panel tarih indeksli ve boş olmayan bir tablo olmalıdır")
+                raise InvalidInput("Dışarıdan verilen panel, tarih indeksli ve boş olmayan bir tablo olmalıdır")
             result = PanelResult(sector_id, panel)
         else:
             result = self._build(sector_id, start, end, save=False)

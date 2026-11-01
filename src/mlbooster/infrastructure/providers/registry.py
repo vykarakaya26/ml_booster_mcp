@@ -1,4 +1,4 @@
-"""ProviderFactory uygulaması. Yeni sağlayıcı: sınıfı yaz, PROVIDERS'a ekle, katalogda `adapter:` ver."""
+"""ProviderFactory implementation. New provider: write the class, add it to PROVIDERS, set `adapter:` in the catalog."""
 
 from __future__ import annotations
 
@@ -29,7 +29,7 @@ class ProviderRegistry:
         self._secrets = secrets
         self._raw_store = raw_store
         self._http_factory = http_factory or self._default_http
-        # Kaynak başına tek limiter: her çağrı yeni sağlayıcı açsa da rps sınırı korunur.
+        # One limiter per source: the rps limit holds even if every call opens a new provider.
         self._limiters: dict[str, RateLimiter] = {}
 
     def _default_http(self, source: Source) -> SecureHttpClient:
@@ -42,5 +42,5 @@ class ProviderRegistry:
     def create(self, source: Source) -> SeriesProvider:
         cls = PROVIDERS.get(source.provider or "")
         if cls is None:
-            raise ProviderNotImplemented(f"{source.id} için sağlayıcı henüz uygulanmadı")
+            raise ProviderNotImplemented(f"{source.id} için provider henüz uygulanmadı")
         return cls(source, http=self._http_factory(source), secrets=self._secrets, raw_store=self._raw_store)

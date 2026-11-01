@@ -1,1 +1,1 @@
-"""Sunum katmanı (en dış halka): CLI ve MCP sunucusu. Yalnızca use case'leri çağırır."""
+"""Presentation layer (outermost ring): CLI and MCP server. Calls use cases only."""

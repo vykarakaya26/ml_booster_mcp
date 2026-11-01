@@ -4,10 +4,10 @@ owner: Otomotiv Distribütörleri ve Mobilite Derneği
 base_url: https://www.odmd.org.tr
 access: pdf_report
 auth: {type: none}
-license: {attribution: required, notes: "Basın bülteni; ticari yeniden dağıtım koşulları kontrol edilmeli."}
+license: {attribution: required, notes: "Basın bülteni; ticari amaçla yeniden dağıtım koşulları kontrol edilmelidir."}
 frequency: [M]
 formats: [pdf]
 sectors: [otomotiv]
-publication_lag_days: 5  # tahmini
+publication_lag_days: 5  # estimated
 verification_status: reported
 priority: 9

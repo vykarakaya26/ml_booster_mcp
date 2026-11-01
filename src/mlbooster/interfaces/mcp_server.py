@@ -1,10 +1,12 @@
-"""MCP sunucusu (stdio). Claude Code'a ekleme:
+"""MCP server (stdio). Adding it to Claude Code:
 
     claude mcp add mlbooster -e EVDS_API_KEY=... -- mlbooster-mcp
 
-Güvenlik: araç girdileri use case kapısında izin listesiyle doğrulanır; beklenen hatalar güvenli
-mesajlarla `ToolError` olarak döner, beklenmeyen hataların içeriği istemciye hiç gönderilmez
-(MCP SDK). Dosya yolu alan araç yoktur; çıktılar yalnızca yerel veri dizinine yazılır.
+Security: tool inputs are validated against allow-lists at the use case gate; expected errors are
+returned as `ToolError` with safe messages, and the content of unexpected errors is never sent to the
+client (MCP SDK). No tool takes a file path; outputs are written only to the local data directory.
+
+Server instructions and tool descriptions are user-facing and therefore written in Turkish.
 """
 
 from __future__ import annotations
@@ -51,10 +53,11 @@ server = MCPServer(
     "mlbooster",
     version=__version__,
     instructions=(
-        "Türkiye için ücretsiz veri kaynakları haritası ve ML'e hazır aylık panel üretici. "
-        "Önce list_sectors / show_map ile kaynakları gör; EVDS serilerini discover_series ile keşfet; "
-        "fetch_series ile çek; build_panel ile sektör panelini üret. Verilerde kaynak atfı zorunludur. "
-        "Oturum başında check_updates ile yeni sürüm olup olmadığını kontrol edip kullanıcıya bir kez bildir."
+        "Türkiye için ücretsiz veri kaynaklarını haritalar ve ML'e hazır aylık panel üretir. "
+        "Önce list_sectors / show_map ile kaynakları incele; EVDS serilerini search_series ve discover_series ile "
+        "bul, fetch_series ile çek, build_panel ile sektör panelini üret. Verileri kullanırken kaynak atfı "
+        "zorunludur. Oturum başında check_updates ile yeni sürüm olup olmadığını kontrol et ve varsa kullanıcıya "
+        "bir kez bildir."
     ),
 )
 
@@ -68,11 +71,11 @@ def _iso(value: str, field: str) -> date:
     try:
         return date.fromisoformat(value)
     except (TypeError, ValueError):
-        raise InvalidInput(f"{field} YYYY-AA-GG biçiminde olmalı") from None
+        raise InvalidInput(f"{field} YYYY-AA-GG biçiminde olmalıdır") from None
 
 
 def safe_tool(fn: F) -> F:
-    """Beklenen (domain/port) hataları kullanıcıya gösterilebilir ToolError'a çevirir."""
+    """Converts expected (domain/port) errors into a ToolError that can be shown to the user."""
 
     @functools.wraps(fn)
     def wrapper(*args, **kwargs):
@@ -94,23 +97,23 @@ def list_sectors() -> list[dict]:
 @server.tool(annotations=READ_ONLY)
 @safe_tool
 def list_sources(sector: str | None = None) -> list[dict]:
-    """Kaynak kataloğunu listeler; sector verilirse o sektörle ilgili kaynaklar."""
-    ready = container().providers.available()
+    """Kaynak kataloğunu listeler; sector verilirse yalnızca o sektörle ilgili kaynakları döner."""
+    ready = container().ready_providers()
     return [source_dict(s, s.provider in ready) for s in container().list_sources(sector)]
 
 
 @server.tool(annotations=READ_ONLY)
 @safe_tool
 def show_map(sector: str) -> str:
-    """Bir sektörün veri kaynağı haritasını (kaynaklar, makro feature'lar, pazar payı) markdown döner."""
+    """Bir sektörün veri kaynağı haritasını (kaynaklar, makro feature'lar, pazar payı) markdown olarak döner."""
     return sector_map_markdown(container().sector_map(sector))
 
 
 @server.tool(annotations=READ_REMOTE)
 @safe_tool
 def discover_series(datagroup: str | None = None, source: str = "evds3") -> list[dict]:
-    """Seri keşfi. EVDS veri grubu kodu (ör. bie_dkdovizgn) verilirse canlı /serieList sonucu,
-    verilmezse katalogdaki tohum seriler döner."""
+    """Seri keşfi. EVDS veri grubu kodu (ör. bie_dkdovizgn) verilirse canlı /serieList sonucunu,
+    verilmezse katalogdaki seed serileri döner."""
     return container().discover_series(source, datagroup).head(1000).to_dict(orient="records")
 
 
@@ -126,9 +129,9 @@ def fetch_series(
     formula: int = 0,
     max_rows: int = 50,
 ) -> dict:
-    """Serileri çeker ve yerel depoya yazar. Tarihler YYYY-AA-GG.
-    freq: D,B,W,SM,M,Q,S,A; agg: avg,min,max,first,last,sum; formula: 0 düzey, 1 %değişim, 3 yıllık %değişim.
-    Özet ve son `max_rows` (≤500) satırı döner."""
+    """Serileri çeker ve yerel depoya yazar. Tarihler YYYY-AA-GG biçimindedir.
+    freq: D,B,W,SM,M,Q,S,A; agg: avg,min,max,first,last,sum; formula: 0 düzey, 1 yüzde değişim,
+    3 yıllık yüzde değişim. Özeti ve son `max_rows` (≤500) satırı döner."""
     request = FetchRequest.create(
         source, series, _iso(start, "start"), _iso(end, "end") if end else None, freq, agg, formula
     )
@@ -139,8 +142,8 @@ def fetch_series(
 @server.tool(annotations=WRITES_LOCAL)
 @safe_tool
 def build_panel(sector: str, start: str = DEFAULT_START.isoformat(), end: str | None = None, freq: str = "M") -> dict:
-    """Sektörün feature'larından nokta-zamanlı panel üretir (freq: M aylık, W haftalık-Cuma, B iş günü) ve
-    yerel veri dizinine Parquet olarak yazar. Kalite denetimi ve backtest aylık panelde çalışır."""
+    """Sektörün feature'larından point-in-time panel üretir (freq: M aylık, W haftalık/Cuma, B iş günü) ve
+    yerel veri dizinine Parquet olarak yazar. Kalite denetimi ve backtest aylık panel üzerinde çalışır."""
     result = container().build_panel(sector, _iso(start, "start"), _iso(end, "end") if end else None, freq=freq)
     tail = result.panel.tail(6).round(4).reset_index()
     return {
@@ -155,15 +158,15 @@ def build_panel(sector: str, start: str = DEFAULT_START.isoformat(), end: str | 
 @server.tool(annotations=READ_REMOTE)
 @safe_tool
 def health(source: str | None = None) -> list[dict]:
-    """Sağlık kontrolü (canary): sağlayıcıların kritik serilerden son gözlemleri çekip çekemediğini doğrular."""
+    """Healthcheck (canary): provider'ların kritik serilerin son gözlemlerini çekebildiğini doğrular."""
     return [health_dict(r) for r in container().health(source)]
 
 
 @server.tool(annotations=READ_REMOTE)
 @safe_tool
 def search_series(text: str, source: str = "evds3", limit: int = 20) -> list[dict]:
-    """Kaynakta veri grubu arar (Türkçe karakter duyarsız, ör. 'kredi faiz', 'tüketici güven').
-    Dönen `datagroup` ile discover_series çağrılarak içindeki seri kodları listelenir. Arşiv grupları sondadır."""
+    """Kaynakta veri grubu arar (Türkçe karakter farkı gözetilmez; ör. 'kredi faiz', 'tüketici güven').
+    Dönen `datagroup` ile discover_series çağrılarak gruptaki seri kodları listelenir. Arşiv grupları en sonda yer alır."""
     return container().search_series(text, source, limit).to_dict(orient="records")
 
 
@@ -182,8 +185,8 @@ def set_feature_series(
     agg: str | None = None,
 ) -> dict:
     """Bir sektör feature'ına seri kodu bağlar; create=True ise yeni feature ekler (transform: level, diff,
-    log_diff, yoy_pct; agg: avg, last, sum). Kod önce canlı doğrulanır (son 2 yılda gözlem bulunmalı ve seri güncel olmalı).
-    Kullanıcının yerel override dosyasına yazar; paket kataloğu değişmez."""
+    log_diff, yoy_pct; agg: avg, last, sum). Kod önce canlı doğrulanır: son 2 yılda gözlemi bulunmalı ve seri stale
+    olmamalıdır. Sonuç kullanıcının yerel override dosyasına yazılır; paket kataloğu değişmez."""
     b = container().set_feature_series(
         sector, feature, series, name, kind, publication_lag_days, datagroup,
         create=create, transform=transform, agg=agg,
@@ -197,8 +200,8 @@ def set_feature_series(
 @server.tool(annotations=WRITES_LOCAL)
 @safe_tool
 def audit_panel(sector: str, start: str = DEFAULT_START.isoformat(), end: str | None = None) -> dict:
-    """Sektör panelinin veri kalitesini denetler: güncelliğini yitirmiş seri, eksik oranı, aykırı değer (robust z),
-    yapısal kırılma (Türkiye'deki bilinen şoklarla eşleştirilmiş), aşırı korelasyon."""
+    """Sektör panelinin veri kalitesini denetler: stale seri, eksik gözlem oranı, outlier (robust z-score),
+    structural break (Türkiye'deki bilinen şoklarla eşleştirilir) ve aşırı korelasyon."""
     report, result = container().audit_panel(sector, _iso(start, "start"), _iso(end, "end") if end else None)
     return quality_dict(report, result.skipped)
 
@@ -216,10 +219,10 @@ def run_backtest(
     start: str = DEFAULT_START.isoformat(),
     end: str | None = None,
 ) -> dict:
-    """Panel hedef kolonu için rolling-origin backtest (look-ahead korumalı). Modeller: naive, seasonal_naive,
-    drift, ridge (gecikmeli; exogenous=True ise diğer feature'larla). Metrikler: MAE, RMSE, sMAPE, MASE.
-    anchor: hedefin daha güncel versiyonu (ör. aofm_son); verilirse anchor_naive modeli eklenir — aylık
-    ortalama hedeflerde asıl kıyas düzeyi budur. Son 24 tahmin noktası döner."""
+    """Paneldeki hedef kolon için rolling-origin backtest (look-ahead korumalı). Modeller: naive, seasonal_naive,
+    drift, ridge (lag'li; exogenous=True ise diğer feature'larla birlikte). Metrikler: MAE, RMSE, sMAPE, MASE.
+    anchor: hedefin daha güncel bir versiyonu (ör. aofm_son); verilirse anchor_naive modeli eklenir. Aylık
+    ortalama hedeflerde asıl benchmark budur. Son 24 forecast noktasını döner."""
     config = BacktestConfig(
         target=target, horizon=horizon, min_train=min_train, models=tuple(models or MODELS), exogenous=exogenous,
         anchor=anchor,
@@ -237,10 +240,10 @@ def prepare_panel(
     model_family: str = "linear",
     start: str = DEFAULT_START.isoformat(),
 ) -> dict:
-    """Dağılıma dayalı ön işleme planı. Her değişken için eğitim penceresinde profil (ortalama/std, medyan/MAD/IQR,
-    çarpıklık, basıklık, aykırı oranı, durağanlık) ve seçilen adımlar (eksik doldurma, fark, aykırı değer kırpma/işaretleme,
-    log/Yeo–Johnson, standart/robust ölçekleme) gerekçeleriyle döner. train_end: YYYY-AA-GG; parametreler yalnızca bu
-    tarihe kadarki veriden tahmin edilir. Hedef kolonun dağılımı değiştirilmez."""
+    """Dağılıma dayalı ön işleme planı. Her feature için eğitim penceresindeki profili (ortalama/std, medyan/MAD/IQR,
+    çarpıklık, basıklık, outlier oranı, durağanlık) ve seçilen adımları (imputation, fark alma, outlier winsorize/
+    işaretleme, log/Yeo–Johnson, standard/robust scaling) gerekçeleriyle döner. train_end: YYYY-AA-GG; parametreler
+    yalnızca bu tarihe kadarki veriden tahmin edilir. Hedef kolonun dağılımı değiştirilmez."""
     config = PrepConfig(target=target, train_end=_iso(train_end, "train_end") if train_end else None, model_family=model_family)
     result, panel = container().prepare_panel(sector, config, _iso(start, "start"))
     return prep_dict(result, sector, panel.skipped)
@@ -256,10 +259,10 @@ def engineer_features(
     prep: bool = True,
     start: str = DEFAULT_START.isoformat(),
 ) -> dict:
-    """Sektöre özgü otomatik değişken üretimi: gecikmeler, hareketli ortalama/oynaklık, momentum, standart skor, üstel
-    ortalama, sektör tarifleri (reel faiz, faiz farkı, kur sepeti…), takvim (iş günü, bayram) ve olay göstergeleri.
-    target verilirse yalnızca eğitim penceresinde h dönem sonrasına göre taranır (Spearman, etkin örneklem,
-    Benjamini–Hochberg, alt dönem istikrarı, fazlalık eleme) ve seçilen değişkenler döner."""
+    """Sektöre özgü otomatik feature üretimi: lag'ler, rolling mean/rolling std, momentum, z-score, EWM, sektör
+    tarifleri (reel faiz, faiz farkı, kur sepeti…), takvim (iş günü, bayram) ve olay göstergeleri. target verilirse
+    feature'lar yalnızca eğitim penceresinde, h dönem sonrasındaki hedefe göre taranır (Spearman, etkin örneklem,
+    Benjamini–Hochberg, alt dönem istikrarı, redundancy eleme) ve seçilen feature'lar döner."""
     fcfg = FeatureConfig(target=target, horizon=horizon, train_end=_iso(train_end, "train_end") if train_end else None)
     pcfg = PrepConfig(target=target, train_end=fcfg.train_end) if prep else None
     result, _, panel = container().engineer_features(sector, fcfg, pcfg, _iso(start, "start"))
@@ -280,9 +283,9 @@ def analyze_market_share(
 ) -> dict:
     """Pazar payı analizi. records: [{entity, date, value, segment?}] (date: YYYY-AA, YYYY-Qn, YYYY ya da YYYY-AA-GG).
     measure: value (tutar/adet) | share (yüzde pay); kind: flow | stock. Pazar toplamı `total_entity` adlı satırlarla
-    verilirse kapsam oranı hesaplanır. Çıktı: paylar, HHI/CR-k, oyuncu bazında yıllık değişim ve eğilim, odak oyuncu
-    için rakip adayları ve gerekçeleri, segment kaydırma-pay ayrıştırması; sector verilirse pazar büyümesinin makro
-    değişkenlerle gecikmeli korelasyonu."""
+    (varsayılan TOPLAM; TOTAL da kabul edilir) verilirse coverage oranı hesaplanır. Çıktı: paylar, HHI/CR-k, oyuncu
+    bazında yıllık değişim ve eğilim, odak oyuncu için rakip adayları ve gerekçeleri, segment bazında shift-share
+    ayrıştırması; sector verilirse pazar büyümesinin makro feature'larla lag'li korelasyonu."""
     config = ShareConfig(focus=focus, measure=measure, kind=kind, unit=unit[:40], total_entity=total_entity, basis=basis)
     return container().market_share.from_records(records, config, sector)
 
@@ -290,8 +293,8 @@ def analyze_market_share(
 @server.tool(annotations=READ_REMOTE)
 @safe_tool
 def check_updates() -> dict:
-    """Kurulu mlbooster sürümünü GitHub'daki en son sürümle karşılaştırır; güncelleme varsa yöntemini bildirir.
-    Sonucun kullanıcıya oturum başında bir kez gösterilmesi yeterlidir."""
+    """Kurulu mlbooster sürümünü GitHub'daki en son sürümle karşılaştırır; güncelleme varsa nasıl yapılacağını bildirir.
+    Sonucu kullanıcıya oturum başında bir kez göstermek yeterlidir."""
     return container().check_updates()
 
 

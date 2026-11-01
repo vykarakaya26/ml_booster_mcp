@@ -53,6 +53,11 @@ def test_cli_commands():
     assert health.exit_code == 0 and "skipped" in health.output
 
 
+def test_markdown_shows_turkish_status_labels(catalog):
+    md = mcp_server.show_map("bankacilik")
+    assert "| Durum |" in md and "pending_discovery" not in md and "no_provider" not in md
+
+
 def test_markdown_renders_every_sector():
     c = cli.container()
     for sector in c.list_sectors():
@@ -74,26 +79,34 @@ def test_mcp_market_share_inline_records():
 
 
 def test_cli_market_share(tmp_path):
-    src = tmp_path / "pay.csv"
+    src = tmp_path / "share.csv"
     lines = ["entity;date;value"] + [f"{e};2025-{m:02d};{v + m},5" for m in range(1, 13) for e, v in (("A", 50), ("B", 30))]
     src.write_text("\n".join(lines), encoding="utf-8")
     out = CliRunner().invoke(cli.app, ["market-share", "--input", str(src), "--focus", "A", "--json", str(tmp_path / "o.json")])
     assert out.exit_code == 0, out.output
     assert "HHI" in out.output and (tmp_path / "o.json").exists()
-    bad = CliRunner().invoke(cli.app, ["market-share", "--input", str(tmp_path / "yok.xlsx")])
+    assert "CR3 %" in out.output and "pay kazanıyor" in out.output  # Turkish number format and labels
+    assert "gaining" not in out.output and "losing" not in out.output
+    bad = CliRunner().invoke(cli.app, ["market-share", "--input", str(tmp_path / "missing.xlsx")])
     assert bad.exit_code == 1 and "Desteklenen" in bad.output
+
+
+def test_cli_number_format_is_turkish():
+    assert cli._num(12345.6, ",.0f") == "12.346"
+    assert cli._num(31.5, ".2f") == "31,50"
+    assert cli._num(-0.25, "+.2f") == "-0,25"
 
 
 def test_backtest_panel_file_and_reader(tmp_path):
     from mlbooster.infrastructure.table_reader import LocalTableReader
 
     idx = pd.date_range("2015-01-31", periods=80, freq="ME")
-    frame = pd.DataFrame({"date": idx.strftime("%Y-%m-%d"), "hedef": np.arange(80.0) + np.sin(np.arange(80)), "x": np.cos(np.arange(80))})
-    path = tmp_path / "secilen.csv"
+    frame = pd.DataFrame({"date": idx.strftime("%Y-%m-%d"), "target": np.arange(80.0) + np.sin(np.arange(80)), "x": np.cos(np.arange(80))})
+    path = tmp_path / "selected.csv"
     frame.to_csv(path, index=False)
     panel = LocalTableReader().read_panel(path)
-    assert isinstance(panel.index, pd.DatetimeIndex) and list(panel.columns) == ["hedef", "x"]
-    out = CliRunner().invoke(cli.app, ["backtest", "--sector", "makro_genel", "--target", "hedef", "--min-train", "36",
+    assert isinstance(panel.index, pd.DatetimeIndex) and list(panel.columns) == ["target", "x"]
+    out = CliRunner().invoke(cli.app, ["backtest", "--sector", "makro_genel", "--target", "target", "--min-train", "36",
                                        "--models", "naive,ridge", "--panel-file", str(path), "--eval-start", "2019-12"])  # fmt: skip
     assert out.exit_code == 0, out.output
     assert "en iyi" in out.output

@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
-"""`mlbooster market-share --json` çıktısından pazar payı ve rekabet analizi raporu (HTML) üretir.
+"""Renders a market share and competition analysis report (HTML) from `mlbooster market-share --json` output.
 
-Kullanım:
+Usage:
   python3 render_share_report.py --analysis share.json --out report.html \
       [--competitors competitors.json] [--narrative narrative.md] [--assumptions assumptions.json] \
       [--title "Otomotiv pazarı"] [--source "ODMD aylık basın bültenleri"]
-Yalnızca standart kütüphane gerekir.
+Requires only the standard library.
 """
 
 from __future__ import annotations
@@ -23,10 +23,12 @@ from mlb_report import html as H  # noqa: E402
 from mlb_report.data import read_json  # noqa: E402
 from mlb_report.svg import LineChart, Series, line_chart  # noqa: E402
 
-TIERS = {"doğrudan": "Doğrudan rakip", "dolaylı": "Dolaylı rakip", "potansiyel": "Potansiyel rakip / yeni giren"}
-CONFIDENCE = {"yüksek": "Yüksek", "orta": "Orta", "düşük": "Düşük"}
-TREND = {"kazanıyor": ("good", "▲", "Pay kazanıyor"), "kaybediyor": ("critical", "▼", "Pay kaybediyor"),
-         "yatay": ("info", "■", "Yatay"), "yetersiz gözlem": ("info", "·", "Yetersiz gözlem")}  # fmt: skip
+DESCRIPTION = "mlbooster market-share --json çıktısından pazar payı ve rekabet analizi raporu (HTML) üretir."
+TIERS = {"direct": "Doğrudan rakip", "indirect": "Dolaylı rakip", "potential": "Potansiyel rakip / yeni giren"}
+CONFIDENCE = {"high": "Yüksek", "medium": "Orta", "low": "Düşük"}
+TREND = {"gaining": ("good", "▲", "Pay kazanıyor"), "losing": ("critical", "▼", "Pay kaybediyor"),
+         "flat": ("info", "■", "Yatay"), "insufficient_data": ("info", "·", "Yetersiz gözlem")}  # fmt: skip
+HHI_CLASS = {"low": "düşük", "moderate": "orta", "high": "yüksek"}
 BASIS = {"ttm": "son 12 ay toplamı (mevsimsellikten arındırılmış)", "period": "dönemlik değer"}
 FREQ = {52: "haftalık", 12: "aylık", 4: "çeyreklik", 2: "altı aylık", 1: "yıllık"}
 SEVERITY = {"high": "high", "medium": "medium", "info": "info"}
@@ -36,14 +38,12 @@ class CompetitorsError(ValueError):
     pass
 
 
-# ------------------------------------------------------------------------------------------- biçim
+# ------------------------------------------------------------------------------------------ format
 
 
 def num(v: float | None, d: int = 1) -> str:
-    """Türkçe sayı biçimi: binlik ayırıcı nokta, ondalık virgül."""
-    if v is None:
-        return "—"
-    return f"{v:,.{d}f}".replace(",", "\x00").replace(".", ",").replace("\x00", ".")
+    """Turkish number format: period as thousands separator, comma as decimal mark."""
+    return H.num(v, d)
 
 
 def pct(v: float | None, d: int = 1) -> str:
@@ -71,7 +71,7 @@ def trend_badge(label: str) -> str:
     return f'<span class="badge {cls}"><span aria-hidden="true">{icon}</span> {H.esc(text)}</span>'
 
 
-# ------------------------------------------------------------------------------------- rakip girdisi
+# -------------------------------------------------------------------------------- competitor input
 
 
 def load_competitors(path: Path) -> dict:
@@ -89,7 +89,7 @@ def validate_competitors(data: dict) -> None:
             raise CompetitorsError(f"Her rakip kaydında 'entity' bulunmalıdır: {c}")
         if c.get("tier") not in TIERS:
             raise CompetitorsError(f"tier şu değerlerden biri olmalıdır: {', '.join(TIERS)} ({c.get('entity')})")
-        if c.get("confidence", "orta") not in CONFIDENCE:
+        if c.get("confidence", "medium") not in CONFIDENCE:
             raise CompetitorsError(f"confidence şu değerlerden biri olmalıdır: {', '.join(CONFIDENCE)} ({c.get('entity')})")
         url = c.get("source_url")
         if url and urlsplit(str(url)).scheme not in {"https", "http"}:
@@ -101,11 +101,11 @@ def validate_competitors(data: dict) -> None:
             raise CompetitorsError("as_of YYYY-AA-GG biçiminde olmalıdır") from None
 
 
-# --------------------------------------------------------------------------------------------- grafik
+# -------------------------------------------------------------------------------------------- chart
 
 
 def change_bars(players: list[dict], title: str, highlight: str | None) -> str:
-    """Yıllık pay değişimi (yüzde puan): sıfır ekseninden iki yöne yatay çubuk."""
+    """Annual share change (percentage points): horizontal bars in both directions from the zero axis."""
     rows = [p for p in players if p.get("d_year_pp") is not None]
     if not rows:
         return ""
@@ -137,7 +137,7 @@ def _dates(isos: list[str]) -> list[date]:
     return [date.fromisoformat(d) for d in isos]
 
 
-# ---------------------------------------------------------------------------------------------- rapor
+# ------------------------------------------------------------------------------------------- report
 
 
 def build(an: dict, competitors: dict | None, narrative: str | None, assumptions: dict | None, title: str | None, source: str | None) -> str:
@@ -153,26 +153,27 @@ def build(an: dict, competitors: dict | None, narrative: str | None, assumptions
     growth = next((g for g in reversed(market.get("growth_yoy_pct") or []) if g is not None), None)
     coverage = (market.get("coverage") or [None])[-1]
 
-    sections, nav = [], [("ozet", "Özet")]
+    sections, nav = [], [("summary", "Özet")]
     kpi = []
     if fp:
         rank_note = f"önceki yıl {fp['rank_year_ago']}." if fp.get("rank_year_ago") else None
         kpi += [(f"{focus} pazar payı", pct(fp["share"]), f"yıllık {pp(fp.get('d_year_pp'))}"),
                 ("Sıralama", f"{fp['rank']}.", rank_note)]  # fmt: skip
-    hhi_note = f"{latest['class']} yoğunlaşma" + (f"; üst sınır {num(latest['hhi_upper'], 0)}" if latest.get("hhi_upper") and latest["hhi_upper"] - latest["hhi"] > 1 else "")
+    hhi_class = HHI_CLASS.get(latest["class"], latest["class"])
+    hhi_note = f"{hhi_class} yoğunlaşma" + (f"; üst sınır {num(latest['hhi_upper'], 0)}" if latest.get("hhi_upper") and latest["hhi_upper"] - latest["hhi"] > 1 else "")
     kpi += [("HHI", num(latest["hhi"], 0), hhi_note), ("İlk üç oyuncunun payı (CR3)", pct(latest["cr3"]), None)]
     if growth is not None:
         kpi.append(("Pazar büyümesi, yıllık", pct(growth), f"{unit}, {BASIS.get(meta['basis'], meta['basis'])}"))
     if meta.get("has_total") or meta["measure"] == "share":
-        kpi.append(("Veri kapsamı", pct(coverage), "listelenen oyuncuların pazardaki payı"))
+        kpi.append(("Coverage", pct(coverage), "listelenen oyuncuların pazardaki toplam payı"))
     summary = H.kpis(kpi)
     summary += (f'<p class="muted">Dönem: {H.esc(month(meta["first"]))} – {H.esc(month(last))} · {H.esc(freq)} veri · '
                 f'pay tabanı: {H.esc(BASIS.get(meta["basis"], meta["basis"]))} · {meta["entities"]} oyuncu.</p>')  # fmt: skip
     if narrative:
         summary += f'<div class="narrative">{H.markdown(narrative)}</div>'
-    sections.append(H.section("Özet", summary, "ozet"))
+    sections.append(H.section("Özet", summary, "summary"))
 
-    # Pazar yapısı
+    # Market structure
     dates = _dates(conc["dates"])
     body = '<div class="grid-2">'
     if meta["measure"] == "value" and any(g is not None for g in market.get("growth_yoy_pct") or []):
@@ -190,17 +191,17 @@ def build(an: dict, competitors: dict | None, narrative: str | None, assumptions
     ago = conc.get("year_ago") or {}
     body += (
         f"<p>Son dönemde HHI {num(latest['hhi'], 0)} düzeyindedir ve AB Yatay Birleşme Kılavuzu eşiklerine göre "
-        f"<strong>{H.esc(latest['class'])}</strong> yoğunlaşmaya karşılık gelir"
+        f"<strong>{H.esc(hhi_class)}</strong> yoğunlaşmaya karşılık gelir"
         + (f"; bir yıl önce {num(ago.get('hhi'), 0)} idi" if ago.get("hhi") is not None else "")
         + f". Eşdeğer oyuncu sayısı (10.000 / HHI) {num(latest['equivalent_players'], 1)} olarak hesaplanmıştır.</p>"
     )
     if latest.get("hhi_upper") and latest["hhi_upper"] - latest["hhi"] > 1:
         body += ('<p class="muted">Listelenmeyen oyuncuların payı bilinmediği için HHI bir aralık olarak verilir: alt sınır '
                  "listelenmeyen kısmın çok sayıda küçük oyuncudan, üst sınır tek bir oyuncudan oluştuğunu varsayar.</p>")  # fmt: skip
-    sections.append(H.section("Pazar yapısı ve yoğunlaşma", body, "yapi"))
-    nav.append(("yapi", "Pazar yapısı"))
+    sections.append(H.section("Pazar yapısı ve yoğunlaşma", body, "structure"))
+    nav.append(("structure", "Pazar yapısı"))
 
-    # Oyuncular
+    # Players
     share_dates = _dates(an["shares"]["dates"])
     series_map = an["shares"]["series"]
     cands = [c["entity"] for c in (an.get("competitors") or {}).get("candidates", [])]
@@ -228,50 +229,50 @@ def build(an: dict, competitors: dict | None, narrative: str | None, assumptions
     body += ('<p class="muted">Eğilim, son dönemlerin dönemlik paylarına doğrusal regresyonla tahmin edilir; |t| ≥ 2 ve '
              "yıllık eğim en az 0,2 puan olduğunda kazanma ya da kaybetme olarak sınıflandırılır. Göreli pay, oyuncunun payının "
              "en büyük rakibinin payına oranıdır (liderde 1'in üstü).</p>")  # fmt: skip
-    sections.append(H.section("Oyuncular ve pay dinamikleri", body, "oyuncular"))
-    nav.append(("oyuncular", "Oyuncular"))
+    sections.append(H.section("Oyuncular ve pay dinamikleri", body, "players"))
+    nav.append(("players", "Oyuncular"))
 
-    # Rakip seti
+    # Competitor set
     comp = an.get("competitors")
     if comp or competitors:
-        sections.append(H.section("Rakip seti", competitor_section(comp, competitors, by_entity), "rakipler"))
-        nav.append(("rakipler", "Rakipler"))
+        sections.append(H.section("Rakip seti", competitor_section(comp, competitors, by_entity), "competitors"))
+        nav.append(("competitors", "Rakipler"))
 
-    # Segmentler
+    # Segments
     seg = an.get("segments")
     if seg:
-        sections.append(H.section("Segment kırılımı", segment_section(seg, focus), "segmentler"))
-        nav.append(("segmentler", "Segmentler"))
+        sections.append(H.section("Segment kırılımı", segment_section(seg, focus), "segments"))
+        nav.append(("segments", "Segmentler"))
 
-    # Makro sürücüler
+    # Macro drivers
     drivers = an.get("drivers")
     if drivers:
         rows = [(H.esc(d["feature"]), d["lag"], num(d["r"], 2), d["n"]) for d in drivers[:10]]
-        body = H.table(["Değişken", "Gecikme (dönem)", "Korelasyon (r)", "Gözlem"], rows, numeric=[1, 2, 3])
+        body = H.table(["Feature", "Lag (dönem)", "Korelasyon (r)", "Gözlem"], rows, numeric=[1, 2, 3])
         body += ('<p class="muted">Pazarın yıllık büyümesi ile sektör panelindeki makro değişkenler arasındaki en güçlü gecikmeli '
                  "korelasyonlar. Korelasyon nedensellik göstermez; nominal büyüme enflasyonla birlikte hareket ettiğinden fiyat "
-                 "kaynaklı değişkenlerle yüksek korelasyon beklenir. Sonuçlar model kurulmadan önce açıklayıcı değişken adayı "
+                 "kaynaklı feature'larla yüksek korelasyon beklenir. Sonuçlar, model kurulmadan önce aday açıklayıcı feature "
                  "olarak değerlendirilmelidir.</p>")  # fmt: skip
         skipped = meta.get("panel_skipped") or {}
         if skipped:
-            body += f'<p class="muted">Panele alınamayan değişkenler: {H.esc(", ".join(sorted(skipped)))}.</p>'
-        sections.append(H.section("Pazar büyümesinin makro sürücüleri", body, "suruculer"))
-        nav.append(("suruculer", "Makro sürücüler"))
+            body += f'<p class="muted">Panele alınamayan feature\'lar: {H.esc(", ".join(sorted(skipped)))}.</p>'
+        sections.append(H.section("Pazar büyümesinin makro sürücüleri", body, "drivers"))
+        nav.append(("drivers", "Makro sürücüler"))
 
-    # Veri
+    # Data
     issue_rows = [(H.badge(SEVERITY.get(i["severity"], "info")), H.esc(i["message"])) for i in an.get("issues", [])]
     body = (H.table(["Önem", "Bulgu"], issue_rows, raw=[0, 1]) if issue_rows
-            else "<p>Girdi tablosunda kapsam, takvim ya da biçim sorunu tespit edilmedi.</p>")  # fmt: skip
+            else "<p>Girdi tablosunda coverage, takvim ya da biçim sorunu tespit edilmedi.</p>")  # fmt: skip
     if source:
         body += f"<p>Kaynak: {H.esc(source)}.</p>"
-    sections.append(H.section("Veri kapsamı ve kalite", body, "veri"))
-    nav.append(("veri", "Veri"))
+    sections.append(H.section("Coverage ve veri kalitesi", body, "data"))
+    nav.append(("data", "Veri"))
 
     if assumptions:
         sections.append(A.section(assumptions))
-        nav.append(("varsayimlar", "Varsayımlar"))
-    sections.append(H.section("Yöntem", METHOD, "yontem"))
-    nav.append(("yontem", "Yöntem"))
+        nav.append(("assumptions", "Varsayımlar"))
+    sections.append(H.section("Yöntem", METHOD, "method"))
+    nav.append(("method", "Yöntem"))
 
     heading = title or (f"{focus}: pazar payı ve rekabet analizi" if focus else "Pazar payı ve rekabet analizi")
     subtitle = f"{month(meta['first'])} – {month(last)} · {freq} · {meta['entities']} oyuncu"
@@ -355,16 +356,16 @@ toplamıyla hesaplanır.</li>
 düşük, 1.000–2.000 orta, 2.000'in üstü yüksek yoğunlaşma. <strong>CR-k:</strong> en büyük k oyuncunun pay toplamı.</li>
 <li><strong>İstikrarsızlık endeksi (Hymer–Pashigian):</strong> bir yıl içindeki mutlak pay değişimlerinin toplamının yarısı; pazarda el
 değiştiren pay miktarını gösterir.</li>
-<li><strong>Kaydırma-pay ayrıştırması:</strong> ΔS = Σ w̄·Δs + Σ s̄·Δw (orta nokta ağırlıkları). Birinci terim segment içi pay
+<li><strong>Shift-share ayrıştırması:</strong> ΔS = Σ w̄·Δs + Σ s̄·Δw (orta nokta ağırlıkları). Birinci terim segment içi pay
 değişimini, ikinci terim segment ağırlıklarındaki değişimi ölçer; toplam, odak oyuncunun pay değişimine tam eşittir.</li>
-<li><strong>Sınırlar:</strong> Paylar kaynak kurumun kapsamına bağlıdır (ör. birliğe üye olmayan şirketler). Korelasyon ve ikame
+<li><strong>Sınırlar:</strong> Paylar kaynak kurumun coverage'ına bağlıdır (ör. birliğe üye olmayan şirketler). Korelasyon ve ikame
 ölçütleri nedensellik göstermez. Tutar verisi nominal ise büyüme oranları enflasyon içerir.</li>
 </ul>
 """
 
 
 def main() -> None:
-    ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    ap = argparse.ArgumentParser(description=DESCRIPTION)
     ap.add_argument("--analysis", required=True, type=Path, help="mlbooster market-share --json çıktısı")
     ap.add_argument("--out", required=True, type=Path)
     ap.add_argument("--competitors", type=Path, help="Nitel rakip değerlendirmesi (competitors.json)")

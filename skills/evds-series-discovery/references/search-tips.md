@@ -7,10 +7,10 @@
 | Mevduat faizi | "mevduat faiz", "mevduat faiz oranları akım" | Vadeye göre alt seriler var; "toplam" ya da 1–3 ay vadeyi tercih et |
 | Tüketici güveni | "tüketici güven" | `bie_mbgven2` güncel grup, `bie_mbgven` arşivdir |
 | Reel kesim güveni | "reel kesim güven" | `bie_rkgey2` |
-| Enflasyon beklentisi | "beklenti", "sektörel enflasyon beklentileri" | Güncel PKA beklentisi `bie_enfbek` grubunda; `bie_bekodtufe` arşivdir |
+| Enflasyon beklentisi | "beklenti", "sektörel enflasyon beklentileri" | Güncel Piyasa Katılımcıları Anketi (PKA) beklentisi `bie_enfbek` grubunda; `bie_bekodtufe` arşivdir |
 | TÜFE | "tüketici fiyat endeksi 2025" | 2003=100 grupları arşivlenmiş ya da güncellenmiyor |
 | Dış borç | "brüt dış borç" | `bie_dbdborc` kaldırıldı |
-| Politika faizi / fonlama | "fonlama", "apifon" | `TP.APIFON4` = AOFM |
+| Politika faizi / fonlama | "fonlama", "apifon" | `TP.APIFON4` = AOFM (ağırlıklı ortalama fonlama maliyeti) |
 | Kart harcamaları | "kart harcama", "kartlı" | Sektörel kırılımlar alt serilerde |
 | Kapasite kullanımı | "kapasite kullanım" | |
 | Konut fiyat endeksi | "konut fiyat" | |
@@ -29,7 +29,7 @@
 | Konut kredisi faizi (TL, akım) | `TP.KTF12` | bie_kt100h | Haftalık (Cuma) | |
 | Ticari kredi faizi (TL, akım) | `TP.KTF17` | bie_kt100h | Haftalık (Cuma) | |
 | Tüketici kredisi faizi (TL, akım) | `TP.KTFTUK` | bie_kt100h | Haftalık (Cuma) | |
-| Tüketici güven endeksi | `TP.TG2.Y01` | bie_mbgven2 | Aylık | 100 eşiği iyimserlik ayrımı |
+| Tüketici güven endeksi | `TP.TG2.Y01` | bie_mbgven2 | Aylık | 100 eşiği iyimserliği kötümserlikten ayırır |
 | PKA 12 ay sonrası TÜFE beklentisi | `TP.ENFBEK.PKA12ENF` | bie_enfbek | Aylık | Aynı grupta reel kesim (IYA12ENF) ve hanehalkı (HBA12ENF) beklentileri |
 
 ### Ek kodlar (2026-10-31)
@@ -52,10 +52,10 @@
 Bulunamayanlar: işsizlik oranı ve yabancı ziyaretçi sayısı EVDS aramasında çıkmadı (TÜİK ve Kültür
 ve Turizm Bakanlığı kaynakları).
 
-## Bilinen yayın gecikmeleri (`--lag`, gün; dönem sonuna göre)
-Gecikme, değerin **dönem sonundan kaç gün sonra** yayımlandığıdır. Ay içinde yayımlanan seriler için
-0 verilir. Gecikme verilmezse varsayılan değer ihtiyatlıdır (aylık 30 gün → 2 ay kayma) ve feature'ı
-gerektiğinden bir ay geç gösterir. Gecikme biliniyorsa belirtilmelidir.
+## Bilinen publication lag değerleri (`--lag`, gün; dönem sonuna göre)
+Lag, değerin **dönem sonundan kaç gün sonra** yayımlandığını gösterir. Aynı ay içinde yayımlanan
+serilerde 0 verilir. Lag verilmezse varsayılan değer ihtiyatlıdır (aylık 30 gün → 2 ay kayma) ve
+feature'ı gerektiğinden bir ay geç gösterir. Lag biliniyorsa mutlaka belirtilmelidir.
 
 | Seri | Yayın | `--lag` |
 |---|---|---|
@@ -70,7 +70,7 @@ gerektiğinden bir ay geç gösterir. Gecikme biliniyorsa belirtilmelidir.
 - `TP.FG.J0` serisinin güncellenmesi 2026-01'de durdu; seri eski verileri döndürmeye devam eder.
   Hata üretmez, yalnızca `stale` bulgusu olarak görünür.
 - `TP.DB.B01` HTTP 400 döndürür; seri kaldırılmıştır.
-- `/serieList` bazı gruplarda boş liste döner (kaldırılmış grup). Aramaya geri dön.
+- `/serieList` bazı gruplarda boş liste döner (kaldırılmış grup). Bu durumda aramaya geri dön.
 - Frekans etiketleri tutarsızdır: "İŞ GÜNÜ", "HAFTALIK(CUMA)", "AYDA İKİ KEZ". CLI bunları
   normalleştirir.
-- Formüllü çekimde kolon adı `KOD-<n>` olur ve düzey kolonu dönmez. `mlbooster` düzeyi ayrıca ister.
+- Formüllü çekimde kolon adı `KOD-<n>` olur ve level kolonu dönmez. `mlbooster` level değerini ayrıca ister.

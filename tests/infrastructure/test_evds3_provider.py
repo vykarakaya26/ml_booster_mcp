@@ -49,7 +49,7 @@ def test_parse_evds_date(raw, expected, freq):
     assert parse_evds_date(raw) == (expected, freq)
 
 
-@pytest.mark.parametrize("raw", ["Ekim 2026", "2026-13", "32-01-2026"])
+@pytest.mark.parametrize("raw", ["October 2026", "2026-13", "32-01-2026"])
 def test_parse_evds_date_rejects_garbage(raw):
     with pytest.raises(UnexpectedResponse):
         parse_evds_date(raw)
@@ -167,7 +167,7 @@ def test_registry_shares_rate_limiter_per_source(catalog):
 
 @respx.mock
 def test_healthcheck_fails_on_stale_series(evds):
-    # Seri hâlâ veri dönüyor ama aylar önce durmuş (TP.FG.J0'ın 2026-01'de arşive taşınması gibi).
+    # The series still returns data but stopped months ago (like TP.FG.J0 being archived in 2026-01).
     def responder(request):
         url = str(request.url)
         if "TP.TUKFIY2025.GENEL" in url:
@@ -206,7 +206,7 @@ def test_infer_dmy_frequency():
 
     from mlbooster.infrastructure.providers.evds3 import infer_dmy_frequency
 
-    start = date(2026, 1, 2)  # Cuma
+    start = date(2026, 1, 2)  # Friday
     assert infer_dmy_frequency([start + timedelta(weeks=i) for i in range(10)]) is Frequency.WEEKLY
     bdays = [d for d in (start + timedelta(days=i) for i in range(30)) if d.weekday() < 5]
     assert infer_dmy_frequency(bdays) is Frequency.BUSINESS

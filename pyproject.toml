@@ -1,12 +1,12 @@
 [build-system]
-# hatchling kaynak ağacına (egg-info/build) yazmaz: plugin dizininden `uvx --from` ile kurulurken önemli.
+# hatchling does not write into the source tree (egg-info/build): this matters when installing from the plugin directory with `uvx --from`.
 requires = ["hatchling>=1.25"]
 build-backend = "hatchling.build"
 
 [project]
 name = "mlbooster"
 version = "0.5.0"
-description = "ML Booster Map: Türkiye için ücretsiz veri kaynakları haritası ve ML'e hazır panel üretici"
+description = "ML Booster Map: map of free data sources for Turkey and builder of ML-ready panels"
 requires-python = ">=3.12"
 license = "MIT"
 dependencies = [
@@ -34,5 +34,5 @@ packages = ["src/mlbooster"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["tests"]
-markers = ["live: gerçek uçlara giden contract testleri (EVDS_API_KEY gerekir)"]
+markers = ["live: contract tests against real endpoints (requires EVDS_API_KEY)"]
 addopts = "-m 'not live' --import-mode=importlib"

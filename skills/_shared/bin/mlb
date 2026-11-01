@@ -1,8 +1,8 @@
 #!/bin/sh
-# mlbooster CLI'yı bulur. Öncelik sırası:
-#   1) Plugin'in kendi kopyası (uvx --from <plugin kökü>): skill'ler ve MCP her zaman aynı, güncel kodu kullanır.
-#   2) Sistemde kurulu `mlbooster` (pip ile kurulmuşsa).
-#   3) uvx ile GitHub'daki main dalı.
+# Locates the mlbooster CLI. Order of precedence:
+#   1) The plugin's own copy (uvx --from <plugin root>): skills and MCP always use the same, current code.
+#   2) An `mlbooster` installed on the system (if installed with pip).
+#   3) The main branch on GitHub via uvx.
 set -eu
 ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/../../.." && pwd)
 if command -v uvx >/dev/null 2>&1 && [ -f "$ROOT/pyproject.toml" ]; then
@@ -14,5 +14,5 @@ fi
 if command -v uvx >/dev/null 2>&1; then
   exec uvx --quiet --from "git+https://github.com/vykarakaya26/ml_booster_mcp.git@${MLBOOSTER_REF:-main}" mlbooster "$@"
 fi
-echo "mlbooster bulunamadı. uv kurun (https://docs.astral.sh/uv/) ya da: pip install \"git+https://github.com/vykarakaya26/ml_booster_mcp.git\"" >&2
+echo "mlbooster bulunamadı. uv kurun (https://docs.astral.sh/uv/) ya da şunu çalıştırın: pip install \"git+https://github.com/vykarakaya26/ml_booster_mcp.git\"" >&2
 exit 127

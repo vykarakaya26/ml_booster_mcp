@@ -1,13 +1,13 @@
-"""TCMB EVDS3 sağlayıcısı.
+"""TCMB EVDS3 provider.
 
-Uç: https://evds3.tcmb.gov.tr/igmevdsms-dis/ — parametreler path'e '?' OLMADAN eklenir.
-API anahtarı yalnızca `key` header'ında gider; URL'ye, loglara ve ham veri manifestine yazılmaz.
-Canlı gözlem (2026-10-30): anahtarsız çağrı 403 JSON, geçersiz anahtar 401 text/plain,
-eski evds2.tcmb.gov.tr/service/evds/ ise 302 ile SPA'ya yönleniyor.
+Endpoint: https://evds3.tcmb.gov.tr/igmevdsms-dis/ — parameters are appended to the path WITHOUT '?'.
+The API key is sent only in the `key` header; it is never written to the URL, logs or the raw data manifest.
+Live observation (2026-10-30): a call without a key returns 403 JSON, an invalid key 401 text/plain,
+and the old evds2.tcmb.gov.tr/service/evds/ redirects to the SPA with a 302.
 
-Güvenlik: anahtar yalnızca kodda sabitlenmiş host'a (ALLOWED_HOST) gönderilir; katalogdaki
-base_url başka bir host'u gösterirse sağlayıcı çalışmaz. Böylece değiştirilmiş bir katalog
-anahtarı başka bir sunucuya sızdıramaz.
+Security: the key is sent only to the host pinned in code (ALLOWED_HOST); if the base_url in the
+catalog points to another host, the provider refuses to run. This way a tampered catalog cannot
+leak the key to another server.
 """
 
 from __future__ import annotations
@@ -46,9 +46,9 @@ FREQ_CODES = {
     Frequency.DAILY: 1, Frequency.BUSINESS: 2, Frequency.WEEKLY: 3, Frequency.SEMI_MONTHLY: 4,
     Frequency.MONTHLY: 5, Frequency.QUARTERLY: 6, Frequency.SEMI_ANNUAL: 7, Frequency.ANNUAL: 8,
 }  # fmt: skip
-_FREQ_LABELS = {  # anahtarlar boşluksuz
+_FREQ_LABELS = {  # keys without spaces (EVDS labels, kept as data)
     "GÜNLÜK": "D", "DAILY": "D",
-    "İŞGÜNÜ": "B", "IŞGÜNÜ": "B", "BUSINESS": "B", "WORKDAY": "B",  # canlıda "İŞ GÜNÜ"
+    "İŞGÜNÜ": "B", "IŞGÜNÜ": "B", "BUSINESS": "B", "WORKDAY": "B",  # live value: "İŞ GÜNÜ"
     "HAFTALIK": "W", "WEEKLY": "W",
     "AYDA2KEZ": "SM", "BIWEEKLY": "SM", "TWOTIMESINAMONTH": "SM",
     "AYLIK": "M", "MONTHLY": "M",
@@ -56,7 +56,7 @@ _FREQ_LABELS = {  # anahtarlar boşluksuz
     "ALTIAYLIK": "S", "6AYLIK": "S", "SEMIANNUAL": "S", "SEMI-ANNUAL": "S", "SIXMONTH": "S",
     "YILLIK": "A", "ANNUAL": "A", "YEARLY": "A",
 }  # fmt: skip
-_HEALTH_LOOKBACK_DAYS = {"D": 30, "B": 30, "W": 60, "SM": 90, "M": 400, "Q": 800, "S": 1200, "A": 2200}  # güncellik eşiğinden geniş
+_HEALTH_LOOKBACK_DAYS = {"D": 30, "B": 30, "W": 60, "SM": 90, "M": 400, "Q": 800, "S": 1200, "A": 2200}  # wider than the staleness threshold
 
 _DMY = re.compile(r"^(\d{1,2})-(\d{1,2})-(\d{4})$")
 _YM = re.compile(r"^(\d{4})-(\d{1,2})$")
@@ -70,7 +70,7 @@ def _month_end(year: int, month: int) -> date:
 
 
 def parse_evds_date(raw: str) -> tuple[date, Frequency]:
-    """EVDS 'Tarih' alanını dönem sonu tarihine çevirir; (tarih, çıkarılan frekans) döner."""
+    """Converts the EVDS 'Tarih' field to a period-end date; returns (date, inferred frequency)."""
     raw = str(raw).strip()
     try:
         if m := _DMY.match(raw):
@@ -84,12 +84,12 @@ def parse_evds_date(raw: str) -> tuple[date, Frequency]:
         if m := _Y.match(raw):
             return date(int(m[1]), 12, 31), Frequency.ANNUAL
     except ValueError:
-        pass  # ör. ay=13
+        pass  # e.g. month=13
     raise UnexpectedResponse(f"Tanınmayan EVDS tarih biçimi: {raw[:40]!r}")
 
 
 def infer_dmy_frequency(dates: list[date]) -> Frequency:
-    """gg-aa-yyyy biçimi günlük, iş günü, haftalık ve ayda iki kez için ortaktır; aralıklardan ayırt et."""
+    """The dd-mm-yyyy format is shared by daily, business-day, weekly and semi-monthly data; distinguish by the gaps."""
     unique = sorted(set(dates))
     if len(unique) < 3:
         return Frequency.DAILY
@@ -105,7 +105,7 @@ def infer_dmy_frequency(dates: list[date]) -> Frequency:
 def normalize_freq_label(label: object) -> str | None:
     if not isinstance(label, str) or not label.strip():
         return None
-    key = "".join(label.split()).upper()  # "İŞ GÜNÜ" / "ÜÇ AYLIK" gibi boşluklu varyantlar
+    key = "".join(label.split()).upper()  # variants with spaces such as "İŞ GÜNÜ" / "ÜÇ AYLIK"
     if key in _FREQ_LABELS:
         return _FREQ_LABELS[key]
     if key.startswith(("HAFTALIK", "WEEKLY")):  # "HAFTALIK(CUMA)", "HAFTALIK(ÇARŞAMBA)"
@@ -119,7 +119,7 @@ _TR_FOLD = str.maketrans({"ı": "i", "ş": "s", "ğ": "g", "ü": "u", "ö": "o",
 
 
 def _fold(text: str) -> str:
-    """Türkçe büyük/küçük harf ve aksan duyarsız karşılaştırma için normalleştirir (İ→i, I→ı→i)."""
+    """Normalizes text for Turkish case- and diacritic-insensitive comparison (İ→i, I→ı→i)."""
     return text.replace("İ", "i").replace("I", "ı").lower().translate(_TR_FOLD)
 
 
@@ -138,25 +138,25 @@ class Evds3Provider:
     ):
         parts = urlsplit(source.base_url)
         if parts.scheme != "https" or parts.hostname != ALLOWED_HOST:
-            raise ProviderError(f"EVDS3 sağlayıcısı yalnızca https://{ALLOWED_HOST} ile çalışır")
+            raise ProviderError(f"EVDS3 provider'ı yalnızca https://{ALLOWED_HOST} ile çalışır")
         self.source = source
         self._base = source.base_url.rstrip("/") + "/"
         self._http = http
         self._secrets = secrets
         self._raw_store = raw_store
 
-    # --- URL / istek ---------------------------------------------------------------------
+    # --- URL / request -------------------------------------------------------------------
 
     def build_url(self, path: str = "", **params: object) -> str:
-        """Parametreler path'e '?' olmadan, '&' ile eklenir. Boş parametreler atlanır.
-        Değerler çağrılmadan önce domain.validation ile izin listesinden geçirilmiş olmalıdır."""
+        """Parameters are appended to the path without '?', joined by '&'. Empty parameters are skipped.
+        Values must have passed the domain.validation allowlists before this is called."""
         query = "&".join(f"{k}={v}" for k, v in params.items() if v not in (None, ""))
         return f"{self._base}{path}{query}"
 
     def _api_key(self) -> Secret:
         key = self._secrets.get(API_KEY_ENV)
         if key is None:
-            raise CredentialsMissing(f"{API_KEY_ENV} tanımlı değil (.env veya ortam değişkeni)")
+            raise CredentialsMissing(f"{API_KEY_ENV} tanımlı değil (.env dosyasında ya da ortam değişkeni olarak tanımlayın)")
         return key
 
     def _get_json(self, url: str) -> object:
@@ -168,7 +168,7 @@ class Evds3Provider:
         try:
             return json.loads(response.content)
         except (json.JSONDecodeError, UnicodeDecodeError):
-            raise UnexpectedResponse(f"EVDS JSON çözülemedi: {url}") from None
+            raise UnexpectedResponse(f"EVDS yanıtı JSON olarak çözülemedi: {url}") from None
 
     @staticmethod
     def _check(response: HttpResponse, key: Secret) -> None:
@@ -176,28 +176,28 @@ class Evds3Provider:
         if status in (401, 403):
             raise AuthenticationFailed(f"EVDS kimlik doğrulama hatası {status}: {redact(response.text(), [key])}")
         if 300 <= status < 400:
-            raise UnexpectedResponse(f"EVDS {status} yönlendirmesi; eski bir uç nokta kullanılıyor olabilir: {url}")
+            raise UnexpectedResponse(f"EVDS {status} yönlendirmesi döndürdü; eski bir endpoint kullanılıyor olabilir: {url}")
         if status != 200:
             raise ProviderError(f"EVDS HTTP {status}: {url}")
         if "html" in response.content_type or response.content.lstrip()[:1] == b"<":
-            raise UnexpectedResponse(f"EVDS JSON yerine HTML döndü (uç nokta değişmiş olabilir): {url}")
+            raise UnexpectedResponse(f"EVDS, JSON yerine HTML döndürdü (endpoint değişmiş olabilir): {url}")
         if not response.content.strip():
-            raise UnexpectedResponse(f"EVDS boş yanıt döndü: {url}")
+            raise UnexpectedResponse(f"EVDS boş yanıt döndürdü: {url}")
 
-    # --- Keşif ---------------------------------------------------------------------------
+    # --- Discovery -----------------------------------------------------------------------
 
     def categories(self) -> pd.DataFrame:
         return pd.DataFrame(self._get_json(self.build_url("categories/", type="json")))
 
     def list_series(self, query: str | None = None) -> pd.DataFrame:
-        """query bir veri grubu kodu ise (ör. bie_dkdovizgn) /serieList; yoksa katalog tohumları."""
+        """If query is a data group code (e.g. bie_dkdovizgn), /serieList; otherwise the catalog seeds."""
         columns = ["series_id", "name", "freq", "start", "end", "datagroup"]
         if not query:
             rows = [(s.code, s.name, s.freq.value, None, None, s.datagroup) for s in self.source.series]
             return pd.DataFrame(rows, columns=columns)
         payload = self._get_json(self.build_url("serieList/", type="json", code=query))
         if not isinstance(payload, list):
-            raise UnexpectedResponse("serieList yanıtı liste değil")
+            raise UnexpectedResponse("serieList yanıtı bir liste değil")
         raw = pd.DataFrame(payload)
         if raw.empty:
             return pd.DataFrame(columns=columns)
@@ -217,12 +217,12 @@ class Evds3Provider:
         )
 
     def search(self, text: str, limit: int = 20) -> pd.DataFrame:
-        """Veri gruplarını Türkçe/İngilizce adlarında anahtar kelimeyle arar.
-        Her kelime kökü (ilk ≥4 harf) eşleşmeli; arşiv grupları sona atılır."""
+        """Searches data groups by keyword in their Turkish/English names.
+        Every word stem (first ≥4 letters) must match; archived groups are sorted last."""
         columns = ["datagroup", "name", "name_eng", "freq", "start", "end", "archived", "score"]
         payload = self._get_json(self.build_url("datagroups/", mode=0, type="json"))
         if not isinstance(payload, list):
-            raise UnexpectedResponse("datagroups yanıtı liste değil")
+            raise UnexpectedResponse("datagroups yanıtı bir liste değil")
         tokens = [_fold(tok) for tok in text.split() if tok.strip()]
         stems = [tok[: max(4, len(tok) - 2)] for tok in tokens]
         rows = []
@@ -253,12 +253,12 @@ class Evds3Provider:
         df = df.sort_values(["score", "archived", "_end"], ascending=[False, True, False])
         return df.drop(columns="_end").head(limit).reset_index(drop=True)
 
-    # --- Veri ----------------------------------------------------------------------------
+    # --- Data ----------------------------------------------------------------------------
 
     def fetch(self, request: FetchRequest) -> pd.DataFrame:
         if request.freq is not None and request.freq not in FREQ_CODES:
             raise InvalidInput(f"EVDS {request.freq.value} frekansını desteklemiyor; seçenekler: {[f.value for f in FREQ_CODES]}")
-        # Formül uygulanınca orijinal değerler None döner; düzeyi her zaman ayrıca iste.
+        # When a formula is applied the original values come back as None; always request the level separately.
         formulas = [0] if request.formula == 0 else [0, request.formula]
         vintage = datetime.now(UTC)
         frames = [self._fetch_formula(request, f, vintage) for f in formulas]
@@ -269,7 +269,7 @@ class Evds3Provider:
             return request.freq
         known = [s.freq for code in request.series_ids if (s := self.source.seed(code))]
         if len(known) < len(request.series_ids):
-            return Frequency.DAILY  # bilinmeyen seri: en sık frekansı varsay
+            return Frequency.DAILY  # unknown series: assume the highest frequency
         return min(known, key=lambda f: f.rank)
 
     def _fetch_formula(self, request: FetchRequest, formula: int, vintage: datetime) -> pd.DataFrame:
@@ -294,7 +294,7 @@ class Evds3Provider:
                 raise UnexpectedResponse(f"EVDS yanıtında 'items' listesi yok: {url}")
             items.extend(batch)
             if len(items) > MAX_ITEMS_PER_RESPONSE:
-                raise UnexpectedResponse("EVDS yanıtı beklenmeyen ölçüde büyük")
+                raise UnexpectedResponse("EVDS yanıtı beklenenden çok büyük")
         return self._to_observations(items, request, formula, vintage)
 
     def _to_observations(self, items: list[dict], request: FetchRequest, formula: int, vintage: datetime) -> pd.DataFrame:
@@ -337,19 +337,19 @@ class Evds3Provider:
             )
             frames.append(frame.dropna(subset=["value"]))
         out = pd.concat(frames, ignore_index=True)
-        # Parça sınırlarında tekrar edebilecek gözlemleri temizle.
+        # Remove observations that may repeat at chunk boundaries.
         return out.drop_duplicates(["series_id", "metric", "freq", "date"], keep="last").reset_index(drop=True)
 
     @staticmethod
     def _series_column(columns: pd.Index, code: str, formula: int = 0) -> str | None:
-        # Formüllü yanıtta kolon 'KOD-<formül>' olabilir; düzey kolonu ise None döner.
+        # In a formula response the column may be 'KOD-<formula>'; the level column comes back as None.
         base = code.replace(".", "_")
         candidates = [f"{base}-{formula}", base] if formula else [base]
         if found := next((c for c in candidates if c in columns), None):
             return found
         return next((c for c in columns if isinstance(c, str) and c.startswith(base + "-")), None)
 
-    # --- Sağlık --------------------------------------------------------------------------
+    # --- Health -------------------------------------------------------------------------
 
     def healthcheck(self) -> HealthResult:
         if not self.source.canaries:
@@ -366,7 +366,7 @@ class Evds3Provider:
                 last = df.sort_values("date").iloc[-1]
                 age = (today - last["date"]).days
                 if age > seed.freq.max_staleness_days:
-                    # Seri veri dönüyor ama durmuş: kod arşive taşınmış olabilir (ör. TP.FG.J0, 2026-01).
+                    # The series returns data but has stopped: the code may have been archived (e.g. TP.FG.J0, 2026-01).
                     return HealthResult(
                         self.source.id, HealthStatus.FAIL, f"{seed.code}: son gözlem {last['date']} ({age} gün önce); serinin yayımı durdurulmuş olabilir"
                     )

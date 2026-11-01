@@ -1,6 +1,6 @@
-"""Kullanıcının yerel CSV/JSON tablosunu okur (pazar payı girdisi).
+"""Reads the user's local CSV/JSON table (market share input).
 
-Yalnızca CLI kullanır; MCP araçları dosya yolu almaz. Uzantı izin listesi ve boyut sınırı uygulanır.
+Used only by the CLI; MCP tools do not accept file paths. An extension allowlist and a size limit are enforced.
 """
 
 from __future__ import annotations
@@ -42,7 +42,7 @@ class LocalTableReader:
         panel = frame.drop(columns=[first]).apply(pd.to_numeric, errors="coerce")
         panel.index = pd.DatetimeIndex(index, name="date")
         if panel.index.has_duplicates:
-            raise InvalidInput(f"{Path(path).name}: tekrarlanan tarih var")
+            raise InvalidInput(f"{Path(path).name}: aynı tarih birden fazla satırda geçiyor")
         return panel.sort_index()
 
 
@@ -52,8 +52,9 @@ def _csv(text: str, name: str) -> pd.DataFrame:
         sep = dialect.delimiter
     except csv.Error:
         sep = ","
-    # Türkçe Excel dışa aktarımları ';' ayırıcı ve ondalık virgül kullanır.
+    # Turkish Excel exports use the ';' separator and a decimal comma.
     decimal = "," if sep == ";" else "."
+    # Date columns are read as text; "tarih"/"dönem"/"donem" are Turkish input aliases (data, kept as-is).
     try:
         return pd.read_csv(io.StringIO(text), sep=sep, decimal=decimal, dtype={"date": str, "tarih": str, "dönem": str, "donem": str})
     except (pd.errors.ParserError, ValueError) as exc:
@@ -64,9 +65,9 @@ def _json(text: str, name: str) -> pd.DataFrame:
     try:
         data = json.loads(text)
     except json.JSONDecodeError as exc:
-        raise InvalidInput(f"{name} geçerli JSON değil: {exc.msg} (satır {exc.lineno})") from None
+        raise InvalidInput(f"{name} geçerli bir JSON değil: {exc.msg} (satır {exc.lineno})") from None
     if isinstance(data, dict):
         data = next((data[k] for k in ("rows", "data", "records") if isinstance(data.get(k), list)), None)
     if not isinstance(data, list) or not all(isinstance(r, dict) for r in data):
-        raise InvalidInput(f"{name}: satır nesnelerinden oluşan bir liste (ya da 'rows' altında liste) bekleniyor")
+        raise InvalidInput(f"{name}: satır nesnelerinden oluşan bir liste (ya da 'rows' altında bir liste) bekleniyor")
     return pd.DataFrame.from_records(data)

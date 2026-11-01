@@ -30,7 +30,7 @@ def test_latest_vintage_and_as_of(tmp_path):
     store = ParquetObservationStore(tmp_path)
     v1 = datetime(2026, 9, 5, tzinfo=UTC)
     store.write(_obs(100.0, v1))
-    store.write(_obs(101.0, v1 + timedelta(days=30)))  # revizyon
+    store.write(_obs(101.0, v1 + timedelta(days=30)))  # revision
     assert store.read("evds3")["value"].tolist() == [101.0]
     assert store.read("evds3", as_of=v1 + timedelta(days=1))["value"].tolist() == [100.0]
     assert store.read("tuik").empty
@@ -56,7 +56,7 @@ def test_rejects_traversal_and_injection(tmp_path):
 def test_rejects_duplicates_and_nulls(tmp_path):
     store = ParquetObservationStore(tmp_path)
     v = datetime(2026, 9, 5, tzinfo=UTC)
-    with pytest.raises(InvalidInput, match="tekrar"):
+    with pytest.raises(InvalidInput, match="duplicate|tekrar"):
         store.write(pd.concat([_obs(1.0, v), _obs(1.0, v)]))
     with pytest.raises(InvalidInput, match="null"):
         store.write(_obs(None, v))

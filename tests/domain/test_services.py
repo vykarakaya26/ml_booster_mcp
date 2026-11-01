@@ -29,7 +29,7 @@ def test_daily_flow_sums_and_last():
 def test_quarterly_ffill_with_publication_lag():
     s = pd.Series([10.0, 20.0], index=pd.to_datetime(["2025-12-31", "2026-03-31"]))
     m = to_monthly(s, Frequency.QUARTERLY, publication_lag_days=90)
-    assert m.index[0] == pd.Timestamp("2026-03-31")  # Ç4, 90 gün sonra bilinir
+    assert m.index[0] == pd.Timestamp("2026-03-31")  # Q4, known 90 days later
     assert m.loc["2026-05-31"] == 10.0
     assert m.loc["2026-06-30"] == 20.0
 
@@ -48,7 +48,7 @@ def test_chain_link_from_pct_changes():
 
 def test_chain_link_across_base_break():
     dates = pd.to_datetime(["2025-11-30", "2025-12-31", "2026-01-31", "2026-02-28"])
-    levels = pd.Series([3000.0, 3030.0, 104.0, 106.08], index=dates)  # Ocak 2026: 2003=100 → 2025=100
+    levels = pd.Series([3000.0, 3030.0, 104.0, 106.08], index=dates)  # January 2026: 2003=100 → 2025=100
     idx = index_from_levels(levels, "2025-12-31", ["2026-01-31"], {"2026-01-31": 4.0})
     assert idx.loc["2026-01-31"] == pytest.approx(104.0)
     assert idx.loc["2026-02-28"] == pytest.approx(106.08)
@@ -62,7 +62,7 @@ def test_deflate_and_transforms_fill_gaps():
     s = pd.Series(np.arange(1, 14, dtype=float), index=dates)
     assert apply_transform(s, Transform.YOY_PCT).iloc[-1] == pytest.approx(1200.0)
     assert apply_transform(s, Transform.LOG_DIFF).iloc[1] == pytest.approx(np.log(2))
-    gappy = s.drop(dates[5])  # eksik ay: shift(12) yanlış aya kaymamalı
+    gappy = s.drop(dates[5])  # missing month: shift(12) must not move to the wrong month
     assert apply_transform(gappy, Transform.YOY_PCT).iloc[-1] == pytest.approx(1200.0)
     assert apply_transform(pd.Series([0.0, 1.0], index=dates[:2]), Transform.LOG_DIFF).isna().all()
 
@@ -76,29 +76,29 @@ def test_date_chunks_cover_range_without_overlap():
 
 
 def test_daily_lag_applied_before_aggregation():
-    # 1 gün gecikmeli günlük seri: Eylül satırı Eylül içinde yayımlanan gözlemlerin ortalaması olmalı,
-    # Ağustos'unki değil (eski hata: ortalama alıp sonra bütün ayı kaydırmak).
+    # Daily series with a 1-day lag: the September row must be the mean of observations published in September,
+    # not August's (old bug: averaging first and then shifting the whole month).
     idx = pd.bdate_range("2026-08-03", "2026-10-30")
     s = pd.Series(np.where(idx.month == 8, 10.0, np.where(idx.month == 9, 20.0, 30.0)), index=idx)
     m = to_monthly(s, Frequency.BUSINESS, publication_lag_days=1)
-    assert m.loc["2026-09-30"] > 19.0  # yalnızca 31 Ağustos gözlemi (1 Eylül'de yayımlanan) karışır
+    assert m.loc["2026-09-30"] > 19.0  # only the 31 August observation (published on 1 September) is mixed in
     assert m.loc["2026-10-31"] > 29.0
 
 
 def test_monthly_lag_never_collides_or_drops_months():
-    # 30 günlük gecikme: Ocak+30g = 2 Mart, Şubat+30g = 30 Mart. Eski kod Ocak'ı kaybediyordu.
+    # 30-day lag: Jan+30d = 2 Mar, Feb+30d = 30 Mar. The old code lost January.
     idx = pd.date_range("2025-01-31", "2026-06-30", freq="ME")
     s = pd.Series(range(len(idx)), index=idx, dtype=float)
     m = to_monthly(s, Frequency.MONTHLY, publication_lag_days=30)
-    assert len(m) == len(s) and m.is_unique  # hiçbir ay kaybolmadı
-    assert m.loc["2025-03-31"] == 0.0  # Ocak değeri Mart'ta (yayımlandığı ay), Şubat'ta değil
-    assert m.index.to_series().diff().dropna().dt.days.max() <= 31  # boşluk yok
+    assert len(m) == len(s) and m.is_unique  # no month was lost
+    assert m.loc["2025-03-31"] == 0.0  # January value in March (the month it was published), not February
+    assert m.index.to_series().diff().dropna().dt.days.max() <= 31  # no gaps
 
 
 def test_quarterly_lag_shift_is_exact():
     s = pd.Series([1.0, 2.0, 3.0, 4.0], index=pd.to_datetime(["2025-03-31", "2025-06-30", "2025-09-30", "2025-12-31"]))
     m = to_monthly(s, Frequency.QUARTERLY, publication_lag_days=90)
-    assert m.loc["2025-06-30"] == 1.0 and m.loc["2026-03-31"] == 4.0  # 3 ay kayma, 4 değil
+    assert m.loc["2025-06-30"] == 1.0 and m.loc["2026-03-31"] == 4.0  # 3-month shift, not 4
 
 
 def test_to_frequency_weekly_and_daily_point_in_time():
@@ -107,13 +107,13 @@ def test_to_frequency_weekly_and_daily_point_in_time():
     days = pd.bdate_range("2026-09-01", "2026-10-30")
     daily = pd.Series(np.arange(len(days), dtype=float), index=days)
     weekly = to_frequency(daily, Frequency.BUSINESS, "W", Aggregation.LAST, publication_lag_days=1)
-    assert all(d.weekday() == 4 for d in weekly.index)  # Cuma
-    # 1 gün gecikme: Cuma satırı Perşembe'ye kadarki son değeri taşır (Cuma verisi Pazartesi yayımlanır)
+    assert all(d.weekday() == 4 for d in weekly.index)  # Friday
+    # 1-day lag: the Friday row carries the last value up to Thursday (Friday data is published on Monday)
     assert weekly.loc["2026-09-11"] == daily.loc["2026-09-10"]
     monthly = pd.Series([1.0, 2.0], index=pd.to_datetime(["2026-08-31", "2026-09-30"]))
     w = to_frequency(monthly, Frequency.MONTHLY, "W", publication_lag_days=3)
-    assert w.loc["2026-09-04"] == 1.0  # Ağustos değeri 3 Eylül'de yayımlandı
-    assert w.loc["2026-10-02"] == 1.0 and w.loc["2026-10-09"] == 2.0  # Eylül değeri 3 Ekim'de
+    assert w.loc["2026-09-04"] == 1.0  # August value was published on 3 September
+    assert w.loc["2026-10-02"] == 1.0 and w.loc["2026-10-09"] == 2.0  # September value on 3 October
     b = to_frequency(monthly, Frequency.MONTHLY, "B", publication_lag_days=3)
     assert b.loc["2026-10-02"] == 1.0 and b.loc["2026-10-05"] == 2.0
     with pytest.raises(ValueError):
@@ -124,3 +124,10 @@ def test_yoy_uses_periods_per_year():
     idx = pd.date_range("2024-01-05", periods=60, freq="W-FRI")
     s = pd.Series(np.arange(1, 61, dtype=float), index=idx)
     assert apply_transform(s, Transform.YOY_PCT, "W").iloc[-1] == pytest.approx((60 / 8 - 1) * 100)
+
+
+def test_turkish_number_formatting():
+    from mlbooster.domain.numfmt import tr_num, tr_pct
+
+    assert tr_num(31.5) == "31,5" and tr_pct(31.54) == "%31,5"
+    assert tr_num(200_000, ",") == "200.000" and tr_num(-0.95, "+.2f") == "-0,95"

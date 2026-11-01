@@ -1,7 +1,10 @@
 # Rapor yazım kılavuzu
 
-`narrative.md` raporun yönetici özeti bölümüne yerleşir. Okur, raporun geri kalanını okumadan bu bölümden
-pazarın yapısını, odak oyuncunun konumunu ve karar için önemli riskleri anlayabilmelidir.
+`narrative.md` raporun yönetici özeti bölümüne yerleşir. Okur, raporun geri kalanını okumadan bu bölümden pazarın
+yapısını, odak oyuncunun konumunu ve karar için önemli riskleri anlayabilmelidir.
+
+Bu dosya aynı zamanda projede kullanıcıya görünen bütün metinler (raporlar, hata mesajları, CLI/MCP açıklamaları,
+skill belgeleri) için kanonik dil standardıdır.
 
 ## Yapı
 ```markdown
@@ -9,14 +12,14 @@ pazarın yapısını, odak oyuncunun konumunu ve karar için önemli riskleri an
 Tek paragraf: odak oyuncunun konumu, eğilimi ve bunun en önemli nedeni.
 
 ## Pazar
-Büyüklük ve büyüme (birim ve nominal/reel ayrımıyla), yoğunlaşma düzeyi ve yönü, pazardaki pay hareketliliği.
+Büyüklük ve büyüme (birim ve nominal/reel ayrımıyla), yoğunlaşmanın düzeyi ve yönü, pazardaki pay hareketliliği.
 
 ## Konum ve eğilim
 Pay, sıra, göreli pay, yıllık değişim ve istatistiksel eğilim; pazara göre büyüme farkı.
 
 ## Rakipler
-Doğrudan rakipler ve gerekçeleri; payın hangi oyunculardan geldiğine ilişkin kanıt (ikame korelasyonu,
-segment ayrıştırması) ve potansiyel rakipler.
+Doğrudan rakipler ve gerekçeleri; payın hangi oyunculardan geldiğine ilişkin kanıt (substitution correlation,
+shift-share ayrıştırması) ve potansiyel rakipler.
 
 ## Segment ve kaynak ayrıştırması
 Pay değişiminin segment içi rekabetten mi, segment karmasından mı kaynaklandığı.
@@ -25,28 +28,41 @@ Pay değişiminin segment içi rekabetten mi, segment karmasından mı kaynaklan
 Pazar büyümesiyle ilişkili makro değişkenler ve sektör varsayımları (A# kimlikleriyle).
 
 ## Riskler ve izlenecek göstergeler
-Konumu değiştirebilecek gelişmeler; her biri için izlenecek somut gösterge ve kaynak.
+Konumu değiştirebilecek gelişmeler; her biri için izlenecek somut gösterge ve kaynağı.
 
 ## Veri sınırları
-Kapsam, eksik dönemler, tanım değişiklikleri, birleşmeler.
+Coverage, eksik dönemler, tanım değişiklikleri, birleşmeler.
 ```
 
 ## Dil standardı
-Rapor kurumsal bir araştırma notu üslubuyla yazılır: nesnel, ölçülü, kesin tanımlı ve kaynaklı.
+Rapor kurumsal bir araştırma notu üslubuyla yazılır: nesnel, ölçülü, kesin tanımlı ve kaynaklı. Metin, Türk bir
+veri bilimcinin doğal olarak yazacağı akıcı Türkçedir; çeviri kokan, kalıp cümleler kurulmaz.
+
+**Teknik terimler İngilizce kalır ve Türkçeleştirilmez.** feature, feature engineering, backtest, baseline,
+forecast, look-ahead, leakage, outlier, winsorize, scaling, imputation, lag, rolling mean, EWM, coverage, HHI,
+CR-k, shift-share, MAE, RMSE gibi terimler için uydurma Türkçe karşılık kullanılmaz. Ek gerekiyorsa kesme işaretiyle
+bağlanır: "feature'lar", "backtest'te", "outlier'ları", "HHI'ye". Alanın gündelik sözcükleri ise Türkçedir: pazar
+payı, oyuncu, sektör, segment, dönem, enflasyon, kur, faiz, varsayım, bulgu. Kurum ve veri seti adları (TCMB, EVDS,
+TÜİK, ODMD, TSB, BTK, EPDK, KAP) olduğu gibi yazılır.
 
 | Kullanılmaz | Kullanılır |
 |---|---|
 | "B uçuşta, C çakıldı" | "B'nin payı bir yılda 2,5 puan arttı; C'nin payı 1,2 puan azaldı." |
 | "Pazar çok yoğun" | "HHI 2.150 ile yüksek yoğunlaşma eşiğinin (2.000) üzerindedir." |
 | "B, C'nin payını yiyor" | "B'nin pay değişimleri C'ninkilerle ters yönlüdür (r = −0,64, n = 60); bu, doğrudan rekabetle tutarlıdır." |
-| "Bayat veri", "eski veri" | "Son gözlem Haziran 2026'ya aittir; sonraki dönemler henüz yayımlanmamıştır." |
+| "Bayat veri", "ölü seri" | "Son gözlem Haziran 2026'ya aittir; sonraki dönemler henüz yayımlanmamıştır." |
 | "Kesinlikle", "açıkça görülüyor ki" | "Veriler … göstermektedir", "… ile tutarlıdır" |
-| "Muhtemelen kampanya yüzünden" | "Artış, kampanya döneminde gerçekleşmiştir (yorum, düşük güven); kampanya etkisi ayrıştırılamamıştır." |
+| "Muhtemelen kampanya yüzünden" | "Artış kampanya döneminde gerçekleşmiştir (yorum, düşük güven); kampanya etkisi ayrıştırılamamıştır." |
+| "Pay %2,5 arttı" (pay farkı için) | "Pay 2,5 puan artarak %24,0'dan %26,5'e yükseldi." |
+| "Aykırı değerler kırpıldı", "kaydırma-pay etkisi" | "Outlier'lar winsorize edildi", "shift-share ayrıştırmasında pay etkisi" |
+| "Öznitelik mühendisliği", "geriye dönük sınama" | "Feature engineering", "backtest" |
+| "Seçilen feature'ların performansa katkısı görülmüştür" (çeviri kokan) | "Seçilen feature'lar MAE'yi 0,12 puan düşürdü." |
 
 Kurallar:
-- Her sayıya dönem ve birim eklenir; yüzde ile yüzde puan karıştırılmaz.
-- Ondalık ayırıcı virgül, binlik ayırıcı noktadır (%26,5; 1.448).
-- Ünlem, retorik soru, argo ve mecaz kullanılmaz.
+- Her sayıya dönem ve birim eklenir; yüzde (%) ile yüzde puan (puan) karıştırılmaz.
+- Ondalık ayırıcı virgül, binlik ayırıcı noktadır (%26,5; 1.448; −0,64; 2,4 puan).
+- Ünlem, retorik soru, argo ve mecaz kullanılmaz. Cümleler kısa ve açıktır.
 - Nedensellik yalnızca birden fazla bağımsız kanıt varsa ve "… ile tutarlıdır" biçiminde ifade edilir.
 - Yatırım tavsiyesi verilmez; sonuçlar karar destek bulgusu olarak sunulur.
-- Kullanıcı onaylamadığı varsayımlara dayanan cümleler koşullu kipte yazılır ve varsayım kimliği verilir.
+- Kullanıcının onaylamadığı varsayımlara dayanan cümleler koşullu kipte yazılır ve varsayım kimliği verilir
+  (ör. "Pazar tanımı (A1) geçerliyse …").

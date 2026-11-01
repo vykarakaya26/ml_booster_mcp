@@ -3,7 +3,7 @@ name: Akaryakıt / LPG
 macro_features:
   - {name: usdtry_logdiff, source: evds3, series: TP.DK.USD.A, transform: log_diff, agg: avg}
   - {name: tufe_yoy, source: evds3, series: TP.TUKFIY2025.GENEL, transform: yoy_pct}
-  - {name: brent, source: evds3, discover_hint: "Brent petrol fiyatı EVDS'de yoksa harici kaynak (faz 2)"}
+  - {name: brent, source: evds3, discover_hint: "Brent petrol fiyatı; EVDS'de bulunmuyorsa harici kaynaktan alınacak (faz 2)"}
   - {name: kart_akaryakit_reel_yoy, source: evds3, series: TP.KKHARTUT.KT4, transform: yoy_pct, agg: avg, real: true}
   - {name: sanayi_uretim_yoy, source: evds3, series: TP.TSANAYMT2021.BCD, transform: yoy_pct}
   - {name: ufe_yoy, source: evds3, series: TP.TUFE1YI.T1, transform: yoy_pct}
@@ -12,9 +12,9 @@ market_share_sources:
   - {source: epdk, metric: "dağıtıcı bazında satış tonu payı (akaryakıt, LPG)"}
 ml_use_cases: ["Hacim tahmini", "Marj modeli"]
 feature_recipes:
-  - {name: ufe_tufe_farki, op: spread, inputs: [ufe_yoy, tufe_yoy], note: "Üretici ve tüketici enflasyonu farkı; maliyet baskısının fiyata geçişi"}
-  - {name: kart_akaryakit_z_24, op: zscore, inputs: [kart_akaryakit_reel_yoy], window: 24, note: "Akaryakıt talebinin son 24 aya göre standart skoru"}
-  - {name: sanayi_sapma_12, op: gap, inputs: [sanayi_uretim_yoy], window: 12, note: "Ticari talep (sanayi üretimi) ivmesi"}
+  - {name: ufe_tufe_farki, op: spread, inputs: [ufe_yoy, tufe_yoy], note: "Üretici ve tüketici enflasyonu arasındaki fark; maliyet baskısının fiyatlara yansıması"}
+  - {name: kart_akaryakit_z_24, op: zscore, inputs: [kart_akaryakit_reel_yoy], window: 24, note: "Akaryakıt talebinin son 24 aya göre z-score'u"}
+  - {name: sanayi_sapma_12, op: gap, inputs: [sanayi_uretim_yoy], window: 12, note: "Ticari talepteki (sanayi üretimi) momentum"}
 events:
-  - {name: esel_mobil_2018, start: "2018-05", end: "2021-12", kind: step, note: "Eşel mobil sistemi: ÖTV, ürün fiyatı değişimlerini sönümler (2018/11818 sayılı karar; ara dönemlerdeki kısmi uygulamalar doğrulanmadı)", source: "Resmî Gazete 17.05.2018"}
+  - {name: esel_mobil_2018, start: "2018-05", end: "2021-12", kind: step, note: "Eşel mobil sistemi: ÖTV, ürün fiyatındaki değişimleri dengeler (2018/11818 sayılı karar; ara dönemlerdeki kısmi uygulamalar doğrulanmadı)", source: "Resmî Gazete 17.05.2018"}
   - {name: esel_mobil_2026, start: "2026-03", end: "2026-09", kind: step, note: "Eşel mobilin yeniden uygulanması (4 Mart 2026) ve kademeli sona erişi (1 Ekim 2026)", source: "Resmî Gazete; dunya.com"}

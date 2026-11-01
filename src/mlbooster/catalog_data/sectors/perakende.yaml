@@ -13,7 +13,7 @@ macro_features:
   - {name: oecd_tuketici_guveni, source: oecd, series: OECD.CCI.TR, transform: level}
 sector_sources: [bkm, tuik]
 market_share_sources:
-  - {source: bkm, metric: "sektörel kart harcaması (talep vekili; firma payı değil)", is_proxy: true}
+  - {source: bkm, metric: "sektörel kart harcaması (talep proxy'si; firma payı değildir)", is_proxy: true}
 ml_use_cases: ["Satış tahmini", "Enflasyon geçişkenliği", "Sepet/kategori talebi"]
 feature_recipes:
   - {name: market_toplam_farki, op: spread, inputs: [kart_market_reel_yoy, kart_toplam_reel_yoy], note: "Temel tüketimin toplam harcamaya göre büyüme farkı"}

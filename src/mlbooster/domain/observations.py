@@ -1,4 +1,4 @@
-"""Gözlem çerçevesi (silver uzun format) sözleşmesi. Depolama biçimi altyapıya aittir."""
+"""Observation frame (silver long format) contract. The storage format belongs to infrastructure."""
 
 from __future__ import annotations
 
@@ -8,7 +8,7 @@ from mlbooster.domain.errors import InvalidInput
 
 OBSERVATION_COLUMNS = [
     "source_id", "dataset_id", "series_id", "entity_id", "entity_name", "metric",
-    "date",  # dönem sonu
+    "date",  # period end
     "freq", "value", "unit", "currency", "is_proxy", "vintage_ts", "publication_lag_days",
 ]  # fmt: skip
 KEY_COLUMNS = ["source_id", "series_id", "entity_id", "metric", "freq", "date"]
@@ -20,16 +20,16 @@ def empty_observations() -> pd.DataFrame:
 
 
 def validate_observations(df: pd.DataFrame) -> pd.DataFrame:
-    """Kolonları sıralar; zorunlu alanları ve (anahtar, vintage) tekilliğini kontrol eder."""
+    """Orders the columns; checks required fields and (key, vintage) uniqueness."""
     missing = set(OBSERVATION_COLUMNS) - set(df.columns)
     if missing:
-        raise InvalidInput(f"Gözlem çerçevesinde eksik kolonlar: {sorted(missing)}")
+        raise InvalidInput(f"Gözlem çerçevesinde eksik kolonlar var: {sorted(missing)}")
     df = df[OBSERVATION_COLUMNS].copy()
     nulls = [c for c in REQUIRED_NON_NULL if df[c].isna().any()]
     if nulls:
-        raise InvalidInput(f"Boş olamayacak kolonlarda null var: {nulls}")
+        raise InvalidInput(f"Boş bırakılamayan kolonlarda null değer var: {nulls}")
     df["entity_id"] = df["entity_id"].fillna("")
     dupes = df.duplicated(KEY_COLUMNS + ["vintage_ts"])
     if dupes.any():
-        raise InvalidInput(f"Gözlem anahtarında {int(dupes.sum())} tekrar eden satır var")
+        raise InvalidInput(f"Gözlem anahtarında {int(dupes.sum())} tekrarlanan satır var")
     return df

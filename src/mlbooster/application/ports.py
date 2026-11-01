@@ -1,4 +1,4 @@
-"""Port'lar: çekirdeğin dış dünyadan beklediği yetenekler. Altyapı bunları uygular."""
+"""Ports: the capabilities the core expects from the outside world. Infrastructure implements them."""
 
 from __future__ import annotations
 
@@ -17,7 +17,7 @@ class CatalogRepository(Protocol):
 
 
 class CatalogOverrides(Protocol):
-    """Kullanıcının keşfettiği seri kodlarını paket kataloğuna dokunmadan kalıcılaştırır."""
+    """Persists series codes discovered by the user without touching the packaged catalog."""
 
     def set_feature(
         self,
@@ -27,13 +27,13 @@ class CatalogOverrides(Protocol):
         source_id: str,
         new_feature: MacroFeature | None = None,
     ) -> str:
-        """Override'ı yazar, konumunu döner; sonraki `load()` yeni değeri görür.
-        `new_feature` verilirse sektöre yeni bir feature eklenir."""
+        """Writes the override and returns its location; the next `load()` sees the new value.
+        If `new_feature` is given, a new feature is added to the sector."""
         ...
 
 
 class SupportsSearch(Protocol):
-    """Opsiyonel sağlayıcı yeteneği: anahtar kelimeyle veri grubu/seri arama."""
+    """Optional provider capability: keyword search over data groups/series."""
 
     def search(self, text: str, limit: int = 20) -> pd.DataFrame:
         """DataFrame[datagroup, name, freq, start, end]"""
@@ -41,7 +41,7 @@ class SupportsSearch(Protocol):
 
 
 class SeriesProvider(Protocol):
-    """Tek bir veri kaynağına erişim. `fetch` gözlem çerçevesi (domain.observations) döner."""
+    """Access to a single data source. `fetch` returns an observation frame (domain.observations)."""
 
     def list_series(self, query: str | None = None) -> pd.DataFrame:
         """DataFrame[series_id, name, freq, start, end, datagroup]"""
@@ -56,7 +56,7 @@ class SeriesProvider(Protocol):
 
 class ProviderFactory(Protocol):
     def available(self) -> set[str]:
-        """Sağlayıcısı yazılmış kaynakların `provider` anahtarları."""
+        """`provider` keys of the sources that have an implemented provider."""
         ...
 
     def create(self, source: Source) -> SeriesProvider: ...
@@ -71,31 +71,31 @@ class ObservationStore(Protocol):
         series_ids: list[str] | None = None,
         as_of: datetime | None = None,
     ) -> pd.DataFrame:
-        """Her anahtar için `as_of` anına kadarki en son vintage."""
+        """For each key, the latest vintage up to the `as_of` instant."""
         ...
 
 
 class PanelStore(Protocol):
     def save(self, sector_id: str, panel: pd.DataFrame) -> str:
-        """Paneli kalıcı hale getirir ve konumunu döner."""
+        """Persists the panel and returns its location."""
         ...
 
     def export(self, panel: pd.DataFrame, path: Path) -> str:
-        """Kullanıcının açıkça verdiği yola dışa aktarır (yalnızca yerel CLI)."""
+        """Exports to a path explicitly given by the user (local CLI only)."""
         ...
 
 
 class UpdateSource(Protocol):
     def latest_version(self) -> str | None:
-        """Yayımlanmış en son sürüm (ör. '0.4.0'); bilinmiyorsa None."""
+        """Latest published version (e.g. '0.4.0'); None if unknown."""
         ...
 
 
 class TableReader(Protocol):
     def read(self, path: Path) -> pd.DataFrame:
-        """Kullanıcının yerelde verdiği CSV/JSON tablosunu okur (yalnızca CLI; MCP dosya yolu almaz)."""
+        """Reads a local CSV/JSON table supplied by the user (CLI only; MCP does not accept file paths)."""
         ...
 
     def read_panel(self, path: Path) -> pd.DataFrame:
-        """İlk kolonu tarih olan geniş panel CSV'sini (ör. değişken matrisi) tarih indeksli okur."""
+        """Reads a wide panel CSV whose first column is a date (e.g. a feature matrix) with a date index."""
         ...

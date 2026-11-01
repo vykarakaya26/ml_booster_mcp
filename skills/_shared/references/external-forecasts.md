@@ -7,7 +7,7 @@ kaydedilir.
 
 ## Ne zaman kullanılır
 - Kullanıcı yıl sonu kur, enflasyon ya da faiz görüşü istediğinde, ya da senaryo kurarken.
-- Backtest kıyas düzeyi ile piyasa görüşünü yan yana sunmak için (model sonucu ve kurum tahminleri).
+- Backtest benchmark'ı ile piyasa görüşünü yan yana sunmak için (model sonucu ve kurum tahminleri).
 - Kontrollü kur rejiminde (`managed_path`): kurumların ima ettiği yıllık değer kaybı, mevcut aylık
   patikayla karşılaştırılır.
 
@@ -40,7 +40,7 @@ Konsensüs çıktısı:
 | Değişken | Ufuk | Konsensüs | Hesap yöntemi |
 |---|---|---|---|
 | TÜFE | 2026 yıl sonu | %29,3 | ortalama |
-| TÜFE | 2027 yıl sonu | %23,6 | medyan: TCMB'nin %15'i aykırı, ortalama %21,8'e iner |
+| TÜFE | 2027 yıl sonu | %23,6 | medyan: TCMB'nin %15'i outlier, ortalama %21,8'e iner |
 | Politika faizi | 2026 yıl sonu | %35 | |
 | USD/TRY | 2026 yıl sonu | 51,4 | |
 
@@ -57,7 +57,7 @@ Bilinen sorunlar:
 ## Raporda nasıl özetlenir
 - Değişken ve ufuk başına kurum sayısı, medyan, ortalama, en düşük ve en yüksek.
 - **Konsensüs kuralı:** çeyrekler arası açıklık medyanın %10'unu aşıyorsa ya da 3'ten az tahmin
-  varsa konsensüs = **medyan**; aksi halde ortalama. Ortalama, tek bir aykırı kurum tahminine yüksek duyarlılık gösterir.
+  varsa konsensüs = **medyan**; aksi halde ortalama. Ortalama, tek bir outlier kurum tahminine çok duyarlıdır.
 - **Güncellik:** 92 günden eski tahminler "güncel değil" olarak işaretlenir. Türkiye'de kurum görüşleri
   bir kur şokundan sonra hızla revize edilir.
 - **İma edilen değişim:** `--latest usdtry=YYYY-AA:değer` verilirse yıl sonu konsensüsünün son değere
@@ -67,6 +67,6 @@ Bilinen sorunlar:
 - Kurum tahminleri rejim varsayımı içerir; bu genellikle "kontrollü değer kaybı sürer" varsayımıdır.
   Bu varsayımı açıkça yaz: `assumptions.json` içinde `kind: external`, `confirmed: false`.
 - Tahminler arasındaki dağılım bir belirsizlik göstergesidir ama gerçek belirsizliği eksik gösterir:
-  kurum tahminleri birbirine yakınsama (sürü davranışı) eğilimi gösterebilir. Kantil aralığıyla birlikte sun.
+  kurum tahminleri birbirine yakınsama (sürü davranışı) eğilimi gösterebilir. Quantile aralığıyla birlikte sun.
 - Kurumların geçmiş isabeti bilinmeden "en iyi kurum" seçme.
 - Kullanıcı açıkça istemedikçe kendi nokta tahminini kurum tahminlerinin yerine koyma.

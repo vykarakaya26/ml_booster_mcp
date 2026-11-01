@@ -1,4 +1,6 @@
-"""Use case çıktılarını metne / JSON'a çeviren sunum yardımcıları."""
+"""Presentation helpers that turn use case outputs into text / JSON.
+
+JSON keys and enum values stay in English (code side); markdown shown to users is Turkish."""
 
 from __future__ import annotations
 
@@ -9,6 +11,15 @@ from mlbooster.domain.model import HealthResult, Source
 from mlbooster.domain.services.backtest import BacktestResult
 from mlbooster.domain.services.quality import QualityReport
 from mlbooster.domain.services.sector_map import SectorMap
+
+
+# Turkish labels for the sector map status codes (domain.services.sector_map).
+STATUS_LABELS = {"ready": "hazır", "pending_discovery": "seri kodu bekleniyor", "no_provider": "provider yok"}
+# Turkish labels for audit/market share severities and market share enums (domain.services.market_share).
+SEVERITY_LABELS = {"high": "yüksek", "medium": "orta", "info": "bilgi"}
+TREND_LABELS = {"gaining": "pay kazanıyor", "losing": "pay kaybediyor", "flat": "yatay", "insufficient_data": "yetersiz gözlem"}
+HHI_CLASS_LABELS = {"low": "düşük", "moderate": "orta", "high": "yüksek"}
+BASIS_LABELS = {"period": "dönemlik", "ttm": "son 12 ay toplamı"}
 
 
 def _auth_label(source: Source) -> str:
@@ -57,11 +68,11 @@ def sector_map_dict(m: SectorMap) -> dict:
 def sector_map_markdown(m: SectorMap) -> str:
     lines = [f"# {m.sector_name} ({m.sector_id}) — veri kaynağı haritası", ""]
     if m.ml_use_cases:
-        lines += ["**ML kullanımları:** " + ", ".join(m.ml_use_cases), ""]
+        lines += ["**ML kullanım alanları:** " + ", ".join(m.ml_use_cases), ""]
     lines += [
         "## Kaynaklar",
         "",
-        "| Kaynak | Rol | Erişim | Auth | Frekans | Gecikme (gün) | Doğrulama | Sağlayıcı |",
+        "| Kaynak | Rol | Erişim | Auth | Frekans | Publication lag (gün) | Doğrulama | Provider |",
         "|---|---|---|---|---|---|---|---|",
     ]
     for e in m.sources:
@@ -75,7 +86,7 @@ def sector_map_markdown(m: SectorMap) -> str:
     for e in m.features:
         f = e.feature
         series = f"`{f.series}`" if f.series else f"_{f.discover_hint}_"
-        lines.append(f"| {f.name} | {f.source} | {series} | {f.transform.value} | {e.status} |")
+        lines.append(f"| {f.name} | {f.source} | {series} | {f.transform.value} | {STATUS_LABELS.get(e.status, e.status)} |")
     lines += ["", "## Pazar payı", ""]
     lines += [f"- `{s.source}`: {s.metric}{' _(proxy)_' if s.is_proxy else ''}" for s in m.market_share]
     lines += ["", "## Lisans notları", ""]
@@ -88,7 +99,7 @@ def health_dict(r: HealthResult) -> dict:
 
 
 def _clean(value):
-    """JSON için: NaN/inf → None, tarih → ISO metin."""
+    """For JSON: NaN/inf → None, date → ISO string."""
     if isinstance(value, float) and not math.isfinite(value):
         return None
     if hasattr(value, "isoformat"):
@@ -149,7 +160,7 @@ def backtest_dict(result: BacktestResult, sector_id: str, max_predictions: int |
 
 
 def _deep(value):
-    """İç içe yapılar için _clean: numpy skalerleri Python türüne çevrilir."""
+    """_clean for nested structures: numpy scalars are converted to Python types."""
     if isinstance(value, dict):
         return {str(k): _deep(v) for k, v in value.items()}
     if isinstance(value, (list, tuple)):
@@ -203,11 +214,12 @@ def features_dict(result, sector_id: str, max_screening: int = 150, skipped_pane
     return {
         "sector": sector_id,
         "label": result.label,
+        "label_mode": result.label_mode,
         "train_end": result.train_end.isoformat() if result.train_end else None,
         "n_features": len(result.specs),
         "families": families,
         "recipes": [{"name": s.name, "inputs": list(s.inputs), "description": s.description, **_deep(s.params)}
-                    for s in result.specs if s.family == "sektor_tarifi"],  # fmt: skip
+                    for s in result.specs if s.family == "sector_recipe"],  # fmt: skip
         "skipped_recipes": result.skipped,
         "skipped_panel": skipped_panel or {},
         "selected": [{"name": n, "family": specs[n].family, "description": specs[n].description} for n in result.selected],

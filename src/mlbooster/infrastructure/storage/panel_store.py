@@ -1,4 +1,4 @@
-"""Gold: sektör panelleri (Parquet)."""
+"""Gold: sector panels (Parquet)."""
 
 from __future__ import annotations
 
@@ -15,15 +15,15 @@ class ParquetPanelStore:
         self._root = root
 
     def save(self, sector_id: str, panel: pd.DataFrame) -> str:
-        path = ensure_private_dir(self._root) / f"{slug(sector_id, 'sektör')}.parquet"
+        path = ensure_private_dir(self._root) / f"{slug(sector_id, 'sector')}.parquet"
         panel.to_parquet(path)
         return str(path)
 
     @staticmethod
     def export(panel: pd.DataFrame, path: Path) -> str:
-        """Kullanıcının açıkça verdiği yola (.parquet / .csv) dışa aktarım; yalnızca yerel CLI'dan çağrılır."""
+        """Export to a path explicitly given by the user (.parquet / .csv); called only from the local CLI."""
         if path.suffix not in {".parquet", ".csv"}:
-            raise ValueError("Çıktı dosyası .parquet veya .csv uzantılı olmalı")
+            raise ValueError("Çıktı dosyası .parquet ya da .csv uzantılı olmalıdır")
         path.parent.mkdir(parents=True, exist_ok=True)
         if path.suffix == ".csv":
             panel.to_csv(path, date_format="%Y-%m-%d")

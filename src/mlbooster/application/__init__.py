@@ -1,5 +1,5 @@
-"""Application çekirdeği: use case'ler ve dış dünyaya açılan port'lar (Protocol).
+"""Application core: use cases and the ports (Protocols) facing the outside world.
 
-Bağımlılık kuralı: yalnızca `mlbooster.domain`'e bağımlıdır; altyapı port'ları uygular,
-composition root (bootstrap.py) bunları enjekte eder.
+Dependency rule: depends only on `mlbooster.domain`; infrastructure implements the ports and
+the composition root (bootstrap.py) injects them.
 """

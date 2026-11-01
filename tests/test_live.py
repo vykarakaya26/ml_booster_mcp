@@ -1,4 +1,4 @@
-"""Canlı contract testleri: pytest -m live (EVDS_API_KEY gerekir)."""
+"""Live contract tests: pytest -m live (requires EVDS_API_KEY)."""
 
 import os
 from datetime import date, timedelta
@@ -12,10 +12,10 @@ from mlbooster.infrastructure.providers.evds3 import Evds3Provider
 from mlbooster.infrastructure.secret_store import EnvSecretProvider
 from dotenv import dotenv_values, find_dotenv
 
-# os.environ'u değiştirmeden oku: offline testler anahtarı görmemeli.
+# Read without modifying os.environ: offline tests must not see the key.
 API_KEY = os.environ.get("EVDS_API_KEY") or dotenv_values(find_dotenv(usecwd=True)).get("EVDS_API_KEY")
 
-pytestmark = [pytest.mark.live, pytest.mark.skipif(not API_KEY, reason="EVDS_API_KEY yok")]
+pytestmark = [pytest.mark.live, pytest.mark.skipif(not API_KEY, reason="EVDS_API_KEY is not set")]
 
 
 @pytest.fixture
@@ -40,9 +40,9 @@ def test_seed_series_return_data(evds, catalog):
 
 @pytest.mark.parametrize("seed_index", range(6))
 def test_seed_codes_listed_in_their_datagroup(evds, catalog, seed_index):
-    """Katalogdaki kod EVDS'nin güncel /serieList'inde mi? (kod değişikliklerini yakalar)"""
+    """Is the catalog code in the current EVDS /serieList? (catches code changes)"""
     seed = catalog.source("evds3").series[seed_index]
     listed = evds.list_series(seed.datagroup)
     row = listed[listed["series_id"] == seed.code]
-    assert not row.empty, f"{seed.code} {seed.datagroup} içinde yok"
-    assert row.iloc[0]["freq"] in {seed.freq.value, "D"}  # EVDS kur gruplarını 'GÜNLÜK' etiketler
+    assert not row.empty, f"{seed.code} not found in {seed.datagroup}"
+    assert row.iloc[0]["freq"] in {seed.freq.value, "D"}  # EVDS labels exchange rate groups as 'GÜNLÜK' (daily)

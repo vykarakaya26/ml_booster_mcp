@@ -1,0 +1,4 @@
+schema_version: "1.1"
+name: banking-aofm-baseline
+expected_outcome: |
+  Look-ahead'e karşı korumalı bir backtest ile baseline modeller karşılaştırılır; en iyi baseline ve naive'e göre farkı içeren, Türkçe bir HTML rapor verilir.

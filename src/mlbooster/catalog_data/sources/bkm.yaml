@@ -4,10 +4,10 @@ owner: Bankalararası Kart Merkezi
 base_url: https://bkm.com.tr
 access: file_download
 auth: {type: none}
-license: {attribution: required, notes: "Kurumsal koşullar kontrol edilmeli."}
+license: {attribution: required, notes: "Kurumun kullanım koşulları kontrol edilmelidir."}
 frequency: [M]
 formats: [html, xlsx]
 sectors: [perakende, eticaret, turizm]
-publication_lag_days: 30  # tahmini
+publication_lag_days: 30  # estimated
 verification_status: reported
 priority: 10
