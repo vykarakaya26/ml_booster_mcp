@@ -3,7 +3,10 @@
 
 from __future__ import annotations
 
-from datetime import datetime
+import json
+import os
+import tempfile
+from datetime import date, datetime
 from pathlib import Path
 from uuid import uuid4
 
@@ -14,8 +17,11 @@ import pyarrow.compute as pc
 import pyarrow.parquet as pq
 
 from mlbooster.domain.observations import KEY_COLUMNS, OBSERVATION_COLUMNS, empty_observations, validate_observations
-from mlbooster.domain.validation import series_codes, slug
+from mlbooster.domain.validation import series_code, series_codes, slug
 from mlbooster.infrastructure.settings import ensure_private_dir
+
+REQUESTS_FILE = "_requested_starts.json"  # *.parquet glob'una girmez
+MAX_REQUESTS_BYTES = 1024 * 1024
 
 ARROW_SCHEMA = pa.schema(
     [
@@ -82,3 +88,49 @@ class ParquetObservationStore:
         """
         with duckdb.connect() as con:
             return con.sql(query, params=params).to_arrow_table().to_pandas()
+
+    # --- requested-start records ------------------------------------------------------------------------------
+    # Per series: "the provider was asked from this date onwards". Series that start later than the requested
+    # start are then not refetched on every panel build. A lost record only costs one extra fetch.
+
+    def _requests_path(self, source_id: str) -> Path:
+        return self._dir(source_id) / REQUESTS_FILE
+
+    def _load_requests(self, source_id: str) -> dict[str, str]:
+        path = self._requests_path(source_id)
+        try:
+            if path.stat().st_size > MAX_REQUESTS_BYTES:
+                return {}
+            data = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            return {}
+        return {k: v for k, v in data.items() if isinstance(k, str) and isinstance(v, str)} if isinstance(data, dict) else {}
+
+    def record_requested_start(self, source_id: str, series_ids: list[str], metric: str, start: date) -> None:
+        codes = series_codes(series_ids)
+        metric = slug(metric, "metrik")
+        requests = self._load_requests(source_id)
+        changed = False
+        for code in codes:
+            key = f"{code}|{metric}"
+            if key not in requests or start.isoformat() < requests[key]:
+                requests[key] = start.isoformat()
+                changed = True
+        if not changed:
+            return
+        directory = ensure_private_dir(self._dir(source_id))
+        fd, tmp = tempfile.mkstemp(dir=directory, prefix=".requests-", suffix=".tmp")  # 0600
+        try:
+            with os.fdopen(fd, "w", encoding="utf-8") as fh:
+                json.dump(requests, fh, sort_keys=True)
+            os.replace(tmp, directory / REQUESTS_FILE)
+        except BaseException:
+            Path(tmp).unlink(missing_ok=True)
+            raise
+
+    def requested_start(self, source_id: str, series_id: str, metric: str) -> date | None:
+        value = self._load_requests(source_id).get(f"{series_code(series_id)}|{slug(metric, 'metrik')}")
+        try:
+            return date.fromisoformat(value) if value else None
+        except ValueError:
+            return None
