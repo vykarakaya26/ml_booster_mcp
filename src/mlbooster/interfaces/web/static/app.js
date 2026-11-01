@@ -1,12 +1,12 @@
-// ML Booster yerel paneli. Dış kütüphane yok; DOM yalnızca textContent ile doldurulur (innerHTML kullanılmaz).
-// Yazım kuralı: önce özet (bulgu cümlesi + KPI kartları), sonra ayrıntı; her ekranın sonunda kaynak/dönem damgası.
+// ML Booster local panel. No external libraries; the DOM is filled via textContent only (never innerHTML).
+// Layout rule: summary first (finding sentence + KPI cards), then details; every view ends with a source/period stamp.
 import { lineChart, barChart } from "./charts.js";
 import { GLOSSARY, MODEL_INFO } from "./glossary.js";
 
 const TOKEN = document.querySelector('meta[name="mlb-token"]').content;
 const $ = (sel) => document.querySelector(sel);
 
-// --- DOM yardımcıları --------------------------------------------------------------------------------------
+// --- DOM helpers --------------------------------------------------------------------------------------
 
 function h(tag, attrs = {}, ...children) {
   const el = document.createElement(tag);
@@ -14,7 +14,7 @@ function h(tag, attrs = {}, ...children) {
     if (v === undefined || v === null || v === false) continue;
     if (k === "class") el.className = v;
     else if (k.startsWith("on")) el.addEventListener(k.slice(2), v);
-    else if (k === "style") el.style.cssText = v; // CSP satır içi style niteliğini engeller; CSSOM serbest
+    else if (k === "style") el.style.cssText = v; // the CSP blocks inline style attributes; CSSOM is allowed
     else el.setAttribute(k, v === true ? "" : v);
   }
   for (const c of children.flat()) {
@@ -24,7 +24,7 @@ function h(tag, attrs = {}, ...children) {
   return el;
 }
 
-// --- biçimlendirme (Türkçe) ---------------------------------------------------------------------------------
+// --- formatting (Turkish) ---------------------------------------------------------------------------------
 
 const MONTHS = ["Ocak", "Şubat", "Mart", "Nisan", "Mayıs", "Haziran", "Temmuz", "Ağustos", "Eylül", "Ekim", "Kasım", "Aralık"];
 const nf = (d) => new Intl.NumberFormat("tr-TR", { maximumFractionDigits: d, minimumFractionDigits: 0 });
@@ -40,7 +40,7 @@ const monthName = (iso) => (iso ? `${MONTHS[Number(iso.slice(5, 7)) - 1]} ${iso.
 const dateTR = (iso) => (iso ? `${iso.slice(8, 10)}.${iso.slice(5, 7)}.${iso.slice(0, 4)}` : "—");
 const stampTime = (iso) => (iso ? `${dateTR(iso.slice(0, 10))} ${iso.slice(11, 16)}` : "—");
 
-// Feature değerini birimine göre yazar: log değişim ≈ yüzde, yüzde serileri % ile.
+// Formats a feature value by its unit: log change ≈ percent, percent series with %.
 function valueText(info, v) {
   if (v === null || v === undefined) return "—";
   if (!info) return num(v, 3);
@@ -48,7 +48,7 @@ function valueText(info, v) {
   if (info.transform === "yoy_pct" || info.unit.startsWith("yüzde")) return pctText(v, 2);
   return num(v, 2);
 }
-// İki dönem arasındaki farkı birimine göre yazar (yüzde serilerinde yüzde puan).
+// Formats the change between two periods by unit (percentage points for percent series).
 function deltaText(info, a, b) {
   if (a === null || b === null || a === undefined || b === undefined) return null;
   const d = a - b;
@@ -105,7 +105,7 @@ async function busy(button, label, fn, out = null) {
   }
 }
 
-// --- bileşenler --------------------------------------------------------------------------------------------
+// --- components --------------------------------------------------------------------------------------------
 
 function table(columns, rows, { rowClass, scroll = false, onRow } = {}) {
   return h("div", { class: scroll ? "table-wrap scroll" : "table-wrap" },
@@ -173,7 +173,7 @@ function downloadBlob(blob, name) {
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
-// --- sözlük çekmecesi ----------------------------------------------------------------------------------------
+// --- glossary drawer ----------------------------------------------------------------------------------------
 
 function renderGlossary(filter = "") {
   const q = filter.toLocaleLowerCase("tr");
@@ -222,19 +222,19 @@ function featureTitle(m, name) {
   return h("span", {}, labelOf(m, name), h("span", { class: "code" }, name));
 }
 
-const FEATURE_STATUS = { hazir: "ok", kesif_bekliyor: "warn", saglayici_yok: "none" };
-const FEATURE_STATUS_LABEL = { hazir: "Hazır", kesif_bekliyor: "Seri kodu bekliyor", saglayici_yok: "Kaynak bağlantısı yok" };
+const FEATURE_STATUS = { ready: "ok", pending_discovery: "warn", no_provider: "none" };
+const FEATURE_STATUS_LABEL = { ready: "Hazır", pending_discovery: "Seri kodu bekliyor", no_provider: "Kaynak bağlantısı yok" };
 
-// Atlanan feature'lar için kullanıcıya yapılacak iş önerisi.
+// What the user needs to do for a skipped feature.
 function skippedAdvice(m, name, reason) {
   const label = labelOf(m, name);
-  if (/keşif bekliyor/.test(reason)) return [h("strong", {}, label), ": EVDS seri kodu henüz bağlanmadı. Claude Code'da ", h("em", {}, `"${label.toLocaleLowerCase("tr")} serisini bul"`), " deyin ya da ", h("code", { class: "pill" }, "mlbooster catalog search"), " ile arayıp ", h("code", { class: "pill" }, "catalog set-feature"), " ile bağlayın."];
-  if (/sağlayıcısı henüz yok/.test(reason)) return [h("strong", {}, label), ": bu kaynaktan otomatik veri çekme henüz geliştirilmedi (yol haritasında)."];
+  if (/keşif bekliyor|seri kodu bekleniyor/.test(reason)) return [h("strong", {}, label), ": EVDS seri kodu henüz bağlanmadı. Claude Code'da ", h("em", {}, `"${label.toLocaleLowerCase("tr")} serisini bul"`), " deyin ya da ", h("code", { class: "pill" }, "mlbooster catalog search"), " ile arayıp ", h("code", { class: "pill" }, "catalog set-feature"), " ile bağlayın."];
+  if (/sağlayıcısı henüz yok|henüz provider yok/.test(reason)) return [h("strong", {}, label), ": bu kaynaktan otomatik veri çekme henüz geliştirilmedi (yol haritasında)."];
   if (/Credentials|anahtar/i.test(reason)) return [h("strong", {}, label), ": API anahtarı tanımlı değil. EVDS anahtarını .env dosyasına EVDS_API_KEY olarak ekleyin."];
   return [h("strong", {}, label), `: ${reason}`];
 }
 
-// --- görünümler -------------------------------------------------------------------------------------------
+// --- views -------------------------------------------------------------------------------------------
 
 const views = {};
 
@@ -245,18 +245,18 @@ views.genel = async (root) => {
     h("section", { class: "hero" },
       h("span", { class: "eyebrow" }, "ML Booster Map"),
       h("h1", {}, "Türkiye'de bir sektör seçin; makine öğrenmesine hazır veri setini kaynağıyla birlikte oluşturun"),
-      h("p", {}, "Panel; TCMB EVDS, BIS ve OECD gibi ücretsiz kamu kaynaklarından sektörle ilgili makro göstergeleri çeker, aynı aylık takvimde hizalar, verinin kalitesini denetler ve bir ML modelinin geçmesi gereken tahmin çıtasını hesaplar. Tüm işlem bu bilgisayarda yapılır."),
+      h("p", {}, "Panel; TCMB EVDS, BIS ve OECD gibi ücretsiz kamu kaynaklarından sektörle ilgili makro feature'ları çeker, aynı aylık takvimde hizalar, verinin kalitesini denetler ve bir ML modelinin geçmesi gereken tahmin çıtasını hesaplar. Tüm işlem bu bilgisayarda yapılır."),
       h("div", { class: "button-row" },
         h("button", { type: "button", onclick: () => go($("#sector").value) }, `${sectorName()} ile başla`),
         h("button", { type: "button", class: "ghost", onclick: () => openGlossary() }, "Terimler sözlüğü"))),
     h("div", { class: "steps" },
       [["1", "Sektör ve kaynaklar", "Sektör için hangi ücretsiz verilerin olduğunu ve hangilerinin hazır olduğunu görün.", "Çıktı: veri kaynağı haritası", "harita"],
-        ["2", "Feature paneli", "Göstergeler aylık takvimde, yayımlandıkları aya göre hizalanır.", "Çıktı: CSV / Parquet tablo", "panel"],
-        ["3", "Veri kalitesi", "Durmuş seriler, eksik aylar, aykırı değerler ve kırılmalar denetlenir.", "Çıktı: önceliklendirilmiş bulgu listesi", "kalite"],
+        ["2", "Feature paneli", "Feature'lar aylık takvimde, yayımlandıkları aya göre hizalanır.", "Çıktı: CSV / Parquet tablo", "panel"],
+        ["3", "Veri kalitesi", "Durmuş seriler, eksik aylar, outlier'lar ve kırılmalar denetlenir.", "Çıktı: önceliklendirilmiş bulgu listesi", "kalite"],
         ["4", "Tahmin çıtası", "Basit yöntemler geçmişte sınanır; ML modelinin aşması gereken hata düzeyi belirlenir.", "Çıktı: model karşılaştırması", "model"]]
         .map(([n, t, p, o, v]) => h("a", { class: "step", href: `#${v}` }, h("span", { class: "num" }, n), h("h3", {}, t), h("p", {}, p), h("span", { class: "out" }, o)))),
     h("div", { class: "card" },
-      h("div", { class: "card-head" }, h("div", {}, h("h2", {}, "Sektörler"), h("p", {}, `${state.sectors.length} sektörde toplam ${total} gösterge hazır. Bir sektör seçerek başlayın.`))),
+      h("div", { class: "card-head" }, h("div", {}, h("h2", {}, "Sektörler"), h("p", {}, `${state.sectors.length} sektörde toplam ${total} feature hazır. Bir sektör seçerek başlayın.`))),
       h("div", { class: "sector-grid" }, state.sectors.map((s) => {
         const bar = h("i");
         bar.style.width = `${s.features ? (s.ready / s.features) * 100 : 0}%`;
@@ -264,11 +264,11 @@ views.genel = async (root) => {
           h("h3", {}, s.name),
           s.ml_use_cases.length ? h("div", { class: "chips" }, s.ml_use_cases.slice(0, 3).map((u) => h("span", { class: "chip" }, u))) : null,
           h("div", { class: "bar", "aria-hidden": "true" }, bar),
-          h("small", {}, `${s.ready} / ${s.features} gösterge hazır · ${s.sources} kaynak`));
+          h("small", {}, `${s.ready} / ${s.features} feature hazır · ${s.sources} kaynak`));
       }))),
     h("div", { class: "trust" },
       h("div", {}, h("strong", {}, "Geleceği görmeyen veri"), h("p", {}, "Her değer, gerçekte yayımlandığı aya yazılır. Model, o tarihte bilinmeyen bilgiyle eğitilmez.")),
-      h("div", {}, h("strong", {}, "Kaynağı belli"), h("p", {}, "Her gösterge kurum, seri kodu ve yayın gecikmesiyle birlikte gösterilir; lisans notları haritada yer alır.")),
+      h("div", {}, h("strong", {}, "Kaynağı belli"), h("p", {}, "Her feature kurum, seri kodu ve yayın gecikmesiyle birlikte gösterilir; lisans notları haritada yer alır.")),
       h("div", {}, h("strong", {}, "Yerel ve açık kaynak"), h("p", {}, "Veriler bu bilgisayarda işlenir, API anahtarı dışarı gönderilmez. Kod GitHub'da açıktır."))),
   );
 };
@@ -276,10 +276,10 @@ views.genel = async (root) => {
 views.harita = async (root) => {
   const m = await sectorMap($("#sector").value);
   const info = m.feature_info;
-  const groups = { hazir: [], kesif_bekliyor: [], saglayici_yok: [] };
+  const groups = { ready: [], pending_discovery: [], no_provider: [] };
   m.macro_features.forEach((f) => (groups[f.status] || (groups[f.status] = [])).push(f));
-  const ready = groups.hazir.length;
-  const sourceNames = [...new Set(groups.hazir.map((f) => info[f.name]?.source_owner).filter(Boolean))];
+  const ready = groups.ready.length;
+  const sourceNames = [...new Set(groups.ready.map((f) => info[f.name]?.source_owner).filter(Boolean))];
 
   const featureRow = (f) => {
     const i = info[f.name];
@@ -292,28 +292,28 @@ views.harita = async (root) => {
         i.frequency ? h("span", { class: "chip" }, `Kaynak frekansı: ${i.frequency}`) : null,
         h("span", { class: "chip" }, i.source_name),
         i.publication_lag_days ? h("span", { class: "chip" }, `Yayın gecikmesi: ${i.publication_lag_days} gün`) : null),
-      h("p", {}, f.status === "kesif_bekliyor" ? `Seri kodu bekleniyor. İpucu: ${f.discover_hint}` : i.description));
+      h("p", {}, f.status === "pending_discovery" ? `Seri kodu bekleniyor. İpucu: ${f.discover_hint}` : i.description));
   };
 
   root.replaceChildren(
-    viewHead("Adım 1", `${m.sector.name}: hangi veriler var?`, "Sektör için tanımlı ücretsiz kaynaklar ve modelde kullanılacak göstergeler. Hazır göstergeler bir sonraki adımda panele dönüştürülür."),
+    viewHead("Adım 1", `${m.sector.name}: hangi veriler var?`, "Sektör için tanımlı ücretsiz kaynaklar ve modelde kullanılacak feature'lar. Hazır feature'lar bir sonraki adımda panele dönüştürülür."),
     summary(
-      [h("strong", {}, `${m.sector.name} için ${m.macro_features.length} gösterge tanımlı; ${ready} tanesi kullanıma hazır.`),
-        sourceNames.length ? ` Hazır göstergeler ${sourceNames.join(", ")} kaynaklı.` : ""],
-      groups.kesif_bekliyor.length ? `${groups.kesif_bekliyor.length} göstergenin EVDS seri kodu henüz bağlanmadı; aşağıdaki "Sizden gerekenler" bölümü nasıl tamamlanacağını açıklar.` : "Seri kodu eksik gösterge yok.",
+      [h("strong", {}, `${m.sector.name} için ${m.macro_features.length} feature tanımlı; ${ready} tanesi kullanıma hazır.`),
+        sourceNames.length ? ` Hazır feature'lar ${sourceNames.join(", ")} kaynaklı.` : ""],
+      groups.pending_discovery.length ? `${groups.pending_discovery.length} feature'ın EVDS seri kodu henüz bağlanmadı; aşağıdaki "Sizden gerekenler" bölümü nasıl tamamlanacağını açıklar.` : "Seri kodu eksik feature yok.",
       m.market_share.length ? `Pazar payı için ${m.market_share.length} kaynak tanımlı (${m.market_share.map((s) => s.source.toUpperCase()).join(", ")}); bu kaynaklardan otomatik veri çekme yol haritasında.` : null),
     h("div", { class: "tiles" },
-      tile("Hazır gösterge", ready, `toplam ${m.macro_features.length} göstergeden`, "Ölçüm"),
-      tile("Seri kodu bekleyen", groups.kesif_bekliyor.length, groups.kesif_bekliyor.length ? "EVDS'de aranıp bağlanmalı" : "eksik yok"),
+      tile("Hazır feature", ready, `toplam ${m.macro_features.length} feature'dan`, "Ölçüm"),
+      tile("Seri kodu bekleyen", groups.pending_discovery.length, groups.pending_discovery.length ? "EVDS'de aranıp bağlanmalı" : "eksik yok"),
       tile("Veri kaynağı", m.sources.length, `${m.sources.filter((s) => s.provider_ready).length} kaynaktan otomatik çekim yapılıyor`),
       tile("ML kullanım alanı", m.sector.ml_use_cases.length, m.sector.ml_use_cases.join(", ") || "tanımlı değil")),
-    todo("Sizden gerekenler", [...groups.kesif_bekliyor, ...groups.saglayici_yok].map((f) =>
-      skippedAdvice(m, f.name, f.status === "kesif_bekliyor" ? "keşif bekliyor" : "sağlayıcısı henüz yok"))),
+    todo("Sizden gerekenler", [...groups.pending_discovery, ...groups.no_provider].map((f) =>
+      skippedAdvice(m, f.name, f.status === "pending_discovery" ? "keşif bekliyor" : "sağlayıcısı henüz yok"))),
     h("section", { class: "card" },
-      h("div", { class: "card-head" }, h("div", {}, h("h2", {}, "Göstergeler"), h("p", {}, "Her göstergenin ne olduğu, hangi dönüşümle panele girdiği ve kaynağı. Mavi etiket, modelde kullanılan biçimi gösterir."))),
-      h("div", { class: "feature-list" }, [...groups.hazir, ...groups.kesif_bekliyor, ...groups.saglayici_yok].map(featureRow))),
+      h("div", { class: "card-head" }, h("div", {}, h("h2", {}, "Feature'lar"), h("p", {}, "Her feature'ın ne olduğu, hangi dönüşümle panele girdiği ve kaynağı. Mavi etiket, modelde kullanılan biçimi gösterir."))),
+      h("div", { class: "feature-list" }, [...groups.ready, ...groups.pending_discovery, ...groups.no_provider].map(featureRow))),
     h("section", { class: "card" },
-      h("div", { class: "card-head" }, h("div", {}, h("h2", {}, "Kaynaklar"), h("p", {}, "Rol: makro gösterge, sektör verisi ya da pazar payı. Doğrulama: kaynağın canlı olarak test edilip edilmediği."))),
+      h("div", { class: "card-head" }, h("div", {}, h("h2", {}, "Kaynaklar"), h("p", {}, "Rol: makro feature, sektör verisi ya da pazar payı. Doğrulama: kaynağın canlı olarak test edilip edilmediği."))),
       table([
         { label: "Kurum", render: (s) => h("span", {}, s.name, h("span", { class: "code" }, s.owner)) },
         { label: "Rol", render: (s) => s.roles.join(", ") },
@@ -370,7 +370,7 @@ views.panel = async (root) => {
     };
     const draw = () => {
       const shown = p.features.filter((f) => selected.has(f));
-      grid.replaceChildren(...(shown.length ? shown.map(card) : [emptyState("Gösterge seçilmedi", "Yukarıdan en az bir gösterge seçin.")]));
+      grid.replaceChildren(...(shown.length ? shown.map(card) : [emptyState("Feature seçilmedi", "Yukarıdan en az bir feature seçin.")]));
     };
     const picks = h("div", { class: "check-grid" }, p.features.map((f) =>
       h("label", { class: "check" },
@@ -386,23 +386,23 @@ views.panel = async (root) => {
     const period = p.dates.length ? `${monthName(p.dates[0])} – ${monthName(p.dates.at(-1))}` : "—";
     out.replaceChildren(
       summary(
-        [h("strong", {}, `Panel ${period} dönemini kapsıyor: ${p.rows} dönem, ${p.features.length} gösterge.`), " Her değer, kaynağın yayımladığı döneme yazıldı; tablo doğrudan model eğitiminde kullanılabilir."],
-        skipped.length ? `${skipped.length} gösterge panele eklenemedi; nedenleri ve yapılması gerekenler aşağıda.` : "Tanımlı tüm hazır göstergeler panele eklendi."),
+        [h("strong", {}, `Panel ${period} dönemini kapsıyor: ${p.rows} dönem, ${p.features.length} feature.`), " Her değer, kaynağın yayımladığı döneme yazıldı; tablo doğrudan model eğitiminde kullanılabilir."],
+        skipped.length ? `${skipped.length} feature panele eklenemedi; nedenleri ve yapılması gerekenler aşağıda.` : "Tanımlı tüm hazır feature'lar panele eklendi."),
       h("div", { class: "tiles" },
         tile("Kapsanan dönem", p.rows, period, "Hesap"),
-        tile("Göstergeler", p.features.length, `${m.macro_features.length} tanımlı göstergeden`, "Ölçüm"),
+        tile("Feature'lar", p.features.length, `${m.macro_features.length} tanımlı feature'dan`, "Ölçüm"),
         tile("Panele girmeyen", skipped.length, skipped.length ? "aşağıda açıklandı" : "yok"),
         tile("Frekans", { M: "Aylık", W: "Haftalık", B: "İş günü" }[p.freq], "dönem sonu takvimi")),
       todo("Sizden gerekenler", skipped.map(([f, r]) => skippedAdvice(m, f, r))),
       h("section", { class: "card" },
-        h("div", { class: "card-head" }, h("div", {}, h("h2", {}, "Gösterilecek göstergeler"), h("p", {}, "Her gösterge kendi ölçeğinde ayrı grafikte yer alır. Seçiminiz bu tarayıcıda hatırlanır."))),
+        h("div", { class: "card-head" }, h("div", {}, h("h2", {}, "Gösterilecek feature'lar"), h("p", {}, "Her feature kendi ölçeğinde ayrı grafikte yer alır. Seçiminiz bu tarayıcıda hatırlanır."))),
         picks),
       grid,
       h("section", { class: "card" },
         h("div", { class: "card-head" }, h("div", {}, h("h2", {}, "Tablo görünümü: son 12 dönem"), h("p", {}, "Modelin göreceği tablo. Tamamı için CSV ya da Parquet indirin."))),
         table([{ label: "Dönem", render: (r) => monthName(r.date) },
           ...p.features.map((f) => ({ label: h("span", {}, labelOf(m, f), h("span", { class: "code" }, f)), num: true, render: (r) => valueText(info[f], p.columns[f][r.idx]) }))], rows)),
-      stampBar({ sources: sourcesOf(m), generated: stampTime(p.generated_at), period, missing: skipped.length ? `${skipped.length} gösterge panele girmedi` : "yok" }),
+      stampBar({ sources: sourcesOf(m), generated: stampTime(p.generated_at), period, missing: skipped.length ? `${skipped.length} feature panele girmedi` : "yok" }),
     );
   };
 
@@ -414,12 +414,12 @@ views.panel = async (root) => {
   }, out));
 
   root.replaceChildren(
-    viewHead("Adım 2", `${m.sector.name}: feature paneli`, "Hazır göstergeler aynı takvimde hizalanır. Günlük ve haftalık veriler aylığa indirgenir, çeyreklik veriler sonraki aylara taşınır."),
+    viewHead("Adım 2", `${m.sector.name}: feature paneli`, "Hazır feature'lar aynı takvimde hizalanır. Günlük ve haftalık veriler aylığa indirgenir, çeyreklik veriler sonraki aylara taşınır."),
     h("section", { class: "card" },
       h("div", { class: "controls" },
         h("label", { class: "field" }, h("span", {}, "Frekans"), freq),
         h("div", { class: "button-row" }, run, csv, parquet)),
-      h("p", { class: "caption" }, term("point_in_time", "Nokta-zamanlı hizalama"), ": Mart enflasyonu Nisan başında açıklandığı için panelde Nisan satırında yer alır. Böylece model geçmişte henüz bilinmeyen veriyi kullanamaz.")),
+      h("p", { class: "caption" }, term("point_in_time", "Point-in-time hizalama"), ": Mart enflasyonu Nisan başında açıklandığı için panelde Nisan satırında yer alır. Böylece model geçmişte henüz bilinmeyen veriyi kullanamaz.")),
     out,
   );
   const cached = state.panels.get(scopeKey({ freq: freq.value }));
@@ -428,11 +428,11 @@ views.panel = async (root) => {
 };
 
 const CHECKS = {
-  stale: ["Güncelliğini yitirmiş seri", "stale", "Kaynakta serinin güncel kodunu arayın; seri arşive taşınmış ya da kodu değişmiş olabilir."],
+  stale: ["Stale seri", "stale", "Kaynakta serinin güncel kodunu arayın; seri arşive taşınmış ya da kodu değişmiş olabilir."],
   missing: ["Eksik dönem", "missing", "Başlangıç tarihini ileri alın ya da eksik dönemlerin nedenini (yayın gecikmesi, seri başlangıcı) kontrol edin."],
-  outliers: ["Aykırı değer", "outlier", "Bilinen bir şokla açıklanıyorsa koruyun ve bir gösterge değişkeni ekleyin; açıklanamıyorsa kaynakla karşılaştırın."],
-  structural_break: ["Yapısal kırılma", "structural_break", "Kırılma sonrası dönemi ayrı değerlendirin ya da modele rejim göstergesi ekleyin."],
-  collinearity: ["Aşırı korelasyon", "collinearity", "İki göstergeden birini çıkarmayı ya da yalnızca birini kullanmayı değerlendirin."],
+  outliers: ["Outlier", "outlier", "Bilinen bir şokla açıklanıyorsa koruyun ve bir dummy feature ekleyin; açıklanamıyorsa kaynakla karşılaştırın."],
+  structural_break: ["Structural break", "structural_break", "Kırılma sonrası dönemi ayrı değerlendirin ya da modele rejim dummy'si ekleyin."],
+  collinearity: ["Aşırı korelasyon", "collinearity", "İki feature'dan birini çıkarmayı ya da yalnızca birini kullanmayı değerlendirin."],
   constant: ["Sabit seri", null, "Seri kodunu kontrol edin; sabit seri modele bilgi taşımaz."],
   empty: ["Boş seri", null, "Seri kodunu ve tarih aralığını kontrol edin."],
   heavy_tails: ["Kalın kuyruk", null, "Şok dönemleri belirgin; medyan tabanlı ölçüler ya da kırpma (winsorize) düşünülebilir."],
@@ -468,15 +468,15 @@ views.kalite = async (root) => {
         h("div", { class: "card-head" }, h("div", {}, h("h2", {}, i?.label || f), h("span", { class: "code" }, f)), status(worst(list), { crit: "Aksiyon", warn: "Takip", ok: "Sorun yok" }[worst(list)])),
         q.columns[f] ? lineChart({
           dates: q.dates, series: [{ name: i?.label || f, values: q.columns[f], color: "var(--series-1)" }],
-          markers: { name: "Aykırı değer", dates: s.outliers, color: "var(--series-2)" },
-          events: s.breaks.map((b) => ({ date: b.date, label: b.event || "Yapısal kırılma" })), height: 240, format: (x) => valueText(i, x),
+          markers: { name: "Outlier", dates: s.outliers, color: "var(--series-2)" },
+          events: s.breaks.map((b) => ({ date: b.date, label: b.event || "Structural break" })), height: 240, format: (x) => valueText(i, x),
         }) : null,
         list.length
           ? h("div", { class: "feature-list" }, list.map((it) => h("div", { class: "feature-row" },
             h("h3", {}, CHECKS[it.check]?.[0] || it.check), status(...SEVERITY[it.severity]),
             h("p", {}, it.message), h("p", {}, h("strong", {}, "Ne yapmalı? "), CHECKS[it.check]?.[2] || "İnceleyin."))))
-          : h("p", { class: "muted" }, "Bu göstergede bulgu yok."),
-        h("p", { class: "caption" }, "Turuncu noktalar aykırı değerleri, kesikli dikey çizgiler yapısal kırılmaları gösterir. Bilinen bir şokla eşleşen kırılmalar adıyla yazılır."));
+          : h("p", { class: "muted" }, "Bu feature'da bulgu yok."),
+        h("p", { class: "caption" }, "Turuncu noktalar outlier'ları, kesikli dikey çizgiler structural break'leri gösterir. Bilinen bir şokla eşleşen kırılmalar adıyla yazılır."));
     };
 
     let filter = "all";
@@ -485,7 +485,7 @@ views.kalite = async (root) => {
       const rows = q.issues.filter((i) => filter === "all" || i.severity === filter);
       issueBox.replaceChildren(rows.length ? table([
         { label: "Önem", render: (i) => status(...SEVERITY[i.severity]) },
-        { label: "Gösterge", render: (i) => h("span", {}, i.feature.split(" ~ ").map((f) => labelOf(m, f)).join(" ve "), h("span", { class: "code" }, i.feature)) },
+        { label: "Feature", render: (i) => h("span", {}, i.feature.split(" ~ ").map((f) => labelOf(m, f)).join(" ve "), h("span", { class: "code" }, i.feature)) },
         { label: "Denetim", render: (i) => CHECKS[i.check]?.[0] || i.check },
         { label: "Bulgu", key: "message" },
         { label: "Ne yapmalı?", render: (i) => CHECKS[i.check]?.[2] || "İnceleyin." },
@@ -501,7 +501,7 @@ views.kalite = async (root) => {
     drawIssues();
 
     const featureTable = table([
-      { label: "Gösterge", render: (s) => featureTitle(m, s.feature) },
+      { label: "Feature", render: (s) => featureTitle(m, s.feature) },
       { label: "Durum", render: (s) => { const w = worst(byFeature.get(s.feature) || []); return status(w, { crit: "Aksiyon", warn: "Takip", ok: "Sorun yok" }[w]); } },
       { label: "Son gözlem", render: (s) => monthName(s.last) },
       { label: "Eksik", num: true, render: (s) => ratioPct(s.missing_ratio) },
@@ -522,28 +522,28 @@ views.kalite = async (root) => {
     const pairs = [...q.correlated_pairs, ...q.notable_pairs];
     out.replaceChildren(
       summary(
-        [h("strong", {}, `Denetim ${q.series.length} göstergede ${q.issues.length} bulgu üretti: ${q.counts.high ?? 0} kritik, ${q.counts.medium ?? 0} uyarı, ${q.counts.info ?? 0} bilgi.`)],
+        [h("strong", {}, `Denetim ${q.series.length} feature'da ${q.issues.length} bulgu üretti: ${q.counts.high ?? 0} kritik, ${q.counts.medium ?? 0} uyarı, ${q.counts.info ?? 0} bilgi.`)],
         q.counts.high ? "Kritik bulgular modellemeden önce giderilmelidir." : "Modellemeyi engelleyen kritik bulgu yok.",
-        top.length ? `Uyarıların çoğu ${top.join(" ve ")} kaynaklı; Türkiye'de 2018 ve 2021 kur şokları ile 2023 sonrası sıkılaştırma bu tür bulguların sık görülen nedenleri arasındadır; eşleşmeyi aşağıdaki grafiklerden kontrol edin. ${clean} göstergede sorun bulunmadı.` : `${clean} göstergede sorun bulunmadı.`),
+        top.length ? `Uyarıların çoğu ${top.join(" ve ")} kaynaklı; Türkiye'de 2018 ve 2021 kur şokları ile 2023 sonrası sıkılaştırma bu tür bulguların sık görülen nedenleri arasındadır; eşleşmeyi aşağıdaki grafiklerden kontrol edin. ${clean} feature'da sorun bulunmadı.` : `${clean} feature'da sorun bulunmadı.`),
       h("div", { class: "tiles" },
         tile("Kritik", q.counts.high ?? 0, "modellemeden önce giderilmeli"),
         tile("Uyarı", q.counts.medium ?? 0, "incelenmeli"),
         tile("Bilgi", q.counts.info ?? 0, "modelleme tercihlerini etkiler"),
-        tile("Sorunsuz gösterge", `${clean} / ${q.series.length}`, `değerlendirme tarihi ${dateTR(q.as_of)}`, "Hesap")),
+        tile("Sorunsuz feature", `${clean} / ${q.series.length}`, `değerlendirme tarihi ${dateTR(q.as_of)}`, "Hesap")),
       h("div", { class: "split" },
-        h("section", { class: "card" }, h("div", { class: "card-head" }, h("div", {}, h("h2", {}, "Gösterge bazında durum"), h("p", {}, "Ayrıntı için bir satıra tıklayın."))), featureTable),
+        h("section", { class: "card" }, h("div", { class: "card-head" }, h("div", {}, h("h2", {}, "Feature bazında durum"), h("p", {}, "Ayrıntı için bir satıra tıklayın."))), featureTable),
         h("section", { class: "card" }, detail)),
       h("section", { class: "card" }, h("div", { class: "card-head" }, h("div", {}, h("h2", {}, "Tüm bulgular"), h("p", {}, "Önem derecesine göre sıralıdır."))), filters, issueBox),
       pairs.length ? h("section", { class: "card" },
-        h("div", { class: "card-head" }, h("div", {}, h("h2", {}, term("collinearity", "Birbirine çok benzeyen göstergeler")), h("p", {}, "Korelasyonu yüksek çiftler. Aynı bilgiyi taşıyorlarsa modelde birini kullanmak yeterlidir."))),
+        h("div", { class: "card-head" }, h("div", {}, h("h2", {}, term("collinearity", "Birbirine çok benzeyen feature'lar")), h("p", {}, "Korelasyonu yüksek çiftler. Aynı bilgiyi taşıyorlarsa modelde birini kullanmak yeterlidir."))),
         table([
-          { label: "Gösterge A", render: (p) => featureTitle(m, p.a) },
-          { label: "Gösterge B", render: (p) => featureTitle(m, p.b) },
+          { label: "Feature A", render: (p) => featureTitle(m, p.a) },
+          { label: "Feature B", render: (p) => featureTitle(m, p.b) },
           { label: "Korelasyon", num: true, render: (p) => num(p.corr, 2) },
           { label: "Not", render: (p) => p.note || "Birini çıkarmayı değerlendirin." },
         ], pairs)) : null,
-      todo("Panele girmeyen göstergeler", Object.entries(q.skipped_features).map(([f, r]) => skippedAdvice(m, f, r))),
-      stampBar({ sources: sourcesOf(m), generated: stampTime(q.generated_at), period: q.dates.length ? `${monthName(q.dates[0])} – ${monthName(q.dates.at(-1))}` : "—", missing: Object.keys(q.skipped_features).length ? `${Object.keys(q.skipped_features).length} gösterge denetime girmedi` : "yok" }),
+      todo("Panele girmeyen feature'lar", Object.entries(q.skipped_features).map(([f, r]) => skippedAdvice(m, f, r))),
+      stampBar({ sources: sourcesOf(m), generated: stampTime(q.generated_at), period: q.dates.length ? `${monthName(q.dates[0])} – ${monthName(q.dates.at(-1))}` : "—", missing: Object.keys(q.skipped_features).length ? `${Object.keys(q.skipped_features).length} feature denetime girmedi` : "yok" }),
     );
   };
 
@@ -554,7 +554,7 @@ views.kalite = async (root) => {
   }, out));
 
   root.replaceChildren(
-    viewHead("Adım 3", `${m.sector.name}: veri kalitesi`, "Göstergeler modellemeden önce denetlenir: durmuş seriler, eksik dönemler, aykırı değerler, yapısal kırılmalar ve birbirinin kopyası olan göstergeler."),
+    viewHead("Adım 3", `${m.sector.name}: veri kalitesi`, "Feature'lar modellemeden önce denetlenir: durmuş seriler, eksik dönemler, outlier'lar, structural break'ler ve birbirinin kopyası olan feature'lar."),
     h("section", { class: "card" }, h("div", { class: "button-row" }, run,
       h("span", { class: "caption" }, "Bulgular üç düzeydedir: Kritik (modellemeden önce giderilmeli), Uyarı (incelenmeli), Bilgi (model tercihlerini etkiler)."))),
     out,
@@ -569,13 +569,13 @@ views.model = async (root) => {
   const m = await sectorMap(sector);
   const info = m.feature_info;
   const prefs = loadPrefs();
-  const features = m.macro_features.filter((f) => f.status === "hazir").map((f) => f.name);
+  const features = m.macro_features.filter((f) => f.status === "ready").map((f) => f.name);
   if (!features.length) {
-    root.replaceChildren(viewHead("Adım 4", "Tahmin çıtası"), emptyState("Bu sektörde hazır gösterge yok", "Önce 1. adımda eksik seri kodlarını tamamlayın."));
+    root.replaceChildren(viewHead("Adım 4", "Tahmin çıtası"), emptyState("Bu sektörde hazır feature yok", "Önce 1. adımda eksik seri kodlarını tamamlayın."));
     return;
   }
   const option = (f, sel) => h("option", { value: f, selected: f === sel }, `${labelOf(m, f)} · ${info[f]?.transform_label || ""}`);
-  const target = h("select", { "aria-label": "Tahmin edilecek gösterge" }, features.map((f) => option(f, prefs[`target:${sector}`])));
+  const target = h("select", { "aria-label": "Tahmin edilecek feature" }, features.map((f) => option(f, prefs[`target:${sector}`])));
   const anchor = h("select", { "aria-label": "Çapa" }, h("option", { value: "" }, "Kullanma"), features.map((f) => option(f, prefs[`anchor:${sector}`])));
   const horizon = h("input", { type: "number", min: 1, max: 24, value: prefs.horizon || 1, style: "width:90px" });
   const minTrain = h("input", { type: "number", min: 12, max: 240, value: prefs.min_train || 48, style: "width:100px" });
@@ -686,8 +686,8 @@ views.model = async (root) => {
           h("li", {}, h("strong", {}, "Yöntem: "), `Kayan başlangıç noktalı backtest; ilk tahminden önce en az ${r.config.min_train} dönem eğitim, toplam ${r.common_origins} ortak başlangıç noktası.`),
           h("li", {}, h("strong", {}, "Look-ahead koruması: "), "Her başlangıç noktasında yalnızca o tarihte yayımlanmış veri kullanıldı (yayın gecikmeleri panelde uygulanmıştır)."),
           r.config.anchor ? h("li", {}, h("strong", {}, "Çapa: "), `${labelOf(m, r.config.anchor)} (${r.config.anchor})`) : null,
-          h("li", {}, h("strong", {}, "Açıklayıcı göstergeler: "), r.features_used.length ? r.features_used.map((f) => labelOf(m, f)).join(", ") : "kullanılmadı"),
-          h("li", {}, h("strong", {}, "Sınırlamalar: "), "Sonuçlar geçmiş dönemlere aittir; yapısal kırılma sonrası dönemlerde hata dağılımı değişebilir. Tahmin değil, karşılaştırma çıtasıdır."))),
+          h("li", {}, h("strong", {}, "Açıklayıcı feature'lar: "), r.features_used.length ? r.features_used.map((f) => labelOf(m, f)).join(", ") : "kullanılmadı"),
+          h("li", {}, h("strong", {}, "Sınırlamalar: "), "Sonuçlar geçmiş dönemlere aittir; structural break sonrası dönemlerde hata dağılımı değişebilir. Tahmin değil, karşılaştırma çıtasıdır."))),
       stampBar({ sources: sourcesOf(m), generated: stampTime(r.generated_at), period: r.history.dates.length ? `${monthName(r.history.dates[0])} – ${monthName(r.history.dates.at(-1))}` : "—" }),
     );
   };
@@ -699,7 +699,7 @@ views.model = async (root) => {
       models: state.meta.models.filter((mm) => chosen.has(mm)),
     };
     if (!body.models.length) throw new Error("En az bir model seçin.");
-    if (!body.models.includes("naive")) body.models.unshift("naive"); // çıta karşılaştırması her zaman naive'e göre
+    if (!body.models.includes("naive")) body.models.unshift("naive"); // the benchmark is always compared with naive
     savePrefs({ [`target:${sector}`]: body.target, [`anchor:${sector}`]: anchor.value, horizon: body.horizon, min_train: body.min_train, exogenous: body.exogenous, models: body.models });
     const r = await postJSON("/api/backtest", body);
     state.backtests.set(sector, r);
@@ -710,11 +710,11 @@ views.model = async (root) => {
     viewHead("Adım 4", `${m.sector.name}: tahmin çıtası`, "Basit tahmin yöntemleri geçmişte sınanır. Ortaya çıkan en düşük hata, geliştireceğiniz ML modelinin aşması gereken çıtadır."),
     h("section", { class: "card" },
       h("div", { class: "controls" },
-        h("label", { class: "field" }, h("span", {}, "Tahmin edilecek gösterge"), target),
+        h("label", { class: "field" }, h("span", {}, "Tahmin edilecek feature"), target),
         h("label", { class: "field" }, h("span", {}, term("anchor", "Çapa (isteğe bağlı)")), anchor),
         h("label", { class: "field" }, h("span", {}, term("horizon", "Ufuk (dönem)")), horizon),
         h("label", { class: "field" }, h("span", {}, term("min_train", "Asgari eğitim")), minTrain)),
-      h("label", { class: "check" }, exog, h("span", {}, "Diğer göstergeleri regresyon modellerinde açıklayıcı olarak kullan", h("small", {}, "Ridge ve kantil regresyon, hedefin yanında paneldeki diğer göstergelerin geçmiş değerlerini de kullanır."))),
+      h("label", { class: "check" }, exog, h("span", {}, "Diğer feature'ları regresyon modellerinde açıklayıcı olarak kullan", h("small", {}, "Ridge ve kantil regresyon, hedefin yanında paneldeki diğer feature'ların geçmiş değerlerini de kullanır."))),
       h("details", { class: "about" }, h("summary", {}, `Sınanacak modeller (${chosen.size} seçili)`), h("div", {}, modelChecks,
         h("div", { class: "button-row" }, h("button", { type: "button", class: "ghost small", onclick: () => { state.meta.models.forEach((mm) => chosen.add(mm)); modelChecks.querySelectorAll("input").forEach((i) => (i.checked = true)); } }, "Tümünü seç")))),
       h("div", { class: "button-row" }, run)),
@@ -722,7 +722,7 @@ views.model = async (root) => {
   );
   const cached = state.backtests.get(sector);
   if (cached) render(cached);
-  else out.append(emptyState("Sınama henüz yapılmadı", "Tahmin edilecek göstergeyi seçip \"Sınamayı başlat\" düğmesine basın. Aylık ortalama bir göstergeyi tahmin ediyorsanız, aynı serinin ay sonu sürümünü çapa olarak seçmek çıtayı belirgin biçimde iyileştirir."));
+  else out.append(emptyState("Sınama henüz yapılmadı", "Tahmin edilecek feature'ı seçip \"Sınamayı başlat\" düğmesine basın. Aylık ortalama bir feature'ı tahmin ediyorsanız, aynı serinin ay sonu sürümünü çapa olarak seçmek çıtayı belirgin biçimde iyileştirir."));
 };
 
 views.saglik = async (root) => {
@@ -748,14 +748,14 @@ views.saglik = async (root) => {
   );
 };
 
-// --- yönlendirme ve başlatma -----------------------------------------------------------------------------
+// --- routing and start-up -----------------------------------------------------------------------------
 
 async function route() {
   const name = (location.hash || "#genel").slice(1);
   const view = views[name] ? name : "genel";
   document.querySelectorAll("nav a").forEach((a) => (a.dataset.view === view ? a.setAttribute("aria-current", "page") : a.removeAttribute("aria-current")));
   const root = $("#view");
-  $("#tooltip").hidden = true; // grafik değişirken mouseleave gelmez
+  $("#tooltip").hidden = true; // no mouseleave fires when the chart is replaced
   root.replaceChildren(h("p", { class: "muted" }, h("span", { class: "spinner", "aria-hidden": "true" }), "Yükleniyor"));
   notice(null);
   try {

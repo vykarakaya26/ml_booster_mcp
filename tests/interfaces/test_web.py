@@ -44,7 +44,7 @@ def test_index_embeds_escaped_token_and_security_headers(client):
 
 
 def test_rejects_non_loopback_host(client):
-    # DNS rebinding: saldırgan alan adı 127.0.0.1'e çözülse bile Host başlığı tutmaz
+    # DNS rebinding: even if an attacker's domain resolves to 127.0.0.1, its Host header does not match
     assert client.get("/", headers={"Host": "evil.example:8765"}).status_code == 400
     assert client.get("/api/sectors", headers={**AUTH, "Host": "evil.example"}).status_code == 400
 
@@ -66,8 +66,16 @@ def test_invalid_input_returns_safe_message(client):
     bad = client.post("/api/panel", json={"sector": "../../etc/passwd"}, headers=AUTH)
     assert bad.status_code == 400 and "Geçersiz sektör" in bad.json()["error"]
     assert client.post("/api/panel", json={"sector": "telekom", "freq": "X"}, headers=AUTH).status_code == 400
-    assert client.post("/api/panel", content=b"[]", headers={**AUTH, "content-type": "application/json"}).status_code == 400
-    assert client.post("/api/panel", content=b"x" * 70_000, headers={**AUTH, "content-type": "application/json"}).status_code == 400
+    assert (
+        client.post("/api/panel", content=b"[]", headers={**AUTH, "content-type": "application/json"}).status_code
+        == 400
+    )
+    assert (
+        client.post(
+            "/api/panel", content=b"x" * 70_000, headers={**AUTH, "content-type": "application/json"}
+        ).status_code
+        == 400
+    )
     models = client.post("/api/backtest", json={"sector": "telekom", "target": "x", "models": ["rm -rf"]}, headers=AUTH)
     assert models.status_code == 400 and "Tanımsız model" in models.json()["error"]
 
@@ -93,7 +101,7 @@ def test_panel_audit_backtest_and_export(client):
     panel = client.post("/api/panel", json=scope, headers=AUTH).json()
     assert "usdtry_logdiff" in panel["features"]
     assert len(panel["dates"]) == panel["rows"] == len(panel["columns"]["usdtry_logdiff"])
-    assert panel["saved"] is True and "path" not in panel  # yerel dosya yolu istemciye gönderilmez
+    assert panel["saved"] is True and "path" not in panel  # the local file path is never sent to the client
 
     audit = client.post("/api/audit", json=scope, headers=AUTH).json()
     assert audit["months"] == len(audit["dates"]) and "counts" in audit
@@ -141,14 +149,15 @@ def test_free_port_skips_busy_port():
 
 
 def test_feature_labels_are_readable_and_distinct(catalog):
+    from mlbooster.domain.services.sector_map import build_sector_map
     from mlbooster.interfaces.web.labels import sector_feature_info
 
-    info = sector_feature_info(catalog, "bankacilik")
-    assert info["aofm"]["label"] != info["aofm_son"]["label"]  # ortalama / ay sonu sürümleri ayrışır
+    info = sector_feature_info(build_sector_map(catalog, "bankacilik", {"evds3", "bis"}))
+    assert info["aofm"]["label"] != info["aofm_son"]["label"]  # average and month-end versions are told apart
     assert "ay sonu" in info["aofm_son"]["label"]
     usd = info["usdtry_logdiff"]
     assert usd["label"].startswith("USD/TRY") and usd["transform_label"] == "Aylık değişim (log)"
-    assert "≈" in usd["unit"] and "İş günü" in usd["description"]  # Türkçe büyük İ
+    assert "≈" in usd["unit"] and "İş günü" in usd["description"]  # Turkish capital İ
     assert info["tufe_yoy"]["unit"] == "yüzde" and info["tufe_yoy"]["publication_lag_days"] == 3
     pending = info["kredi_faizi"]
     assert pending["series"] is None and pending["label"] == "Kredi faizi"

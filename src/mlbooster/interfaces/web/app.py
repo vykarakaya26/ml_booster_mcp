@@ -1,12 +1,12 @@
-"""Yerel web paneli (Starlette). Yalnızca composition root'tan alınan use case'leri çağırır.
+"""Local web panel (Starlette). Calls only the use cases from the composition root.
 
-Güvenlik (SECURITY.md'deki yerel panel bölümü):
-- Sunucu yalnızca loopback adrese bağlanır; Host başlığı loopback değilse istek reddedilir (DNS rebinding).
-- Her `/api` isteği, sayfaya açılışta gömülen rastgele oturum belirtecini `X-MLB-Token` başlığında taşımalıdır.
-  Özel başlık, başka sitelerin tarayıcı üzerinden form/görsel ile istek göndermesini (CSRF) engeller.
-- CORS açılmaz; CSP yalnızca aynı kaynaktan betik ve stile izin verir, sayfa çerçeveye alınamaz.
-- Girdiler use case kapısında izin listesiyle doğrulanır; API dosya yolu almaz.
-- Beklenen hatalar (DomainError) kullanıcıya gösterilir; diğerleri günlüğe yazılır, istemciye ayrıntı gönderilmez.
+Security (local panel section in SECURITY.md):
+- The server binds to loopback only; requests whose Host header is not loopback are rejected (DNS rebinding).
+- Every `/api` request must carry the random session token embedded in the page in the `X-MLB-Token` header.
+  The custom header stops other sites from sending requests through the browser via forms/images (CSRF).
+- No CORS; the CSP allows scripts and styles from the same origin only and forbids framing.
+- Inputs are validated against allow-lists at the use case gate; the API takes no file paths.
+- Expected errors (DomainError) are shown to the user; anything else is logged without details for the client.
 """
 
 from __future__ import annotations
@@ -72,14 +72,14 @@ def is_loopback(host: str) -> bool:
 
 
 def _host_name(header: str) -> str:
-    """`Host` başlığından ad kısmı: '127.0.0.1:8765' → '127.0.0.1', '[::1]:8765' → '::1'."""
+    """Host name part of the `Host` header: '127.0.0.1:8765' → '127.0.0.1', '[::1]:8765' → '::1'."""
     if header.startswith("["):
         return header[1 : header.find("]")] if "]" in header else ""
     return header.rsplit(":", 1)[0] if header.count(":") == 1 else header
 
 
 class LocalOnlyGuard:
-    """Saf ASGI ara katmanı: Host ve belirteç denetimi, güvenlik başlıkları."""
+    """Pure ASGI middleware: Host and token checks, security headers."""
 
     def __init__(self, app: ASGIApp, token: str):
         self.app = app
@@ -118,7 +118,7 @@ def _plain(status: int, text: str) -> Response:
     return JSONResponse({"error": text}, status_code=status, headers=SECURITY_HEADERS)
 
 
-# --- girdi yardımcıları -------------------------------------------------------------------------------------
+# --- input helpers -------------------------------------------------------------------------------------
 
 
 async def _body(request: Request) -> dict[str, Any]:
@@ -204,7 +204,7 @@ def _now() -> str:
 
 
 def panel_payload(panel: pd.DataFrame) -> dict:
-    """Paneli grafik için sütun bazlı JSON'a çevirir (NaN → null)."""
+    """Column-oriented JSON for charts (NaN → null)."""
     if panel.empty:
         return {"dates": [], "columns": {}}
     return {
@@ -213,12 +213,12 @@ def panel_payload(panel: pd.DataFrame) -> dict:
     }
 
 
-# --- uygulama ---------------------------------------------------------------------------------------------
+# --- application ---------------------------------------------------------------------------------------------
 
 
 def create_app(container_factory: Callable[[], Container] = build_container, token: str | None = None) -> Starlette:
     token = token or secrets.token_urlsafe(32)
-    lock = threading.Lock()  # yerel depolara (Parquet/DuckDB) aynı anda tek yazıcı
+    lock = threading.Lock()  # a single writer at a time for the local stores (Parquet/DuckDB)
     holder: dict[str, Container] = {}
 
     def container() -> Container:
@@ -239,8 +239,8 @@ def create_app(container_factory: Callable[[], Container] = build_container, tok
                 result = await handler(request)
             except DomainError as exc:
                 return JSONResponse({"error": str(exc)}, status_code=400)
-            except Exception:  # noqa: BLE001 — ayrıntı istemciye sızmasın
-                log.exception("web paneli: beklenmeyen hata (%s)", request.url.path)
+            except Exception:  # details must not reach the client
+                log.exception("web panel: unexpected error (%s)", request.url.path)
                 return JSONResponse({"error": UNEXPECTED}, status_code=500)
             return result if isinstance(result, Response) else JSONResponse(result)
 
@@ -258,7 +258,7 @@ def create_app(container_factory: Callable[[], Container] = build_container, tok
             return {
                 "version": __version__,
                 "models": list(MODELS),
-                "providers": sorted(c.providers.available()),
+                "providers": sorted(c.ready_providers()),
                 "default_start": DEFAULT_START.isoformat(),
             }
 
@@ -273,8 +273,8 @@ def create_app(container_factory: Callable[[], Container] = build_container, tok
                 statuses = [e.status for e in m.features]
                 out.append({
                     "id": s.id, "name": s.name, "ml_use_cases": list(m.ml_use_cases),
-                    "features": len(statuses), "ready": statuses.count("hazir"),
-                    "pending": statuses.count("kesif_bekliyor"), "sources": len(m.sources),
+                    "features": len(statuses), "ready": statuses.count("ready"),
+                    "pending": statuses.count("pending_discovery"), "sources": len(m.sources),
                     "market_share_sources": len(m.market_share),
                 })  # fmt: skip
             return out
@@ -283,10 +283,11 @@ def create_app(container_factory: Callable[[], Container] = build_container, tok
 
     async def sector_map(request: Request) -> dict:
         sector = request.path_params["sector"]
+
         def run():
             c = container()
-            m = c.sector_map(sector)  # kimliği doğrular
-            return sector_map_dict(m) | {"feature_info": sector_feature_info(c.catalog.load(), m.sector_id)}
+            m = c.sector_map(sector)  # validates the id
+            return sector_map_dict(m) | {"feature_info": sector_feature_info(m)}
 
         return await call(run)
 
@@ -327,7 +328,7 @@ def create_app(container_factory: Callable[[], Container] = build_container, tok
             return buf.getvalue()
 
         content = await call(run)
-        name = f"{sector}_{freq.lower()}_panel.{fmt}"  # yalnızca doğrulanmış slug ve sabitlerden
+        name = f"{sector}_{freq.lower()}_panel.{fmt}"  # built only from the validated slug and constants
         media = "text/csv; charset=utf-8" if fmt == "csv" else "application/vnd.apache.parquet"
         return Response(content, media_type=media, headers={"content-disposition": f'attachment; filename="{name}"'})
 
@@ -336,7 +337,11 @@ def create_app(container_factory: Callable[[], Container] = build_container, tok
 
         def run():
             report, result = container().audit_panel(sector, start, end)
-            return quality_dict(report, result.skipped) | {"sector": sector, "generated_at": _now(), **panel_payload(result.panel)}
+            return quality_dict(report, result.skipped) | {
+                "sector": sector,
+                "generated_at": _now(),
+                **panel_payload(result.panel),
+            }
 
         return await call(run)
 

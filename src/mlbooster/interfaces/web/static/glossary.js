@@ -1,5 +1,5 @@
-// Terimler sözlüğü: panelde geçen teknik kavramların sade Türkçe açıklamaları.
-// Anahtarlar arayüzdeki "?" düğmelerinden ve sözlük panelinden kullanılır.
+// Glossary: plain-Turkish explanations of the technical terms used in the panel.
+// Keys are referenced by the "?" buttons and the glossary drawer.
 export const GLOSSARY = {
   feature: {
     term: "Feature (açıklayıcı değişken)",
@@ -10,7 +10,7 @@ export const GLOSSARY = {
     text: "Seçilen sektörün feature'larının aynı aylık takvimde hizalanmış tablosu. Her satır bir ay, her sütun bir feature'dır; ML modelleri doğrudan bu tabloyla eğitilir.",
   },
   point_in_time: {
-    term: "Nokta-zamanlı (look-ahead korumalı)",
+    term: "Point-in-time (look-ahead korumalı)",
     text: "Her değer, gerçekte yayımlandığı aya yazılır. Mart enflasyonu Nisan başında açıklandığı için panelde Nisan satırında yer alır. Böylece model, o tarihte henüz bilinmeyen bir bilgiyi kullanamaz.",
   },
   publication_lag: {
@@ -94,7 +94,7 @@ export const GLOSSARY = {
     text: "Türkiye ekonomisinde koşulların belirgin biçimde değiştiği dönemler (2021 sonu kur şoku, 2023 sonrası sıkılaştırma). Sonuçlar her dönem için ayrıca verilir; tek bir döneme bağlı başarı güvenilir sayılmaz.",
   },
   stale: {
-    term: "Güncelliğini yitirmiş seri",
+    term: "Stale seri",
     text: "Son gözlemi beklenenden eski olan seri. Kaynak seriyi durdurmuş ya da kodunu değiştirmiş olabilir.",
   },
   missing: {
@@ -102,11 +102,11 @@ export const GLOSSARY = {
     text: "Panelde değeri olmayan ayların oranı. Yüksekse model ya bu ayları atar ya da tahmini değerle doldurmak zorunda kalır.",
   },
   outlier: {
-    term: "Aykırı değer",
+    term: "Outlier",
     text: "Serinin olağan dağılımından çok uzak gözlem (medyan ve yayılım ölçüsüne göre). Gerçek bir şok da olabilir, veri hatası da; incelenmesi gerekir.",
   },
   structural_break: {
-    term: "Yapısal kırılma",
+    term: "Structural break",
     text: "Serinin ortalamasının bir tarihten itibaren kalıcı biçimde değiştiği nokta. Bilinen bir olayla (kur şoku, politika değişikliği) eşleşiyorsa adı gösterilir.",
   },
   collinearity: {

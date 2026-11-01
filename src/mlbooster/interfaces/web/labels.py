@@ -1,9 +1,14 @@
-"""Feature'lar için okunur ad ve açıklama. Katalogdaki seri adı, birim, frekans ve dönüşümden türetilir;
-böylece kullanıcının sonradan eklediği feature'lar da ek tanım gerekmeden açıklanır."""
+"""Readable feature names and descriptions for the web panel.
+
+Derived from the series name, unit, frequency and transform already present in the sector map, so features the
+user adds later get a description without any extra catalog fields. User-facing strings are Turkish with English
+technical terms (CLAUDE.md language standard).
+"""
 
 from __future__ import annotations
 
-from mlbooster.domain.model import Catalog, Frequency, MacroFeature, SeedSeries, SeriesKind, Transform
+from mlbooster.domain.model import Frequency, MacroFeature, SeedSeries, SeriesKind, Source, Transform
+from mlbooster.domain.services.sector_map import SectorMap
 
 UNITS = {
     "percent": "yüzde",
@@ -34,15 +39,17 @@ AGGREGATIONS = {
     "avg": "ay içi ortalama", "last": "ay sonu değeri", "first": "ay başı değeri",
     "sum": "ay toplamı", "min": "ay içi en düşük", "max": "ay içi en yüksek",
 }  # fmt: skip
-
-AGG_SHORT = {"avg": "ay ortalaması", "last": "ay sonu", "first": "ay başı", "sum": "ay toplamı", "min": "ay en düşüğü", "max": "ay en yükseği"}
+AGG_SHORT = {
+    "avg": "ay ortalaması", "last": "ay sonu", "first": "ay başı",
+    "sum": "ay toplamı", "min": "ay en düşüğü", "max": "ay en yükseği",
+}  # fmt: skip
 
 HIGH_FREQ = {Frequency.HOURLY, Frequency.DAILY, Frequency.BUSINESS, Frequency.WEEKLY, Frequency.SEMI_MONTHLY}
 LOW_FREQ = {Frequency.QUARTERLY, Frequency.SEMI_ANNUAL, Frequency.ANNUAL}
 
 
 def _cap(text: str) -> str:
-    """Türkçe büyük harf: 'iş günü' → 'İş günü' (str.capitalize 'Iş' üretir)."""
+    """Turkish-aware capitalisation: 'iş günü' → 'İş günü' (str.capitalize gives 'Iş')."""
     return (text[0].replace("i", "İ").upper() + text[1:]) if text else text
 
 
@@ -66,15 +73,14 @@ def _monthly_note(feature: MacroFeature, seed: SeedSeries | None) -> str | None:
     return None
 
 
-def feature_info(catalog: Catalog, feature: MacroFeature) -> dict:
-    """Arayüzde gösterilecek ad, birim, kaynak ve açıklama."""
-    source = catalog.sources.get(feature.source)
+def feature_info(feature: MacroFeature, source: Source | None) -> dict:
+    """Display name, unit, source and plain-language description of one feature."""
     seed = source.seed(feature.series) if source and feature.series else None
     transform_label, transform_text = TRANSFORMS[feature.transform]
     name = seed.name if seed else _cap(feature.name.replace("_", " "))
-    title = name
+    label = name
     if feature.agg and seed and seed.freq in HIGH_FREQ:
-        title = f"{name} ({AGG_SHORT[feature.agg.value]})"  # aynı serinin ortalama/ay sonu sürümleri ayrışsın
+        label = f"{name} ({AGG_SHORT[feature.agg.value]})"  # tells the average and month-end versions apart
     lag = source.lag_for(feature.series) if source and feature.series else None
     notes = [transform_text]
     if (note := _monthly_note(feature, seed)) is not None:
@@ -82,14 +88,15 @@ def feature_info(catalog: Catalog, feature: MacroFeature) -> dict:
     if feature.real:
         notes.append("TÜFE ile reelleştirilmiştir (enflasyon etkisi arındırılmış).")
     if lag:
-        notes.append(f"Kaynak veriyi dönem sonundan yaklaşık {lag} gün sonra yayımlar; panelde bu gecikme dikkate alınır.")
+        notes.append(
+            f"Kaynak veriyi dönem sonundan yaklaşık {lag} gün sonra yayımlar; panel bu gecikmeyi dikkate alır."
+        )
     return {
         "name": feature.name,
-        "label": title,
+        "label": label,
         "transform": feature.transform.value,
         "transform_label": transform_label,
         "agg": feature.agg.value if feature.agg else None,
-        "agg_label": AGGREGATIONS.get(feature.agg.value) if feature.agg else None,
         "unit": _unit(feature, seed),
         "frequency": FREQUENCIES.get(seed.freq.value) if seed else None,
         "real": feature.real,
@@ -102,5 +109,6 @@ def feature_info(catalog: Catalog, feature: MacroFeature) -> dict:
     }
 
 
-def sector_feature_info(catalog: Catalog, sector_id: str) -> dict[str, dict]:
-    return {f.name: feature_info(catalog, f) for f in catalog.sector(sector_id).macro_features}
+def sector_feature_info(sector_map: SectorMap) -> dict[str, dict]:
+    sources = {entry.source.id: entry.source for entry in sector_map.sources}
+    return {e.feature.name: feature_info(e.feature, sources.get(e.feature.source)) for e in sector_map.features}

@@ -1,5 +1,5 @@
-/* ML Booster yerel paneli. Rapor stiliyle uyumlu sıcak nötrler + tek vurgu rengi; grafik renkleri
-   dataviz referans paletinden (açık/koyu ayrı doğrulanmış adımlar). */
+/* ML Booster local panel. Warm neutrals + one accent colour, matching the report style; chart colours
+   from the dataviz reference palette (light/dark steps validated separately). */
 :root {
   color-scheme: light;
   --page: #f5f4f0;
@@ -65,7 +65,7 @@ ul { margin: 0; padding-left: 18px; }
 code, .code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11.5px; color: var(--muted); }
 code.pill { background: var(--surface-2); padding: 1px 6px; border-radius: 4px; white-space: nowrap; }
 
-/* --- iskelet --- */
+/* --- shell --- */
 .shell { display: grid; grid-template-columns: 248px minmax(0, 1fr); min-height: 100vh; }
 .sidebar { background: var(--surface); border-right: 1px solid var(--border); padding: 20px 14px; display: flex; flex-direction: column; gap: 18px; position: sticky; top: 0; height: 100vh; overflow-y: auto; }
 .brand { display: flex; gap: 10px; align-items: center; padding: 0 6px; text-decoration: none; color: inherit; }
@@ -108,7 +108,7 @@ button.ghost.active { background: var(--accent-soft); border-color: var(--accent
 main { padding: 28px 32px 56px; display: flex; flex-direction: column; gap: 22px; outline: none; max-width: 1280px; width: 100%; }
 .stack { display: flex; flex-direction: column; gap: 22px; }
 
-/* --- başlıklar ve özet --- */
+/* --- headings and summary --- */
 .view-head { display: flex; flex-direction: column; gap: 6px; }
 .eyebrow { font-size: 12px; color: var(--accent); font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; }
 .view-head p { color: var(--ink-2); max-width: 78ch; }
@@ -125,7 +125,7 @@ main { padding: 28px 32px 56px; display: flex; flex-direction: column; gap: 22px
 .grid-2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 22px; }
 .controls { display: flex; gap: 16px; flex-wrap: wrap; align-items: end; }
 
-/* --- KPI kartları --- */
+/* --- KPI tiles --- */
 .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 14px; }
 .tile { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 16px; box-shadow: var(--shadow); display: flex; flex-direction: column; gap: 2px; }
 .tile .label { color: var(--ink-2); font-size: 12.5px; display: flex; justify-content: space-between; gap: 8px; align-items: center; }
@@ -134,7 +134,7 @@ main { padding: 28px 32px 56px; display: flex; flex-direction: column; gap: 22px
 .tile .sub { color: var(--muted); font-size: 12.5px; }
 .tag { font-size: 10px; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; padding: 1px 6px; border-radius: 4px; background: var(--surface-2); color: var(--muted); border: 1px solid var(--border); white-space: nowrap; }
 
-/* --- rozetler ve durum --- */
+/* --- chips and status --- */
 .chips { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
 .chip { border: 1px solid var(--border); background: var(--surface-2); border-radius: 999px; padding: 1px 9px; font-size: 12px; color: var(--ink-2); white-space: nowrap; }
 .chip.accent { background: var(--accent-soft); color: var(--ink); border-color: transparent; }
@@ -149,7 +149,7 @@ main { padding: 28px 32px 56px; display: flex; flex-direction: column; gap: 22px
 .help { width: 18px; height: 18px; min-height: 0; padding: 0; border-radius: 50%; font-size: 11px; font-weight: 700; line-height: 1; background: var(--surface-2); color: var(--ink-2); border: 1px solid var(--axis); flex: none; }
 .help:hover { background: var(--accent); color: var(--accent-ink); filter: none; }
 
-/* --- tablolar --- */
+/* --- tables --- */
 .table-wrap { overflow-x: auto; border: 1px solid var(--border); border-radius: 10px; }
 .table-wrap.scroll { max-height: 460px; overflow-y: auto; }
 table { border-collapse: collapse; width: 100%; font-size: 13px; }
@@ -163,7 +163,7 @@ tr.clickable { cursor: pointer; }
 tr.clickable:hover td, tr.selected td { background: var(--surface-2); }
 tr.selected td:first-child { box-shadow: inset 3px 0 0 var(--accent); }
 
-/* --- seri kartları --- */
+/* --- series cards --- */
 .series-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 16px; }
 .series { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 16px 10px; display: flex; flex-direction: column; gap: 8px; box-shadow: var(--shadow); min-width: 0; }
 .series h3 { font-size: 14px; }
@@ -182,7 +182,7 @@ details.about div { margin-top: 6px; display: flex; flex-direction: column; gap:
 .feature-row h3 { font-size: 14px; }
 .feature-row p { color: var(--ink-2); font-size: 12.5px; grid-column: 1 / -1; }
 
-/* --- genel bakış --- */
+/* --- overview --- */
 .hero { padding: 28px 30px; border-radius: 16px; background: linear-gradient(135deg, var(--accent-soft), var(--surface) 70%); border: 1px solid var(--border); display: flex; flex-direction: column; gap: 12px; }
 .hero h1 { font-size: 30px; max-width: 28ch; }
 .hero p { font-size: 16px; color: var(--ink-2); max-width: 72ch; }
@@ -204,14 +204,14 @@ details.about div { margin-top: 6px; display: flex; flex-direction: column; gap:
 .trust strong { display: block; margin-bottom: 4px; }
 .trust p { color: var(--ink-2); font-size: 13px; }
 
-/* --- yapılacaklar ve damga --- */
+/* --- to-do and stamp --- */
 .todo { border: 1px solid color-mix(in srgb, var(--warn) 40%, transparent); background: var(--warn-bg); border-radius: var(--radius); padding: 14px 18px; display: flex; flex-direction: column; gap: 8px; }
 .todo h2 { font-size: 14px; color: var(--warn); }
 .todo li { margin: 3px 0; }
 .stamp { display: flex; flex-wrap: wrap; gap: 6px 20px; font-size: 12px; color: var(--muted); border-top: 1px solid var(--border); padding-top: 12px; }
 .stamp b { color: var(--ink-2); font-weight: 600; }
 
-/* --- grafikler --- */
+/* --- charts --- */
 .chart { width: 100%; height: auto; display: block; overflow: visible; }
 .chart-wrap { min-width: 0; display: flex; flex-direction: column; gap: 8px; }
 .chart text { fill: var(--muted); font-size: 11px; font-variant-numeric: tabular-nums; }
@@ -242,7 +242,7 @@ details.about div { margin-top: 6px; display: flex; flex-direction: column; gap:
 .tooltip .t-row { display: flex; justify-content: space-between; gap: 14px; font-variant-numeric: tabular-nums; }
 .tooltip .t-row i { width: 8px; height: 8px; border-radius: 50%; display: inline-block; margin-right: 6px; }
 
-/* --- sözlük çekmecesi --- */
+/* --- glossary drawer --- */
 .drawer { position: fixed; top: 0; right: 0; bottom: 0; width: min(440px, 100vw); background: var(--surface); border-left: 1px solid var(--border); box-shadow: -12px 0 40px rgba(0, 0, 0, 0.14); z-index: 25; padding: 20px 22px; display: flex; flex-direction: column; gap: 12px; overflow-y: auto; }
 .drawer[hidden] { display: none; }
 .drawer-head { display: flex; justify-content: space-between; align-items: center; }

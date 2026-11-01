@@ -446,7 +446,7 @@ def version(check: Annotated[bool, typer.Option("--check", help="GitHub'daki en 
 
 
 def _free_port(start: int, attempts: int = 20) -> int | None:
-    """127.0.0.1 üzerinde `start`tan başlayarak bağlanılabilen ilk portu döner."""
+    """First port on 127.0.0.1, starting at `start`, that can be bound."""
     import socket
 
     for port in range(start, min(start + attempts, 65536)):

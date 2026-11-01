@@ -1,5 +1,5 @@
-// Bağımlılıksız SVG grafikleri: çizgi (crosshair + ipucu, aralık bandı, işaretler, olay çizgileri) ve yatay çubuk.
-// Tek y ekseni; farklı ölçekteki seriler ayrı grafiklerde (small multiples) gösterilir.
+// Dependency-free charts: SVG line (crosshair + tooltip, interval band, markers, event lines) and HTML bars.
+// One y axis only; series on different scales go into separate charts (small multiples).
 const NS = "http://www.w3.org/2000/svg";
 const nf = new Intl.NumberFormat("tr-TR", { maximumFractionDigits: 3 });
 
@@ -7,7 +7,7 @@ function s(tag, attrs = {}) {
   const el = document.createElementNS(NS, tag);
   for (const [k, v] of Object.entries(attrs)) {
     if (v === undefined || v === null) continue;
-    // CSP satır içi style niteliğini engeller; CSSOM ataması serbesttir.
+    // The CSP blocks inline style attributes; CSSOM assignment is allowed.
     if (k === "style") el.style.cssText = v;
     else el.setAttribute(k, v);
   }
@@ -78,8 +78,8 @@ function legend(items) {
 
 export { fmtNum };
 
-// Grafik, kutusunun gerçek genişliğinde çizilir (viewBox ölçeklemesi yazıları büyütüp küçültmesin diye);
-// genişlik değişince yeniden çizilir.
+// Drawn at the container's real width (so viewBox scaling does not shrink or blow up the text);
+// redrawn when the width changes.
 export function lineChart(opts) {
   const wrap = div("chart-wrap");
   let lastWidth = 0;
@@ -89,7 +89,7 @@ export function lineChart(opts) {
     lastWidth = w;
     wrap.replaceChildren(...buildLineChart(opts, w));
   };
-  render(opts.compact ? 360 : 860); // ilk çizim; yerleşince gerçek genişliğe uyar
+  render(opts.compact ? 360 : 860); // first draw; adapts to the real width once laid out
   new ResizeObserver((entries) => {
     const width = entries[0]?.contentRect.width;
     if (width) render(width);
@@ -126,7 +126,7 @@ function buildLineChart({ dates, series, band = null, markers = null, events = [
   }
   if (lo < 0 && hi > 0) svg.append(s("line", { class: "baseline", x1: m.l, x2: W - m.r, y1: y(0), y2: y(0) }));
 
-  // x etiketleri: yıl başları, en çok ~8 etiket
+  // x labels: year starts, thinned to fit the width
   const years = [];
   dates.forEach((d, i) => { if (i === 0 || d.slice(0, 4) !== dates[i - 1].slice(0, 4)) years.push(i); });
   const maxLabels = Math.max(3, Math.floor(W / 90));
@@ -139,7 +139,7 @@ function buildLineChart({ dates, series, band = null, markers = null, events = [
   svg.append(s("line", { class: "baseline", x1: m.l, x2: W - m.r, y1: m.t + ih, y2: m.t + ih }));
 
   if (band) {
-    // boşluklarda kesilen aralık bandı
+    // interval band, broken at gaps
     let seg = [];
     const flush = () => {
       if (seg.length > 1) {
@@ -153,7 +153,7 @@ function buildLineChart({ dates, series, band = null, markers = null, events = [
     flush();
   }
 
-  // olay etiketleri iki satıra dağıtılır, uzunlar kısaltılır (tam ad ipucunda)
+  // event labels alternate between two rows; long ones are shortened (full name in the tooltip)
   events.forEach((ev, k) => {
     const i = dates.findIndex((d) => d >= ev.date);
     if (i < 0) return;
@@ -176,7 +176,7 @@ function buildLineChart({ dates, series, band = null, markers = null, events = [
       pen = true;
     });
     svg.append(s("path", { class: "line", d, style: `stroke:${sr.color}`, "stroke-dasharray": sr.dash }));
-    // tek başına kalan noktalar (iki yanı boş) çizgide görünmez; küçük nokta çiz
+    // isolated points (gaps on both sides) are invisible as a path; draw a small dot
     sr.values.forEach((v, i) => {
       if (v === null) return;
       const prev = sr.values[i - 1];
@@ -230,11 +230,11 @@ function buildLineChart({ dates, series, band = null, markers = null, events = [
 }
 
 export function barChart(items, { format = fmtNum, ref = null, cap = null } = {}) {
-  // HTML çubuklar: dar kartlarda yazı küçülmesin diye SVG yerine akışkan düzen.
-  // ref: {value, label} → tüm satırlarda aynı konumda kesikli referans çizgisi (ör. naive düzeyi = 1).
+  // HTML bars instead of SVG so text keeps its size in narrow cards.
+  // ref: {value, label} → dashed reference line at the same position on every row (e.g. naive level = 1).
   const wrap = div("bars");
   if (!items.length) { wrap.append(div("muted small", "Veri yok.")); return wrap; }
-  // cap: bu değeri aşan çubuklar eksen sonunda kesilir (gerçek değer yazılı kalır), küçük farklar okunur kalsın diye
+  // cap: bars above this value are cut at the axis end (the real value stays printed) so small differences remain readable
   let max = Math.max(...items.map((d) => d.value), ref ? ref.value * 1.15 : 0, 0) || 1;
   if (cap) max = Math.min(max, cap);
   for (const d of items) {

@@ -4,7 +4,8 @@
 The user selects a sector in Turkey; the system produces for that sector (a) a map of free data sources,
 (b) macro/sector features, and (c) market share series (direct or proxy), and exports them as an ML-ready
 monthly panel (Parquet). Distribution: GitHub repository, `pip install git+...`.
-No UI — usage is through the CLI (`mlbooster`) and the MCP server (`mlbooster-mcp`, stdio).
+Usage is through the CLI (`mlbooster`), the MCP server (`mlbooster-mcp`, stdio) and a local web panel
+(`mlbooster web`, bound to 127.0.0.1 only; a hosted/public site is out of scope).
 
 ## Technology
 - Python 3.12+, httpx, pandas, pydantic v2, duckdb ≥2, pyarrow, typer, python-dotenv
@@ -28,7 +29,8 @@ src/mlbooster/
   infrastructure/    # port implementations: providers/ (evds3, sdmx, registry), http_client.py (SecureHttpClient),
                      # catalog_yaml.py (pydantic → domain), secret_store.py, settings.py, storage/,
                      # update_check.py (GitHub tags), table_reader.py (user CSV/JSON input; CLI only)
-  interfaces/        # cli.py (typer), mcp_server.py (MCPServer), presenters.py — call use cases only
+  interfaces/        # cli.py (typer), mcp_server.py (MCPServer), presenters.py, web/ (Starlette JSON API + static
+                     # JS/CSS, no build step; labels.py derives readable feature names) — call use cases only
                      # (tests/test_architecture.py forbids container().<port> access)
   bootstrap.py       # composition root: the single wiring point
   catalog_data/      # sources/*.yaml, sectors/*.yaml (package-data); user override: ~/.mlbooster/catalog/overrides.yaml
@@ -73,6 +75,10 @@ Rules:
 - Secrets live in a `Secret` object; `redact()` in error messages; never in URLs, logs or the manifest.
 - DuckDB: parameterized queries only; file names are derived from hashes/slugs; data directories are 0700.
 - MCP tools take no file paths; DomainError → ToolError, other errors are hidden by the SDK.
+- Web panel: binds to 127.0.0.1 only; non-loopback Host → 400; every `/api` call needs the per-launch
+  `X-MLB-Token` header and a same-origin `Origin`; CSP without `unsafe-inline` (styles are set through
+  `el.style`, never a `style` attribute); the DOM is filled with `textContent` only; no external CDN or scripts;
+  the API takes and returns no file paths.
 
 ## Source-specific rules (CRITICAL)
 1. EVDS3 (done — infrastructure/providers/evds3.py):

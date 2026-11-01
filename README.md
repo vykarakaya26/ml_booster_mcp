@@ -119,13 +119,16 @@ mlbooster web                                             # yerel web paneli: ht
 
 | Ekran | İçerik |
 |---|---|
-| Sektör haritası | Kaynaklar, makro feature'lar (hazır / keşif bekliyor), pazar payı kaynakları, lisans notları |
-| Feature paneli | Frekans seçimi (aylık, haftalık, iş günü), her feature için ayrı grafik, CSV/Parquet indirme |
-| Model karşılaştırma | Hedef, çapa, ufuk, asgari eğitim süresi ve model seçimi. Gerçekleşen ve tahmin grafiği (%80 aralıkla), MAE sıralaması, rejimlere göre hata |
-| Veri kalitesi | Önem derecesine göre bulgular, aykırı değer ve kırılma işaretli seri grafiği, korelasyon çiftleri |
-| Kaynak durumu | Sağlayıcı kanarya testleri |
+| Genel bakış | Adım akışı ve sektör kartları (her sektörde kaç feature'ın hazır olduğu) |
+| 1. Sektör ve kaynaklar | Okunur feature adları, dönüşüm, birim, kaynak ve yayın gecikmesi; eksik seri kodları için "Sizden gerekenler" |
+| 2. Feature paneli | Frekans seçimi (aylık, haftalık, iş günü), son değer ve önceki döneme göre farkı veren seri kartları, CSV/Parquet indirme |
+| 3. Veri kalitesi | Feature bazında durum, outlier ve structural break işaretli grafik, her bulgu için "Ne yapmalı?" |
+| 4. Tahmin çıtası | Hedef, çapa, ufuk ve model seçimi; naive'e göre iyileşme, dönemlere göre karşılaştırma, model kartı |
+| Kaynak durumu | Provider canary testleri |
 
-Panel aynı use case'leri CLI ve MCP ile ortak kullanır. Sunucu yalnızca `127.0.0.1` adresine bağlanır. Port `--port` ile değiştirilir; tarayıcının otomatik açılmasını `--no-open` kapatır.
+Her ekran bir "Kısaca" özetiyle başlar ve kaynak, veri çekim zamanı, kapsanan dönem ile eksik veriyi gösteren bir damgayla biter. Teknik terimler için aranabilir bir sözlük vardır.
+
+Panel aynı use case'leri CLI ve MCP ile ortak kullanır. Sunucu yalnızca `127.0.0.1` adresine bağlanır. Port `--port` ile değiştirilir; port doluysa sıradaki boş port kullanılır. Tarayıcının otomatik açılmasını `--no-open` kapatır.
 
 Veriler varsayılan olarak `~/.mlbooster/data` altında tutulur. Bu dizin `MLBOOSTER_DATA_DIR` ile değiştirilebilir:
 
