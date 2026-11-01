@@ -9,7 +9,7 @@ import pytest
 
 ROOT = Path(__file__).resolve().parents[1] / "src" / "mlbooster"
 LAYERS = ["domain", "application", "infrastructure", "interfaces"]  # inside out
-IO_LIBS = {"httpx", "duckdb", "pyarrow", "yaml", "mcp", "mcp_types", "typer", "pydantic", "dotenv", "requests"}
+IO_LIBS = {"httpx", "duckdb", "pyarrow", "yaml", "mcp", "mcp_types", "typer", "pydantic", "dotenv", "requests", "starlette", "uvicorn"}
 
 
 def _imports(path: Path) -> set[str]:

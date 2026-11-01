@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="mlb-token" content="{{TOKEN}}">
+  <title>ML Booster Paneli</title>
+  <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/static/app.css">
+  <script type="module" src="/static/app.js"></script>
+</head>
+<body>
+  <div class="shell">
+    <aside class="sidebar" aria-label="Bölümler">
+      <a class="brand" href="#genel">
+        <span class="brand-mark" aria-hidden="true"></span>
+        <span>
+          <strong>ML Booster</strong>
+          <small>Türkiye sektör verisi · v{{VERSION}}</small>
+        </span>
+      </a>
+      <nav>
+        <a href="#genel" data-view="genel">Genel bakış</a>
+        <span class="nav-label">Adımlar</span>
+        <a href="#harita" data-view="harita"><b>1</b> Sektör ve kaynaklar</a>
+        <a href="#panel" data-view="panel"><b>2</b> Feature paneli</a>
+        <a href="#kalite" data-view="kalite"><b>3</b> Veri kalitesi</a>
+        <a href="#model" data-view="model"><b>4</b> Tahmin çıtası</a>
+        <span class="nav-label">Diğer</span>
+        <a href="#saglik" data-view="saglik">Kaynak durumu</a>
+        <span class="nav-soon" title="Pazar payı analizi ayrı bir dalda geliştiriliyor">Pazar payı ve rakipler <em>yakında</em></span>
+        <button type="button" class="nav-button" data-glossary>Terimler sözlüğü</button>
+      </nav>
+      <p class="sidebar-note">Veriler yalnızca bu bilgisayarda işlenir. Kaynaklar: TCMB EVDS, BIS, OECD ve katalogdaki diğer kamu kurumları.</p>
+    </aside>
+
+    <div class="main">
+      <header class="toolbar">
+        <label class="field">
+          <span>Sektör</span>
+          <select id="sector" aria-label="Sektör"></select>
+        </label>
+        <label class="field">
+          <span>Başlangıç</span>
+          <input id="start" type="month" aria-label="Başlangıç ayı">
+        </label>
+        <label class="field">
+          <span>Bitiş</span>
+          <input id="end" type="month" aria-label="Bitiş ayı (boş: bugün)">
+        </label>
+        <div class="toolbar-spacer"></div>
+        <button type="button" class="ghost" data-glossary>Sözlük</button>
+        <button id="theme" class="ghost" type="button" aria-label="Açık ya da koyu temaya geç">Tema</button>
+      </header>
+
+      <div id="notice" class="notice" role="status" hidden></div>
+      <main id="view" tabindex="-1"></main>
+    </div>
+  </div>
+
+  <aside id="glossary" class="drawer" aria-label="Terimler sözlüğü" hidden>
+    <div class="drawer-head">
+      <h2>Terimler sözlüğü</h2>
+      <button type="button" class="ghost" id="glossary-close">Kapat</button>
+    </div>
+    <input id="glossary-search" type="text" placeholder="Terim ara (ör. MAE, log)" aria-label="Terim ara">
+    <dl id="glossary-list"></dl>
+  </aside>
+  <div id="tooltip" class="tooltip" role="tooltip" hidden></div>
+</body>
+</html>
