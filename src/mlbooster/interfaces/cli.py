@@ -445,5 +445,25 @@ def version(check: Annotated[bool, typer.Option("--check", help="GitHub'daki en 
             typer.echo("Kurulu sürüm güncel.")
 
 
+@app.command()
+def web(
+    port: Annotated[int, typer.Option(min=1024, max=65535, help="Yerel port")] = 8765,
+    open_browser: Annotated[bool, typer.Option("--open/--no-open", help="Tarayıcıda otomatik aç")] = True,
+):
+    """Yerel web panelini başlatır. Yalnızca bu bilgisayardan erişilebilir (127.0.0.1); durdurmak için Ctrl+C."""
+    import threading
+    import webbrowser
+
+    import uvicorn
+
+    from mlbooster.interfaces.web import create_app
+
+    url = f"http://127.0.0.1:{port}/"
+    typer.echo(f"ML Booster paneli: {url}  (durdurmak için Ctrl+C)")
+    if open_browser:
+        threading.Timer(1.0, webbrowser.open, (url,)).start()
+    uvicorn.run(create_app(container), host="127.0.0.1", port=port, log_level="warning")
+
+
 if __name__ == "__main__":
     app()
