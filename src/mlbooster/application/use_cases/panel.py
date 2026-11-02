@@ -97,12 +97,7 @@ class BuildPanel:
         )
         if not covered or _is_stale(df):  # fetch with a buffer; for the cache the requested start is sufficient
             request = FetchRequest.create(source_id, [code], _with_history(period.start), period.end, formula=formula)
-            fetched = _single_series(self._fetch(request, refresh=refresh), metric, seed.freq.value if seed else None)
-            # Sources that publish only a recent window (e.g. Google Trends lists kept for 30 days) build their history
-            # in the store: read it back so earlier fetches are not lost. Store reads keep the latest vintage per date.
-            stored = _single_series(self._store.read(source_id, [code]), metric, seed.freq.value if seed else None)
-            keep = catalog.source(source_id).storage.observations and not stored.empty
-            df = stored if keep and len(stored) > len(fetched) else (fetched if not fetched.empty else stored)
+            df = _single_series(self._fetch(request, refresh=refresh), metric, seed.freq.value if seed else None)
         if df.empty:
             raise ProviderError(f"{code}: veri yok")
         return df

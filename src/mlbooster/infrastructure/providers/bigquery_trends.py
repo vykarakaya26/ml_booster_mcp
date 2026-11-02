@@ -13,11 +13,12 @@ checked 2026-11-03, not yet queried live):
 So the provider offers two kinds of series (catalog `remote`: `<top|rising>,<count|interest>/<KEY>[+<KEY>...]`):
 - count: per refresh_date, how many terms of the Türkiye list match one of the keywords (ASCII-folded word prefix,
   `_` = space). Only the last ~30 days exist upstream; every fetch adds the new days to the local observation
-  store, where the history accumulates (the panel reads the store).
+  store, where the history accumulates (catalog `history.revision_days` makes FetchSeries read the store back).
 - interest: the weekly search interest of one term (the KEYs are alternative spellings, matched exactly after
   folding) from the latest retained list that contains it: the mean over regions is the total (empty entity_id),
   regions are entities. The 5-year backfill is rescaled by Google on every refresh (the maximum of the series is 100),
-  so older weeks are revised; vintages keep the revisions.
+  so older weeks are revised: the provider always returns the whole backfill up to the requested end, keeping every
+  stored week on the scale of one refresh; vintages keep the revisions.
 Both are search-interest proxies (is_proxy=True), not market shares; scores of different terms are not comparable.
 
 A code without a catalog seed is read from its name: `BQT.ILGI.<KEY>` = `top,interest/<key>` lets a user track any
@@ -80,7 +81,7 @@ FROM `{dataset}.{table}`
 WHERE refresh_date = @refresh
   AND country_code = @country
   AND term IN UNNEST(@terms)
-  AND week BETWEEN @start AND @end
+  AND week <= @end
 """
 
 
@@ -234,7 +235,7 @@ class BigQueryTrendsProvider:
             _INTEREST_SQL.format(dataset=DATASET, table=TABLES[table]),
             [
                 Param("refresh", "DATE", latest), Param("country", "STRING", COUNTRY), Param("terms", "STRING", terms),
-                Param("start", "DATE", request.period.start - timedelta(days=6)), Param("end", "DATE", request.period.end),
+                Param("end", "DATE", request.period.end),
             ],
         )  # fmt: skip
         if result.columns != ["week", "region_code", "region_name", "score"]:
@@ -263,7 +264,9 @@ class BigQueryTrendsProvider:
         rows = [(seed.code, "", None, d, float(v)) for d, v in total.items()]
         rows += [(seed.code, r.region_code, r.region_name, r.date, float(r.value)) for r in regions.itertuples()]
         out = pd.DataFrame(rows, columns=columns)
-        return out[(out["date"] >= request.period.start) & (out["date"] <= request.period.end)]
+        # The whole backfill is returned even if the request starts later: Google rescales the series on every
+        # refresh, so all weeks in the store must come from the same refresh (one vintage, one scale).
+        return out[out["date"] <= request.period.end]
 
     # --- Data ----------------------------------------------------------------------------
 
