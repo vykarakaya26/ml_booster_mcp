@@ -1,0 +1,86 @@
+[
+ {
+  "AKTIF": 0,
+  "GRUP_NO": 8,
+  "TR_ADI": "Türkiye´de Şube Açan Yabancı Sermayeli Bankalar",
+  "ENG_ADI": "Foreign Banks Having Branches in Türkiye",
+  "UST_GRUP_NO": 4
+ },
+ {
+  "AKTIF": 1,
+  "GRUP_NO": 9,
+  "TR_ADI": "Kalkınma ve Yatırım Bankaları",
+  "ENG_ADI": "Development and Investment Banks",
+  "UST_GRUP_NO": 5
+ },
+ {
+  "AKTIF": 0,
+  "GRUP_NO": 10,
+  "TR_ADI": "Kamusal Sermayeli Kalkınma ve Yatırım Bankaları",
+  "ENG_ADI": "State-owned Development and Investment Banks",
+  "UST_GRUP_NO": 9
+ },
+ {
+  "AKTIF": 1,
+  "GRUP_NO": 5,
+  "TR_ADI": "Türkiye Bankacılık Sistemi",
+  "ENG_ADI": "The Banking System in Türkiye",
+  "UST_GRUP_NO": 0
+ },
+ {
+  "AKTIF": 0,
+  "GRUP_NO": 12,
+  "TR_ADI": "Yabancı Sermayeli Kalkınma ve Yatırım Bankaları",
+  "ENG_ADI": "Foreign Development and Investment Banks",
+  "UST_GRUP_NO": 9
+ },
+ {
+  "AKTIF": 1,
+  "GRUP_NO": 2,
+  "TR_ADI": "Kamusal Sermayeli Mevduat Bankaları",
+  "ENG_ADI": "State-owned Deposit Banks",
+  "UST_GRUP_NO": 1
+ },
+ {
+  "AKTIF": 1,
+  "GRUP_NO": 4,
+  "TR_ADI": "Yabancı Sermayeli Bankalar",
+  "ENG_ADI": "Foreign Banks",
+  "UST_GRUP_NO": 1
+ },
+ {
+  "AKTIF": 0,
+  "GRUP_NO": 6,
+  "TR_ADI": "Türkiye´de Kurulmuş Yabancı Sermayeli Bankalar",
+  "ENG_ADI": "Foreign Banks Founded in Türkiye",
+  "UST_GRUP_NO": 4
+ },
+ {
+  "AKTIF": 1,
+  "GRUP_NO": 1,
+  "TR_ADI": " Mevduat Bankaları",
+  "ENG_ADI": "Deposit Banks",
+  "UST_GRUP_NO": 5
+ },
+ {
+  "AKTIF": 1,
+  "GRUP_NO": 13,
+  "TR_ADI": "Tasarruf Mevduatı Sigorta Fonuna Devredilen Bankalar",
+  "ENG_ADI": "Banks Under the Deposit Insurance Fund",
+  "UST_GRUP_NO": 1
+ },
+ {
+  "AKTIF": 1,
+  "GRUP_NO": 3,
+  "TR_ADI": "Özel Sermayeli Mevduat Bankaları",
+  "ENG_ADI": "Privately-owned Deposit Banks",
+  "UST_GRUP_NO": 1
+ },
+ {
+  "AKTIF": 0,
+  "GRUP_NO": 11,
+  "TR_ADI": "Özel Sermayeli Kalkınma ve Yatırım Bankaları",
+  "ENG_ADI": "Privately-owned Development and Investment Banks",
+  "UST_GRUP_NO": 9
+ }
+]

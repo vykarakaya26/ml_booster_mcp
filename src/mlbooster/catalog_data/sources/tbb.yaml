@@ -1,13 +1,32 @@
 id: tbb
-name: TBB Veri Sistemi
+name: TBB Veri Sorgulama Sistemi (Mali Tablolar)
 owner: Türkiye Bankalar Birliği
+# The provider pins this host and posts JSON to the report page's endpoint (/api/router).
 base_url: https://verisistemi.tbb.org.tr
-access: file_download
+access: rest_api
 auth: {type: none}
-license: {attribution: required, notes: "Açık veri lisansı yayımlanmamış; ticari kullanım için sitenin kullanım koşulları kontrol edilmelidir."}
-frequency: [Q, A]
-formats: [xlsx]
+rate_limit: {rps: 2, backoff: exponential, notes: "Bir istek en fazla 20 çeyreğin değerlerini, istenen bütün kalem, banka ve gruplarla birlikte döndürür."}
+license: {commercial: false, attribution: required, notes: "TBB kullanım koşulları: sitede yayımlanan çalışmalar kaynak gösterilerek izinsiz yayımlanabilir; ticari amaçlı kullanım TBB'nin yazılı iznine tabidir. TBB bilgilerin doğruluğunu ve eksiksizliğini garanti etmez. Veriler bankaların kamuya açıkladığı konsolide olmayan (solo) finansal tablolardır."}
+frequency: [Q]
+formats: [json]
 sectors: [bankacilik]
-publication_lag_days: 75  # estimated
-verification_status: reported
+publication_lag_days: 120  # TBB calendar: Mar/Jun/Sep statements in the 2nd week of the second month after (~45 days), December in the 4th week of April (~120 days); the conservative value prevents look-ahead
+verification_status: verified
+verification_notes: "2026-11-02: Veri Sorgulama Sistemi'nin Mali Tablolar sayfasının kullandığı JSON uç noktası (/api/router; donemler, bankalar, bankaGruplari, degerler) anahtarsız, oturumsuz olarak canlı test edildi. Son yayımlanan dönem Haziran 2026. Banka değerlerinin toplamı Türkiye Bankacılık Sistemi grup toplamıyla binde 0,1'in altında farkla örtüşüyor. robots.txt yok (404). Sunucu ara sertifikayı göndermediği için GlobalSign ara sertifikası pakete eklendi; zincir yine kök sertifikaya kadar doğrulanıyor."
+known_breaks:
+  - "2018-03: TFRS 9 geçişi; mali tablo kalemleri yeniden tanımlandı (kredi serisi 'Krediler ve Alacaklar' kaleminden 'Krediler' kalemine geçer)"
+  - "Kapsam: katılım bankaları TBB üyesi değildir; sistem toplamı mevduat bankaları ile kalkınma ve yatırım bankalarını kapsar"
+  - "Banka listesi bugün faaliyette olan bankaları içerir; faaliyeti sona eren bankalar yalnızca grup toplamında yer alır (2002 aktiflerinin yaklaşık %9'u)"
+adapter: tbb
 priority: 4
+# remote: "<group>/<item key>[+<older item key>...][.<column>]". The group total (only 5, Türkiye Bankacılık Sistemi:
+# the site's sub-group memberships are incomplete) gets an empty entity_id; the banks are entities (entity_id = TBB
+# bank code). For each bank and quarter the first key with a value is used: TFRS9-SOLO keys (3/2018-..) first, then
+# the SOLO keys (12/2002-12/2017). Columns: TOPLAM (default), TP, YP.
+# Item keys: 16018/2087 total assets, 16005/2098 loans, 102152/2152 deposits, 102170/2170 equity.
+series:
+  - {code: TBB.AKTIF, name: "Toplam aktifler, banka bazında (milyon TL; katılım bankaları hariç)", freq: Q, kind: level, unit: million_try, currency: TRY, remote: "5/16018+2087", canary: true}
+  - {code: TBB.KREDI, name: "Krediler, banka bazında (milyon TL; katılım bankaları hariç)", freq: Q, kind: level, unit: million_try, currency: TRY, remote: "5/16005+2098"}
+  - {code: TBB.MEVDUAT, name: "Mevduat, banka bazında (milyon TL; katılım bankaları hariç)", freq: Q, kind: level, unit: million_try, currency: TRY, remote: "5/102152+2152"}
+  - {code: TBB.OZKAYNAK, name: "Özkaynaklar, banka bazında (milyon TL; katılım bankaları hariç)", freq: Q, kind: level, unit: million_try, currency: TRY, remote: "5/102170+2170"}
+  - {code: TBB.MEVDUAT.TP, name: "Mevduat, TL cinsinden, banka bazında (milyon TL; katılım bankaları hariç)", freq: Q, kind: level, unit: million_try, currency: TRY, remote: "5/102152+2152.TP"}
