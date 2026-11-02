@@ -1,6 +1,7 @@
 from dataclasses import replace
 from datetime import UTC, date, datetime, timedelta
 
+import numpy as np
 import pandas as pd
 import pytest
 
@@ -158,3 +159,85 @@ def test_panel_uses_only_the_total_of_series_with_entities(catalog):
     # A 30-day lag is a fixed two-month shift for monthly series (Jan 31 + 30 days falls in March).
     assert result.panel.loc["2024-12-31", "sektor_aktif"] == pytest.approx(total.loc["2024-10-31"])
     assert result.panel["sektor_aktif"].notna().all()
+
+
+class DailyMixProvider:
+    """EPİAŞ-like daily generation by source: dam hydro loses 3 points a year with a strong season (peak in May,
+    trough at the end of October), natural gas and wind share the rest 60/40. The last day is 2025-12-31 + `extra`."""
+
+    def __init__(self, source, calls, extra_days=0):
+        self.source, self.calls, self.extra_days = source, calls, extra_days
+
+    def fetch(self, request):
+        self.calls.append(request)
+        end = min(request.period.end, date(2025, 12, 31) + timedelta(days=self.extra_days))
+        days = pd.date_range(request.period.start, end, freq="D")
+        years = (days - pd.Timestamp("2023-01-01")).days / 365.25
+        hydro = 30 - 3 * years + 8 * np.cos(2 * np.pi * (days.day_of_year - 121) / 365.25)
+        rows = []
+        for d, h in zip(days.date, hydro, strict=True):
+            parts = {"dammedHydro": ("Barajlı hidroelektrik", 10 * h), "naturalGas": ("Doğal gaz", 6 * (100 - h)),
+                     "wind": ("Rüzgâr", 4 * (100 - h))}  # fmt: skip
+            rows.append(("", None, d, sum(v for _, v in parts.values())))
+            rows += [(code, name, d, v) for code, (name, v) in parts.items()]
+        df = pd.DataFrame(rows, columns=["entity_id", "entity_name", "date", "value"])
+        return df.assign(
+            source_id="epias", dataset_id="realtime-generation", series_id=request.series_ids[0], metric="level",
+            freq="D", unit="mwh", currency=None, is_proxy=False, vintage_ts=datetime.now(UTC), publication_lag_days=1,
+        )  # fmt: skip
+
+    def close(self):
+        pass
+
+
+class DailyMixFactory:
+    def __init__(self, **kwargs):
+        self.calls, self.kwargs = [], kwargs
+
+    def available(self):
+        return {"epias"}
+
+    def create(self, source):
+        return DailyMixProvider(source, self.calls, **self.kwargs)
+
+
+def _daily_tables(catalog, **kwargs):
+    store, repo = InMemoryObservationStore(), StaticCatalog(catalog)
+    return SourceShareTable(repo, FetchSeries(repo, DailyMixFactory(**kwargs), store), store)
+
+
+def test_daily_series_are_aggregated_to_calendar_months(catalog):
+    table, meta = _daily_tables(catalog, extra_days=2)("epias", "EPIAS.URETIM.KAYNAK", date(2023, 1, 1), date(2026, 1, 2))
+    assert meta["aggregated_from"] == "D" and meta["kind"] == "flow"
+    assert sorted(set(table["date"]))[-1] == "2025-12-31"  # the incomplete January 2026 is dropped
+    assert len(set(table["date"])) == 36 and set(table["entity"]) == {"TOPLAM", "Barajlı hidroelektrik", "Doğal gaz", "Rüzgâr"}
+    january = table[table["date"] == "2023-01-31"].set_index("entity")["value"]
+    assert january["TOPLAM"] == pytest.approx(31 * 1000)  # flow: the month's daily values are summed
+    assert january.drop("TOPLAM").sum() == pytest.approx(january["TOPLAM"])
+
+
+def test_daily_mix_year_change_and_trend_agree(catalog):
+    """Regression: on the daily table the analysis took 52 days for a year, so the 'yıllık' change of dam hydro was
+    positive (autumn trough to winter) while its trend said 'pay kaybediyor'. Monthly periods give a 12-month change."""
+    tables = _daily_tables(catalog)
+    uc = AnalyzeMarketShare(StubPanel(), None, tables)
+    out = uc.from_source("epias", "EPIAS.URETIM.KAYNAK", ShareConfig(), date(2023, 1, 1), date(2025, 12, 31))
+    hydro = next(p for p in out["players"] if p["entity"] == "Barajlı hidroelektrik")
+    assert hydro["trend"] == "losing" and hydro["d_year_pp"] == pytest.approx(-3, abs=0.3)
+    for p in out["players"]:
+        if p["trend"] in ("gaining", "losing"):
+            assert (p["d_year_pp"] > 0) == (p["trend"] == "gaining"), p["entity"]
+    assert any(i["check"] == "aggregated_to_monthly" for i in out["issues"])
+
+    store_rows = tables._store.read("epias", ["EPIAS.URETIM.KAYNAK"])  # what the old code analysed: daily rows
+    names = {"": "TOPLAM", "dammedHydro": "Barajlı hidroelektrik", "naturalGas": "Doğal gaz", "wind": "Rüzgâr"}
+    daily = pd.DataFrame({"entity": store_rows["entity_id"].map(names), "date": pd.to_datetime(store_rows["date"]).dt.strftime("%Y-%m-%d"),
+                          "value": store_rows["value"]})  # fmt: skip
+    old = AnalyzeMarketShare(StubPanel(), None)(daily, ShareConfig(kind="flow"))
+    old_hydro = next(p for p in old["players"] if p["entity"] == "Barajlı hidroelektrik")
+    assert old_hydro["trend"] == "losing" and old_hydro["d_year_pp"] > 0  # the mismatch this change removes
+
+
+def test_daily_series_without_a_complete_month(catalog):
+    with pytest.raises(InvalidInput, match="tamamlanmış ay yok"):
+        _daily_tables(catalog)("epias", "EPIAS.URETIM.KAYNAK", date(2025, 12, 10), date(2025, 12, 20))
