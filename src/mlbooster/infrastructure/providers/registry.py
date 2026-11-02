@@ -10,12 +10,14 @@ from mlbooster.domain.model import Source
 from mlbooster.infrastructure.http_client import RateLimiter, SecureHttpClient
 from mlbooster.infrastructure.providers.evds3 import Evds3Provider
 from mlbooster.infrastructure.providers.sdmx import SdmxCsvProvider
+from mlbooster.infrastructure.providers.tuik import TuikProvider
 from mlbooster.infrastructure.secret_store import EnvSecretProvider
 from mlbooster.infrastructure.storage.raw_store import RawStore
 
 PROVIDERS: dict[str, type] = {
     "evds3": Evds3Provider,
     "sdmx": SdmxCsvProvider,
+    "tuik": TuikProvider,
 }
 
 

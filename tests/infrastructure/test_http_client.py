@@ -25,6 +25,18 @@ def test_retries_429_then_succeeds():
 
 
 @respx.mock
+def test_post_json_sends_body_and_retries():
+    route = respx.post(URL).mock(side_effect=[httpx.Response(503), httpx.Response(200, json={"ok": True})])
+    response = client().post_json(URL, [{"id": "İ", "filterValues": ["1"]}], headers={"Accept": "application/json"})
+    request = route.calls.last.request
+    assert response.status == 200 and route.call_count == 2
+    assert request.headers["content-type"] == "application/json" and request.headers["accept"] == "application/json"
+    assert request.content.decode("utf-8") == '[{"id": "İ", "filterValues": ["1"]}]'
+    with pytest.raises(UnexpectedResponse, match="HTTPS"):
+        client().post_json("http://example.test/", {})
+
+
+@respx.mock
 def test_gives_up_after_retries():
     respx.get(URL).mock(return_value=httpx.Response(503))
     with pytest.raises(ProviderUnavailable, match="503"):

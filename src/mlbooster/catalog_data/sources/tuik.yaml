@@ -1,15 +1,27 @@
 id: tuik
 name: TÜİK Veri Portalı
 owner: TÜİK
-base_url: https://veriportali.tuik.gov.tr
-access: file_download
+# Data browser API behind the portal's tables (JSON-stat). The provider pins this host.
+base_url: https://databrowser2.tuik.gov.tr/api/core/nodes/1/datasets/
+access: rest_api
 auth: {type: none}
+rate_limit: {rps: 1, backoff: exponential}
 license: {attribution: required, notes: "Kaynak gösterilerek kullanılabilir. Web servisi sözleşmesi yalnızca kamu kurumlarına açıktır."}
 frequency: [M, Q, A]
-formats: [xlsx, json]
+formats: [json]
 sectors: ["*"]
-publication_lag_days: 30  # estimated; to be filled per bulletin from the release calendar
-verification_status: reported
-verification_notes: "nsiws SDMX servisinin 2026-08'den bu yana anonim isteklere 401 döndüğü yalnızca üçüncü taraflarca raporlandı."
-known_breaks: ["2026-01: TÜFE 2025=100 ve ECOICOP v2", "2026-08: nsiws SDMX anonim erişime kapandı (raporlanan)"]
+publication_lag_days: 30  # default for series without their own lag
+verification_status: verified
+verification_notes: "2026-11-02: Veri Portalı tablolarının açıldığı databrowser2 JSON API'si (structure GET, data POST, JSON-stat 2.0) anahtarsız olarak canlı test edildi; değerler haber bültenleriyle karşılaştırıldı. veriportali /api uç noktaları tarayıcı dışı isteklere 403, nsiws SDMX servisi 401 döndürüyor; eski istab Excel bağlantıları portala yönleniyor."
+known_breaks: ["2026-01: TÜFE 2025=100 ve ECOICOP v2", "2026-08: nsiws SDMX anonim erişime kapandı (2026-11-02'de 401 olarak doğrulandı)"]
+adapter: tuik
 priority: 2
+# remote: "<agency,dataflow,version>/<key>"; the key lists one code per non-time dimension in structure order.
+# Publication lags come from the bulletin dates of the latest releases (e.g. CPI Sep 2026 → 5 Oct 2026).
+series:
+  - {code: TUIK.TUFE.ENDEKS, name: "TÜFE genel endeksi (2025=100)", freq: M, kind: level, unit: index, remote: "TR,DF_TUFE_SDMX_TT10,1.0/TR.M.TUFE.1.2025.0.F_TFE", publication_lag_days: 5, canary: true}
+  - {code: TUIK.TUFE.AYLIK, name: "TÜFE aylık değişim (%)", freq: M, kind: level, unit: percent, remote: "TR,DF_TUFE_SDMX_TT10,1.0/TR.M.TUFE.2.2025.0.F_TFE", publication_lag_days: 5}
+  - {code: TUIK.TUFE.YILLIK, name: "TÜFE yıllık değişim (%)", freq: M, kind: level, unit: percent, remote: "TR,DF_TUFE_SDMX_TT10,1.0/TR.M.TUFE.4.2025.0.F_TFE", publication_lag_days: 5}
+  - {code: TUIK.ISSIZLIK.MA, name: "İşsizlik oranı, 15+ yaş, mevsim etkisinden arındırılmış (%)", freq: M, kind: level, unit: percent, remote: "TR,DF_ISGUCU_AYLIK_TEMEL_ISGUCU_C,1.0/TR.M.ISGI_TIG.8.Y_GE15.S._T", publication_lag_days: 28, canary: true}
+  - {code: TUIK.SUE.MA, name: "Sanayi üretim endeksi, toplam sanayi, takvim ve mevsim etkilerinden arındırılmış (2021=100)", freq: M, kind: level, unit: index, remote: "TR,DF_SANAYI_URETIM_ENDEKS_ANA_C,1.0/TR.M.B-C-D.II_SUE.Y.2021.1.1", publication_lag_days: 41}
+  - {code: TUIK.PERAKENDE.HACIM.MA, name: "Perakende ticaret satış hacim endeksi, takvim ve mevsim etkilerinden arındırılmış (2021=100)", freq: M, kind: level, unit: index, remote: "TR,DF_TICARET_SATIS_HACIM_ENDEKS_C,1.0/TR.M.G47.2021.1.Y.II_TSHE.5", publication_lag_days: 44}

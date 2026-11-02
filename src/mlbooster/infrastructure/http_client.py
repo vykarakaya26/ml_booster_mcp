@@ -3,6 +3,7 @@ rate limit, retries with exponential backoff. The return value is a value object
 
 from __future__ import annotations
 
+import json
 import logging
 import threading
 import time
@@ -83,6 +84,14 @@ class SecureHttpClient:
         self._sleep = sleep
 
     def get(self, url: str, headers: dict[str, str] | None = None) -> HttpResponse:
+        return self._request("GET", url, headers, None)
+
+    def post_json(self, url: str, payload: object, headers: dict[str, str] | None = None) -> HttpResponse:
+        """POST with a JSON body (read-only query APIs that take their filter in the body)."""
+        body = json.dumps(payload, ensure_ascii=False).encode("utf-8")
+        return self._request("POST", url, {"Content-Type": "application/json", **(headers or {})}, body)
+
+    def _request(self, method: str, url: str, headers: dict[str, str] | None, body: bytes | None) -> HttpResponse:
         if not url.startswith("https://"):
             raise UnexpectedResponse("Yalnızca HTTPS isteklerine izin verilir")
         attempt = 0
@@ -90,7 +99,7 @@ class SecureHttpClient:
             self._limiter.wait()
             response: HttpResponse | None = None
             try:
-                response = self._get_once(url, headers)
+                response = self._send_once(method, url, headers, body)
             except httpx.TransportError as exc:
                 if attempt >= self._max_retries:
                     raise ProviderUnavailable(f"Ağ hatası ({type(exc).__name__}): {url}") from None
@@ -104,8 +113,8 @@ class SecureHttpClient:
             self._sleep(delay)
             attempt += 1
 
-    def _get_once(self, url: str, headers: dict[str, str] | None) -> HttpResponse:
-        with self._client.stream("GET", url, headers=headers) as r:
+    def _send_once(self, method: str, url: str, headers: dict[str, str] | None, body: bytes | None) -> HttpResponse:
+        with self._client.stream(method, url, headers=headers, content=body) as r:
             declared = r.headers.get("content-length", "")
             if declared.isdigit() and int(declared) > self._max_bytes:
                 raise UnexpectedResponse(f"Yanıt çok büyük ({declared} bayt): {url}")

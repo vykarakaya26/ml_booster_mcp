@@ -93,7 +93,15 @@ Rules:
    - HTML / empty / 3xx response → UnexpectedResponse.
    - Do not hard-code series codes in code; keep them in the catalog, and discover new ones with `/serieList` or
      EVDS-MCP.
-2. TÜİK: strategy chain veriportali JSON → istab Excel → MEDAS (optional). Do not depend on nsiws SDMX.
+2. TÜİK (done — infrastructure/providers/tuik.py): strategy chain veriportali JSON → istab Excel → MEDAS (optional).
+   Do not depend on nsiws SDMX. Live observation 2026-11-02:
+   - veriportali.tuik.gov.tr/api/* answers non-browser clients with 403 "Erişim engellendi"; do not work around it.
+   - The portal's tables open the data browser at databrowser2.tuik.gov.tr (pinned host). Its public JSON API:
+     GET `/api/core/nodes/1/datasets/<agency,dataflow,version>/structure` (dimension order, `timeDimension`) and
+     POST `.../data` with a criteria list (`CodeValues` per dimension + `TimeRange` from/to) → JSON-stat 2.0.
+     Empty period → `id: []`; unknown dataflow → HTTP 500 `DATAFLOW_NOT_FOUND`.
+   - Legacy istab Excel links redirect to the portal SPA (HTML); MEDAS is a stateful ZK UI; nsiws → 401.
+   - Catalog `remote`: `<agency,dataflow,version>/<one code per non-time dimension, in structure order>`.
    CPI (TÜFE) base 2025=100; the deflator is chain-linked from monthly % changes.
 3. EPİAŞ: POST https://giris.epias.com.tr/cas/v1/tickets (body: username, password; form-urlencoded),
    TGT cached for 8 hours, header "TGT". ≤60 requests/s, ≤1500/min; 429 → wait 30 s.
