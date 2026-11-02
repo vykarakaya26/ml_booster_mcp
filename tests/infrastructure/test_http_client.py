@@ -1,9 +1,12 @@
+import hashlib
+import ssl
+
 import httpx
 import pytest
 import respx
 
 from mlbooster.application.errors import ProviderUnavailable, UnexpectedResponse
-from mlbooster.infrastructure.http_client import SecureHttpClient
+from mlbooster.infrastructure.http_client import INTERMEDIATES_PEM, SecureHttpClient, _tls_context
 from mlbooster.infrastructure.secret_store import EnvSecretProvider, Secret, redact
 
 URL = "https://example.test/data"
@@ -16,6 +19,16 @@ def client(**kw):
 def test_rejects_plain_http():
     with pytest.raises(UnexpectedResponse, match="HTTPS"):
         client().get("http://example.test/")
+
+
+def test_tls_context_verifies_and_adds_only_the_pinned_intermediates():
+    context = _tls_context()
+    assert context.verify_mode is ssl.CERT_REQUIRED and context.check_hostname
+    assert not context.verify_flags & ssl.VERIFY_X509_PARTIAL_CHAIN  # an intermediate is never a trust anchor
+    blocks = INTERMEDIATES_PEM.read_text(encoding="ascii").split("-----BEGIN CERTIFICATE-----")[1:]
+    digests = {hashlib.sha256(ssl.PEM_cert_to_DER_cert("-----BEGIN CERTIFICATE-----" + b)).hexdigest() for b in blocks}
+    # GlobalSign GCC R46 OV TLS CA 2025 (verisistemi.tbb.org.tr omits it from its chain)
+    assert digests == {"d160e2de4e56cb10b66c1cb0adcb79cf93c78dcd9db30c2018220262c04063f9"}
 
 
 @respx.mock

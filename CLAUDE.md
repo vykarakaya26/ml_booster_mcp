@@ -118,6 +118,13 @@ Rules:
      data.rows[].cell}}`; one month per call, all requested bank groups at once, sorted by group code. The Excel
      download (BasitExceleAktar) carries the same values. Raw responses go to bronze (content hash).
    - Unpublished months → `success: false` with a message naming the available months (parsed to skip requests).
+   TBB (done — infrastructure/providers/tbb.py), live observation 2026-11-02: no robots.txt; terms allow republishing
+   with attribution, commercial use needs TBB's written permission. The Mali Tablolar page of verisistemi.tbb.org.tr
+   reads POST `/api/router` (JSON `route` body, `LANG` header, no login): `donemler`, `bankalar`, `bankaGruplari`,
+   `degerler` (TL). The server omits its intermediate certificate; it is shipped in infrastructure/certs (never a
+   trust anchor). Catalog `remote`: `5/<item key>[+<older key>...][.<column>]` (TFRS9-SOLO key first, then SOLO); the
+   system total gets an empty `entity_id`, banks are entities (entity_id = TBB bank code). Closed banks are not
+   listed; sub-group memberships are incomplete, so only group 5 is used.
    - Row labels change over time; rows are matched by `row_key()` (ASCII upper case, no stars or parentheses).
    - Catalog `remote`: `<table>[,<total group>+<group>...]/<ROW_KEY>[.<column>]`; the total gets an empty
      `entity_id`, the groups are entities (entity_id = group code). Panels use the total only; `market-share
@@ -125,6 +132,13 @@ Rules:
      `market_share_sources[].series` lists the series offered for this (web panel "Kaynaktan çek" mode).
 5. BTK / ODMD / EPDK / TSB: monitor the announcement page, download the new PDF/Excel, extract with a parser,
    validate (shares sum to 100±0.5, consistency with the previous period), write to silver.
+   ODMD (done — infrastructure/providers/odmd.py), live observation 2026-11-02: no robots.txt (404), no terms page
+   (footer "Tüm Hakları Saklıdır"); catalog records attribution required, no redistribution, no commercial use. Brand
+   table = "Pazar - Perakende Satışlar" list (`neuralnetwork.aspx?type=36`); the download
+   `wf_docudownload.aspx?primary_id=<id>&type=36&...` needs the anonymous ASP.NET session cookie of the list page and
+   answers 302 to `/folders/2837/categorial1docs/<id>/<file>` (pinned host, Location checked by regex). xlsx from
+   2015-01 (2017-02 is xls → skipped; 2014 xls and 2011–2013 PDF not integrated). Catalog `remote`:
+   `perakende/<OTOMOBIL|HAFIF_TICARI|TOPLAM>.<TOPLAM|YERLI|ITHAL>`; market total = empty entity_id, brands are entities.
 6. KAP: do NOT bulk-scrape kap.org.tr; use the MKK API Portal.
 7. Google Trends: manual CSV import adapter only.
 

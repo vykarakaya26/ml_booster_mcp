@@ -1,0 +1,89 @@
+[
+ {
+  "TR_ADI": "Türkiye Cumhuriyeti Ziraat Bankası A.Ş.",
+  "BANKA_KODU": 3,
+  "KAPANIS_TARIHI": null,
+  "KISA_ADI": null,
+  "ENG_ADI": "Türkiye Cumhuriyeti Ziraat Bankası A.Ş.",
+  "GRUPLAR": [
+   {
+    "GRUP_NO": "1",
+    "GIRIS_TARIHI": "1863-11-20T00:00:00.000Z",
+    "CIKIS_TARIHI": "3000-01-01T00:00:00.000Z"
+   },
+   {
+    "GRUP_NO": "5",
+    "GIRIS_TARIHI": "1863-11-20T00:00:00.000Z",
+    "CIKIS_TARIHI": "3000-01-01T00:00:00.000Z"
+   },
+   {
+    "GRUP_NO": "0",
+    "GIRIS_TARIHI": "1863-11-20T00:00:00.000Z",
+    "CIKIS_TARIHI": "3000-01-01T00:00:00.000Z"
+   },
+   {
+    "GRUP_NO": "2",
+    "GIRIS_TARIHI": "1863-11-20T00:00:00.000Z",
+    "CIKIS_TARIHI": "3000-01-01T00:00:00.000Z"
+   }
+  ]
+ },
+ {
+  "TR_ADI": "Akbank T.A.Ş.",
+  "BANKA_KODU": 8,
+  "KAPANIS_TARIHI": null,
+  "KISA_ADI": null,
+  "ENG_ADI": "Akbank T.A.Ş.",
+  "GRUPLAR": [
+   {
+    "GRUP_NO": "1",
+    "GIRIS_TARIHI": "1948-01-30T00:00:00.000Z",
+    "CIKIS_TARIHI": "3000-01-01T00:00:00.000Z"
+   },
+   {
+    "GRUP_NO": "5",
+    "GIRIS_TARIHI": "1948-01-30T00:00:00.000Z",
+    "CIKIS_TARIHI": "3000-01-01T00:00:00.000Z"
+   },
+   {
+    "GRUP_NO": "0",
+    "GIRIS_TARIHI": "1948-01-30T00:00:00.000Z",
+    "CIKIS_TARIHI": "3000-01-01T00:00:00.000Z"
+   },
+   {
+    "GRUP_NO": "3",
+    "GIRIS_TARIHI": "1948-01-30T00:00:00.000Z",
+    "CIKIS_TARIHI": "3000-01-01T00:00:00.000Z"
+   }
+  ]
+ },
+ {
+  "TR_ADI": "Türkiye İş Bankası A.Ş.",
+  "BANKA_KODU": 32,
+  "KAPANIS_TARIHI": null,
+  "KISA_ADI": null,
+  "ENG_ADI": "Türkiye İş Bankası A.Ş.",
+  "GRUPLAR": [
+   {
+    "GRUP_NO": "1",
+    "GIRIS_TARIHI": "1924-08-26T00:00:00.000Z",
+    "CIKIS_TARIHI": "3000-01-01T00:00:00.000Z"
+   },
+   {
+    "GRUP_NO": "5",
+    "GIRIS_TARIHI": "1924-08-26T00:00:00.000Z",
+    "CIKIS_TARIHI": "3000-01-01T00:00:00.000Z"
+   },
+   {
+    "GRUP_NO": "0",
+    "GIRIS_TARIHI": "1924-08-26T00:00:00.000Z",
+    "CIKIS_TARIHI": "3000-01-01T00:00:00.000Z"
+   },
+   {
+    "GRUP_NO": "3",
+    "GIRIS_TARIHI": "1924-08-26T00:00:00.000Z",
+    "CIKIS_TARIHI": "3000-01-01T00:00:00.000Z"
+   }
+  ]
+ }
+]
