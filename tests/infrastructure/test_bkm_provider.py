@@ -16,7 +16,9 @@ from mlbooster.infrastructure.providers.bkm import BkmProvider, _grid, label_key
 from mlbooster.infrastructure.providers.registry import PROVIDERS
 from mlbooster.infrastructure.storage.raw_store import RawStore
 
-# Pages recorded from bkm.com.tr on 2026-11-02; scripts, styles and the 2018-2024 tables removed (2026, 2025, 2017 kept).
+# Pages recorded from bkm.com.tr on 2026-11-02 with scripts, styles and the 2018-2024 tables removed. BKM does not allow
+# redistribution, so every number was replaced by year*10000 + month*100 + column (13 = quarter row, 14 = year row) in
+# the original format; the markup is unchanged. Real values are checked by tests/test_live_bkm.py.
 FIXTURES = Path(__file__).parent / "fixtures" / "bkm"
 BASE = "https://bkm.com.tr"
 MONTHS = ["OCAK", "ŞUBAT", "MART", "NISAN", "MAYIS", "HAZIRAN", "TEMMUZ", "AĞUSTOS", "EYLÜL", "EKİM", "KASIM", "ARALIK"]
@@ -102,8 +104,8 @@ def test_fetch_reads_whole_history_once_per_page(bkm, tmp_path):
 
     assert route.call_count == 1
     values = df.set_index(["series_id", "date"])["value"]
-    assert values[("BKM.KART.KREDI", date(2025, 3, 31))] == 132283907
-    assert values[("BKM.KART.ONODEMELI", date(2025, 4, 30))] == 101099879  # definition break Mar → Apr 2025
+    assert values[("BKM.KART.KREDI", date(2025, 3, 31))] == 20250301
+    assert values[("BKM.KART.ONODEMELI", date(2025, 4, 30))] == 20250403
     assert len(df) == 4  # quarter and year rows are not months
     assert set(df["entity_id"]) == {""} and df["entity_name"].isna().all()
     assert set(df["dataset_id"]) == {"kart-sayilari"} and set(df["unit"]) == {"count"}
@@ -123,8 +125,8 @@ def test_sector_series_sum_card_types(bkm):
     )
     assert route.call_count == 1
     values = df.set_index("series_id")["value"]
-    assert values["BKM.SEKTOR.MARKET.TUTAR"] == pytest.approx(149504.69 + 465557.62)
-    assert values["BKM.SEKTOR.MARKET.ADET"] == 330505957 + 414153122
+    assert values["BKM.SEKTOR.MARKET.TUTAR"] == pytest.approx(20260803.25 + 20260804.25)  # banka + kredi kartı
+    assert values["BKM.SEKTOR.MARKET.ADET"] == 20260801 + 20260802
     assert set(df["currency"].dropna()) == {"TRY"}
 
 
@@ -140,9 +142,9 @@ def test_three_header_rows_and_turkish_numbers(bkm):
     df = bkm.fetch(FetchRequest.create("bkm", codes, date(2017, 1, 1), date(2017, 1, 31)))
     assert len(df) == 3 and set(df["date"]) == {date(2017, 1, 31)}
     aug = bkm.fetch(FetchRequest.create("bkm", codes, date(2026, 8, 1), date(2026, 12, 31))).set_index("series_id")["value"]
-    assert aug["BKM.KK.YURTICI.TUTAR"] == pytest.approx(2531037.68)  # = "Seçilen Aya Ait Genel İstatistik", Aug 2026
-    assert aug["BKM.KK.YURTICI.ALISVERIS.ADET"] == 1119979451
-    assert aug["BKM.INTERNET.ADET"] == 255780173
+    assert aug["BKM.KK.YURTICI.TUTAR"] == pytest.approx(20260806.25)  # İşlem Tutarı / Toplam
+    assert aug["BKM.KK.YURTICI.ALISVERIS.ADET"] == 20260801  # İşlem Adedi / Alışveriş
+    assert aug["BKM.INTERNET.ADET"] == 20260806  # İşlem Adedi / Yerli ve Yabancı Kartların Yurt İçi Kullanımı / Toplam
 
 
 @respx.mock
