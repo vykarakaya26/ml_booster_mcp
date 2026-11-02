@@ -814,7 +814,7 @@ views.pazar = async (root) => {
   const sample = h("button", { type: "button", class: "ghost" }, "Örnek veriyi yükle");
   const out = h("div", { class: "stack" });
   const modeTable = h("button", { type: "button", class: "ghost small" }, "Kendi tablom");
-  const modeSource = h("button", { type: "button", class: "ghost small" }, "Kaynaktan çek (BDDK)");
+  const modeSource = h("button", { type: "button", class: "ghost small" }, "Kaynaktan çek");
   const series = h("select", { "aria-label": "Kaynak serisi" }, h("option", { value: "" }, "Yükleniyor"));
   series.disabled = true;
   const refresh = h("input", { type: "checkbox" });
@@ -1083,7 +1083,7 @@ views.pazar = async (root) => {
   };
 
   fill(root,
-    viewHead("Pazar payı", "Pazar payı ve rakipler", "Kendi pazar payı tablonuzu yükleyin ya da kaynaktan çekin (bankacılıkta BDDK banka grubu verisi): paylar, yoğunlaşma (HHI, CR3/CR5), pay kazanan ve kaybeden oyuncular, rakip seti ve segment bazında shift-share ayrıştırması hesaplanır. Tablo yalnızca bu bilgisayarda işlenir, diske yazılmaz."),
+    viewHead("Pazar payı", "Pazar payı ve rakipler", "Kendi pazar payı tablonuzu yükleyin ya da kaynaktan çekin (katalogdaki oyuncu kırılımlı kaynaklardan: BDDK, TBB, TSB, ODMD, EPDK…): paylar, yoğunlaşma (HHI, CR3/CR5), pay kazanan ve kaybeden oyuncular, rakip seti ve segment bazında shift-share ayrıştırması hesaplanır. Tablo yalnızca bu bilgisayarda işlenir, diske yazılmaz."),
     h("section", { class: "card" },
       h("div", { class: "button-row", role: "group", "aria-label": "Veri girişi" }, modeTable, modeSource),
       sourcePick,

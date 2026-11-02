@@ -154,6 +154,13 @@ Rules:
    entity_id, SEKTÖR TOPLAMI = total. `/Statistic/GetStatisticReportStatus` switches downloads to an e-mail/OTP form;
    if it is on, the provider stops (never bypassed). Catalog `remote`: `PRIM_URETIMLERI_SIRALAMA/<SHEET>[.YTD]`;
    without .YTD the monthly premium is the YTD difference. Shares: use the .YTD series.
+   EPDK (done — infrastructure/providers/epdk.py + epdk_reports.py), live observation 2026-11-02: no robots.txt (302 to
+   home), no terms-of-use page. Monthly report lists (/Detay/Icerik/3-0-104 petrol, /3-0-105 LPG) are static HTML;
+   files at /Detay/DownloadDocument?id=<id> (pinned host). 2016–2025 Word .docx (petrol table 3.2, LPG table 3.5),
+   2026+ PDF + Excel annex (table 12, long format); .doc/PDF before 2016 are not read. Catalog `remote`:
+   `petrol|lpg/<COLUMN>`; the total gets an empty `entity_id`, holders are keyed by the first two words of their title
+   (renames in `epdk.ALIASES`). Checks: holders sum to the total ±0.5 %, published shares 100±0.5, month-on-month total
+   < 3×. Office files: size-capped before decompression, XML with a DTD refused.
 6. KAP: do NOT bulk-scrape kap.org.tr; use the MKK API Portal.
 7. Google Trends: manual CSV import adapter only.
 
@@ -173,7 +180,8 @@ currency, is_proxy, vintage_ts, publication_lag_days. Key: source_id, series_id,
   entity is `TOPLAM` (default; `TOTAL` is also accepted, case-insensitive).
 
 ## Acceptance criteria (MVP)
-- 10 adapters (EVDS3 ✓, TÜİK, BDDK, TBB, EPİAŞ, EPDK, BTK, TSB, ODMD, BKM) pass the healthcheck.
+- 10 adapters (EVDS3 ✓, TÜİK ✓, BDDK ✓, TBB ✓, EPİAŞ ✓ code / healthcheck needs the user's account, EPDK ✓, BTK, TSB ✓,
+  ODMD ✓, BKM ✓) pass the healthcheck.
 - Market share series for 5 sectors (banking, insurance, telecom, automotive, fuel retail; sector IDs bankacilik,
   sigorta, telekom, otomotiv, akaryakit) in the gold panel.
 - Every source YAML has license, auth, frequency, publication_lag and verification_status filled in (enforced by
