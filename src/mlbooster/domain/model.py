@@ -110,6 +110,7 @@ class AuthKind(StrEnum):
     HEADER = "header"
     TGT = "tgt"
     REGISTRATION = "registration"
+    OAUTH = "oauth"  # OAuth access token (e.g. Google Application Default Credentials)
 
 
 class Verification(StrEnum):

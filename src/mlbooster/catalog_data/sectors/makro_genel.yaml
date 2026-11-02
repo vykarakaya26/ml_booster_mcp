@@ -21,6 +21,7 @@ macro_features:
   - {name: oecd_is_guveni, source: oecd, series: OECD.BCI.TR, transform: level}
   - {name: elektrik_tuketimi_yoy, source: epias, series: EPIAS.TUKETIM, transform: yoy_pct, agg: sum}
   - {name: ptf_yoy, source: epias, series: EPIAS.PTF, transform: yoy_pct, agg: avg}
+  - {name: google_ekonomi_gundemi, source: bq_trends, series: BQT.TOP.EKONOMI.SAYI, transform: level, agg: avg}  # search-interest proxy; history accumulates locally (30-day upstream window)
 sector_sources: [epias]
 market_share_sources: []
 ml_use_cases: ["Makro nowcasting", "Rejim tespiti", "Feature havuzu"]

@@ -1,0 +1,38 @@
+id: bq_trends
+name: Google Trends (BigQuery public dataset)
+owner: Google
+# The provider pins bigquery.googleapis.com (queries) and oauth2.googleapis.com (tokens) and reads only
+# bigquery-public-data.google_trends.international_top_terms / international_top_rising_terms for country_code 'TR'.
+base_url: https://bigquery.googleapis.com/bigquery/v2/
+access: rest_api
+auth:
+  type: oauth
+  # BQ_PROJECT_ID = billing project; credentials from GOOGLE_APPLICATION_CREDENTIALS or the gcloud ADC file.
+  env_vars: [BQ_PROJECT_ID, GOOGLE_APPLICATION_CREDENTIALS]
+rate_limit: {rps: 2, backoff: exponential, notes: "Her seri en fazla iki sorgu çalıştırır; her sorgu bölüm (refresh_date) ve ülke filtresiyle sınırlanır ve maximumBytesBilled tavanı taşır (BQ_MAX_BYTES_BILLED, varsayılan 5 GiB). BigQuery ayda 1 TiB sorguyu ücretsiz işler; sandbox projelerinde fatura hesabı gerekmez."}
+license: {attribution: required, notes: "Google Trends verisi BigQuery public dataset programı kapsamında 'olduğu gibi', garanti verilmeden sunulur; kullanım Google Hizmet Şartları'na tabidir. Açık bir lisans (ör. CC-BY) yayımlanmamıştır; ticari kullanım koşulları doğrulanmadı. Yayımlarken 'Kaynak: Google Trends' atfı verin. Sorgular kullanıcının kendi Google Cloud projesine faturalanır."}
+# Keep raw query responses out of bronze (their URL carries the user's project id); the silver store keeps the
+# observations, so the 30-day upstream window accumulates into a longer local history.
+storage: {raw: false, observations: true}
+frequency: [D, W]
+formats: [json]
+sectors: [makro_genel, akaryakit, bankacilik, otomotiv, telekom]
+publication_lag_days: 1
+verification_status: reported
+verification_notes: "2026-11-03: Şema, bölümleme ve saklama süresi Marketplace kaydından (google-trends-intl), Google Cloud blogundan ve Google'ın public-datasets-pipelines deposundan alındı: her gün ülke başına Top 25 ve Top 25 Rising terim, her biri için bölge (ISO 3166-2) bazında 5 yıllık haftalık skor; bölüm anahtarı refresh_date, bölümler 30 gün saklanır. Hesap ve proje olmadığı için canlı sorgu çalıştırılmadı; Türkiye'nin (TR) kapsandığı, tablo boyutu ve ülke düzeyinde satır olup olmadığı doğrulanmadı."
+known_breaks: ["Kaynakta yalnızca son ~30 günün listeleri tutulur; 'count' serilerinin daha eski geçmişi yalnızca yerel depoda, ilk çekimden itibaren birikir", "'interest' skorları her yenilemede 5 yıllık seri yeniden ölçeklenerek yayımlanır (en yüksek hafta = 100); eski haftalar revize olur ve terim yalnızca listeye girdiği için görünür (seçim yanlılığı)"]
+adapter: bq_trends
+priority: 30
+# remote: "<top|rising>,<count|interest>/<KEY>[+<KEY>...]"; KEY = lower-case ASCII, '_' = space, Turkish letters
+# folded (ı→i, ş→s, ...).
+# - count: per refresh_date, number of terms in the Türkiye list that contain a keyword at a word start (D).
+# - interest: weekly score of one term (KEYs = spellings); total = mean over regions, regions as entities (W).
+# Ad hoc: BQT.ILGI.<TERM> without a seed = top,interest/<term>.
+series:
+  - {code: BQT.TOP.EKONOMI.SAYI, name: "Google Trends Türkiye günlük Top 25 listesinde ekonomi terimi sayısı (dolar, altın, faiz, enflasyon, zam, asgari ücret, emekli, memur, kredi, borsa)", freq: D, kind: level, unit: count, remote: "top,count/dolar+euro+altin+faiz+enflasyon+zam+asgari+emekli+memur+kredi+borsa+bitcoin", canary: true}
+  - {code: BQT.RISING.EKONOMI.SAYI, name: "Google Trends Türkiye günlük Top 25 Rising listesinde ekonomi terimi sayısı", freq: D, kind: level, unit: count, remote: "rising,count/dolar+euro+altin+faiz+enflasyon+zam+asgari+emekli+memur+kredi+borsa+bitcoin"}
+  - {code: BQT.TOP.AKARYAKIT.SAYI, name: "Google Trends Türkiye günlük Top 25 listesinde akaryakıt terimi sayısı (benzin, motorin, mazot, akaryakıt, LPG)", freq: D, kind: level, unit: count, remote: "top,count/benzin+motorin+mazot+akaryakit+lpg+petrol"}
+  - {code: BQT.TOP.BANKA.SAYI, name: "Google Trends Türkiye günlük Top 25 listesinde bankacılık terimi sayısı (banka, kredi, kart, mevduat, faiz)", freq: D, kind: level, unit: count, remote: "top,count/banka+kredi+kart+mevduat+faiz+ziraat+halkbank+vakifbank+garanti+akbank+yapi_kredi+is_bankasi"}
+  - {code: BQT.TOP.OTOMOTIV.SAYI, name: "Google Trends Türkiye günlük Top 25 listesinde otomotiv terimi sayısı (otomobil, araba, ÖTV, Togg, marka adları)", freq: D, kind: level, unit: count, remote: "top,count/otomobil+araba+otv+togg+fiat+renault+toyota+hyundai+volkswagen+ford+tesla+byd"}
+  - {code: BQT.TOP.TELEKOM.SAYI, name: "Google Trends Türkiye günlük Top 25 listesinde telekom terimi sayısı (Turkcell, Vodafone, Türk Telekom, internet, iPhone)", freq: D, kind: level, unit: count, remote: "top,count/turkcell+vodafone+turk_telekom+turknet+superonline+internet+iphone"}
+  - {code: BQT.ILGI.TOGG, name: "Google Trends arama ilgisi: togg (haftalık, bölge ortalaması; terim listedeyken güncellenir)", freq: W, kind: level, unit: index_0_100, publication_lag_days: 2, remote: "top,interest/togg"}
