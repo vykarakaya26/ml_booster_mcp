@@ -9,6 +9,7 @@ import threading
 import time
 from collections.abc import Callable
 from dataclasses import dataclass
+from urllib.parse import urlencode
 
 import httpx
 
@@ -90,6 +91,11 @@ class SecureHttpClient:
         """POST with a JSON body (read-only query APIs that take their filter in the body)."""
         body = json.dumps(payload, ensure_ascii=False).encode("utf-8")
         return self._request("POST", url, {"Content-Type": "application/json", **(headers or {})}, body)
+
+    def post_form(self, url: str, fields: list[tuple[str, str]], headers: dict[str, str] | None = None) -> HttpResponse:
+        """POST with a form-urlencoded body (repeated keys allowed); used by report endpoints of HTML pages."""
+        body = urlencode(fields).encode("ascii")
+        return self._request("POST", url, {"Content-Type": "application/x-www-form-urlencoded", **(headers or {})}, body)
 
     def _request(self, method: str, url: str, headers: dict[str, str] | None, body: bytes | None) -> HttpResponse:
         if not url.startswith("https://"):

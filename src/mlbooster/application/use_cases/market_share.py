@@ -1,23 +1,88 @@
-"""Market share analysis: user table + (optional) sector macro panel."""
+"""Market share analysis: user table or provider series with entity rows + (optional) sector macro panel."""
 
 from __future__ import annotations
 
-from datetime import date
+from dataclasses import replace
+from datetime import date, timedelta
 from pathlib import Path
 
 import pandas as pd
 
-from mlbooster.application.ports import TableReader
-from mlbooster.application.use_cases.panel import BuildPanel
+from mlbooster.application.dto import FetchRequest
+from mlbooster.application.ports import CatalogRepository, ObservationStore, TableReader
+from mlbooster.application.use_cases.panel import BuildPanel, _asked_from, _covers_start, _is_stale
+from mlbooster.application.use_cases.series import FetchSeries
 from mlbooster.domain.errors import InvalidInput
-from mlbooster.domain.services.market_share import MAX_ROWS, ShareConfig, analyze
-from mlbooster.domain.validation import slug
+from mlbooster.domain.model import SeriesKind
+from mlbooster.domain.services.market_share import MAX_ROWS, TOTAL_ALIASES, ShareConfig, analyze
+from mlbooster.domain.validation import DateRange, series_code, slug
+
+REVISION_DAYS = 400  # a stale cache is refreshed from about a year back (covers the sources' revision windows)
+
+
+class SourceShareTable:
+    """Share table (entity, date, value) from a catalog series whose provider returns entity rows (e.g. BDDK bank
+    groups). The series total (empty entity_id) becomes the market total row `TOPLAM`.
+
+    Reads the local store first: a cache that covers the period is used as is; a stale one is topped up from about a
+    year back instead of refetching the whole history (monthly bulletins answer one month per request)."""
+
+    def __init__(self, catalog: CatalogRepository, fetch: FetchSeries, store: ObservationStore):
+        self._catalog = catalog
+        self._fetch = fetch
+        self._store = store
+
+    def __call__(
+        self, source_id: str, series_id: str, start: date, end: date | None = None, refresh: bool = False
+    ) -> tuple[pd.DataFrame, dict]:
+        source = self._catalog.load().source(slug(source_id, "source"))
+        code = series_code(series_id)
+        seed = source.seed(code)
+        if seed is None:
+            known = ", ".join(s.code for s in source.series) or "yok"
+            raise InvalidInput(f"{source.id} kataloğunda {code} serisi yok. Katalogdaki seriler: {known}")
+        period = DateRange(start, end or date.today())
+        cached = pd.DataFrame() if refresh else self._levels(source.id, code)
+        if cached.empty or not (
+            _covers_start(cached, period.start) or _asked_from(self._store.requested_start(source.id, code, "level"), period.start)
+        ):
+            self._fetch(FetchRequest.create(source.id, [code], period.start, period.end))
+        elif _is_stale(cached):
+            since = max(period.start, pd.Timestamp(cached["date"].max()).date() - timedelta(days=REVISION_DAYS))
+            self._fetch(FetchRequest.create(source.id, [code], since, period.end))
+        df = self._levels(source.id, code)
+        if not df.empty:
+            dates = pd.to_datetime(df["date"])
+            df = df[(dates >= pd.Timestamp(period.start)) & (dates <= pd.Timestamp(period.end))]
+        if df.empty:
+            raise InvalidInput(f"{code}: {period.start} – {period.end} aralığında gözlem yok")
+        entity = df["entity_id"].fillna("") != ""
+        if not entity.any():
+            raise InvalidInput(f"{code} serisi oyuncu ya da grup kırılımı içermiyor; pazar payı için kırılımlı bir seri seçin")
+        names = df["entity_name"].where(df["entity_name"].notna() & entity, df["entity_id"])
+        if names[entity].str.casefold().isin([a.casefold() for a in TOTAL_ALIASES]).any():
+            raise InvalidInput(f"{code}: oyuncu adı pazar toplamı işaretiyle çakışıyor")
+        table = pd.DataFrame(
+            {"entity": names.where(entity, TOTAL_ALIASES[0]), "date": pd.to_datetime(df["date"]).dt.strftime("%Y-%m-%d"),
+             "value": df["value"].astype(float)}
+        )  # fmt: skip
+        meta = {
+            "source": source.id, "series": code, "name": seed.name, "unit": seed.unit, "kind": seed.kind.value,
+            "is_proxy": bool(df["is_proxy"].fillna(False).astype(bool).any()),
+            "attribution": f"Kaynak: {source.owner} — {source.name}",
+        }  # fmt: skip
+        return table.reset_index(drop=True), meta
+
+    def _levels(self, source_id: str, code: str) -> pd.DataFrame:
+        df = self._store.read(source_id, [code])
+        return df[df["metric"] == "level"] if not df.empty else df
 
 
 class AnalyzeMarketShare:
-    def __init__(self, build_panel: BuildPanel, reader: TableReader):
+    def __init__(self, build_panel: BuildPanel, reader: TableReader, source_tables: SourceShareTable | None = None):
         self._build = build_panel
         self._reader = reader
+        self._source_tables = source_tables
 
     def from_file(self, path: Path, config: ShareConfig, sector_id: str | None = None, start: date | None = None) -> dict:
         return self(self._reader.read(path), config, sector_id, start)
@@ -32,6 +97,31 @@ class AnalyzeMarketShare:
         if len(records) > MAX_ROWS:
             raise InvalidInput(f"En fazla {MAX_ROWS:,} satır gönderilebilir".replace(",", "."))
         return self(pd.DataFrame.from_records(records), config, sector_id, start)
+
+    def from_source(
+        self,
+        source_id: str,
+        series_id: str,
+        config: ShareConfig,
+        start: date,
+        end: date | None = None,
+        sector_id: str | None = None,
+        refresh: bool = False,
+        kind: str | None = None,
+    ) -> dict:
+        """Shares of the entities (e.g. bank groups) of a catalog series. `kind` defaults to the catalog's series kind
+        (level → stock, flow → flow), the unit to the catalog unit; source and proxy status are added to `meta`."""
+        if self._source_tables is None:
+            raise InvalidInput("Kaynaktan pazar payı bu yapılandırmada kullanılamıyor")
+        table, meta = self._source_tables(source_id, series_id, start, end, refresh)
+        series_kind = "flow" if meta["kind"] == SeriesKind.FLOW.value else "stock"
+        config = replace(config, kind=kind or series_kind, unit=config.unit or meta["unit"] or "")
+        out = self(table, config, sector_id, start)
+        out["meta"]["source"] = meta
+        if meta["is_proxy"]:
+            out["issues"].append({"severity": "medium", "check": "proxy",
+                                  "message": "Seri doğrudan pazar verisi değil, proxy'dir; paylar yaklaşık olarak yorumlanmalıdır."})  # fmt: skip
+        return out
 
     def __call__(self, table: pd.DataFrame, config: ShareConfig, sector_id: str | None = None, start: date | None = None) -> dict:
         panel = None

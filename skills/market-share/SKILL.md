@@ -52,6 +52,11 @@ Biçim: `entity,date,value[,segment]`. `date` `YYYY-AA`, `YYYY-Qn`, `YYYY` ya da
 toplamı biliniyorsa `entity=TOPLAM` satırlarıyla ekle (`TOTAL` da kabul edilir). Bu durumda coverage oranı
 hesaplanır ve listelenmeyen oyuncular HHI'de aralık olarak yansıtılır. Ayrıntı: `references/data-sources.md`.
 - Kullanıcı dosya verdiyse onu kullan; kolon adlarını ve birimi kontrol et.
+- **Bankacılıkta banka grubu payları** için tablo hazırlamaya gerek yoktur: BDDK provider'ı veriyi doğrudan çeker.
+  `"$MLB" market-share --source bddk --series BDDK.AKTIF --start 2015-01 --json "$OUT/share.json"` (aktif;
+  `BDDK.KREDI`, `BDDK.MEVDUAT`, `BDDK.OZKAYNAK`; sahiplik kırılımı için `*.SAHIPLIK`) kamu, yerli özel ve yabancı
+  mevduat bankaları ile katılım, kalkınma ve yatırım bankalarının paylarını sektör toplamına göre hesaplar; 3. adımı
+  bu komutla birleştir. Banka bazında pay için TBB verisi gerekir.
 - Dosya yoksa sektörün kamuya açık kaynağını `references/data-sources.md` tablosundan seç. Kaynağı okuyabiliyorsan
   (WebFetch vb.) değerleri dönem dönem aktar ve her dönemin kaynağını not et. Okuyamıyorsan kullanıcıdan dosyayı
   indirmesini iste ve hangi tablonun gerektiğini tam olarak söyle.

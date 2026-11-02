@@ -295,6 +295,28 @@ def analyze_market_share(
     return container().market_share.from_records(records, config, sector)
 
 
+@server.tool(annotations=WRITES_LOCAL)
+@safe_tool
+def analyze_source_market_share(
+    source: str,
+    series: str,
+    focus: str | None = None,
+    start: str = "2015-01-01",
+    end: str | None = None,
+    sector: str | None = None,
+    refresh: bool = False,
+) -> dict:
+    """Katalogdaki oyuncu/grup kırılımlı bir seriden pazar payı analizi; tablo vermeye gerek yoktur. Örnek: source=bddk,
+    series=BDDK.AKTIF (aktif), BDDK.KREDI, BDDK.MEVDUAT; banka grupları (kamu, yerli özel ve yabancı mevduat bankaları,
+    katılım, kalkınma ve yatırım) sektör toplamına göre paylaştırılır. *.SAHIPLIK serileri kamu / yerli özel / yabancı
+    kırılımını verir. Veri yerel cache'ten okunur, eksikse kaynaktan çekilir (BDDK'da ay başına bir istek). Çıktı
+    analyze_market_share ile aynıdır; meta.source kaynak atfını ve proxy durumunu taşır."""
+    config = ShareConfig(focus=focus)
+    first = _iso(start, "start")
+    last = _iso(end, "end") if end else None
+    return container().market_share.from_source(source, series, config, first, last, sector, refresh)
+
+
 @server.tool(annotations=READ_REMOTE)
 @safe_tool
 def check_updates() -> dict:

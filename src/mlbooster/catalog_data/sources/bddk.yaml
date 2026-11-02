@@ -1,13 +1,33 @@
 id: bddk
-name: BDDK bültenleri (aylık / haftalık / FinTürk)
+name: BDDK Aylık Bülten
 owner: BDDK
-base_url: https://www.bddk.org.tr
+# The provider pins this host and posts to the bulletin's report endpoint (/BultenAylik/tr/Home/BasitRaporGetir).
+base_url: https://www.bddk.org.tr/BultenAylik/
 access: file_download
 auth: {type: none}
-license: {attribution: required, notes: "Bankaların geçici mali tablolarına dayanır; BDDK verilerin kesinliğini garanti etmez."}
-frequency: [D, W, M, Q]
-formats: [html, xlsx]
+rate_limit: {rps: 2, backoff: exponential, notes: "Her istek bir ayın tablosunu, istenen bütün banka gruplarıyla birlikte döndürür."}
+license: {commercial: false, attribution: required, notes: "BDDK kullanım şartları: kaynak gösterilerek kısmen alıntı yapılabilir; ticari amaçlı kullanım BDDK'nın yazılı iznine tabidir. Veriler bankaların BDDK'ya raporladığı konsolide olmayan bilgilerdir; BDDK doğruluk ve tamlık garantisi vermez."}
+frequency: [M]
+formats: [json, xlsx]
 sectors: [bankacilik]
-publication_lag_days: 30  # estimated
-verification_status: reported
+publication_lag_days: 30  # Sep 2026 data released on 30 Oct 2026 (news bulletin)
+verification_status: verified
+verification_notes: "2026-11-02: Aylık Bülten'in rapor uç noktası (BasitRaporGetir, form POST, JSON) anahtarsız olarak canlı test edildi. Eylül 2026 aktif, kredi ve mevduat toplamları 30 Ekim 2026 tarihli haber bülteniyle birebir aynı. Banka grupları (sahiplik ve faaliyet türü) sektör toplamını yuvarlama farkıyla tamamlıyor. robots.txt yok (404)."
+known_breaks: ["2018-01: TFRS 9; karşılık ve menkul değer kalemlerinin tanımı değişti (aktif, kredi ve mevduat toplamları süreklidir)"]
+adapter: bddk
 priority: 3
+# remote: "<table>[,<total group>+<group>+...]/<ROW_KEY>[.<column>]". The first group is the total; the others are
+# entities. Group codes: 10001 Sektör, 10002 Mevduat, 10003 Katılım, 10004 Kalkınma ve Yatırım, 10005 Yerli Özel,
+# 10006 Kamu, 10007 Yabancı, 10008 Mevduat-Yerli Özel, 10009 Mevduat-Kamu, 10010 Mevduat-Yabancı.
+# "Banka grubu" series split the sector into deposit banks by ownership plus participation and development and
+# investment banks; "sahiplik" series split it by ownership only (all bank types). Both partitions sum to the sector.
+series:
+  - {code: BDDK.AKTIF, name: "Toplam aktifler, banka grubuna göre (milyon TL)", freq: M, kind: level, unit: million_try, currency: TRY, remote: "1,10001+10009+10008+10010+10003+10004/TOPLAM_AKTIFLER", canary: true}
+  - {code: BDDK.KREDI, name: "Krediler, banka grubuna göre (milyon TL)", freq: M, kind: level, unit: million_try, currency: TRY, remote: "1,10001+10009+10008+10010+10003+10004/KREDILER"}
+  - {code: BDDK.MEVDUAT, name: "Mevduat ve katılım fonu, banka grubuna göre (milyon TL)", freq: M, kind: level, unit: million_try, currency: TRY, remote: "1,10001+10009+10008+10010+10003+10004/MEVDUAT"}
+  - {code: BDDK.OZKAYNAK, name: "Toplam özkaynaklar, banka grubuna göre (milyon TL)", freq: M, kind: level, unit: million_try, currency: TRY, remote: "1,10001+10009+10008+10010+10003+10004/TOPLAM_OZKAYNAKLAR"}
+  - {code: BDDK.AKTIF.SAHIPLIK, name: "Toplam aktifler, sahiplik yapısına göre: kamu, yerli özel, yabancı (milyon TL)", freq: M, kind: level, unit: million_try, currency: TRY, remote: "1,10001+10006+10005+10007/TOPLAM_AKTIFLER"}
+  - {code: BDDK.KREDI.SAHIPLIK, name: "Krediler, sahiplik yapısına göre: kamu, yerli özel, yabancı (milyon TL)", freq: M, kind: level, unit: million_try, currency: TRY, remote: "1,10001+10006+10005+10007/KREDILER"}
+  - {code: BDDK.MEVDUAT.SAHIPLIK, name: "Mevduat ve katılım fonu, sahiplik yapısına göre: kamu, yerli özel, yabancı (milyon TL)", freq: M, kind: level, unit: million_try, currency: TRY, remote: "1,10001+10006+10005+10007/MEVDUAT"}
+  - {code: BDDK.KREDI.TP, name: "Krediler, TL cinsinden, banka grubuna göre (milyon TL)", freq: M, kind: level, unit: million_try, currency: TRY, remote: "1,10001+10009+10008+10010+10003+10004/KREDILER.Tp"}
+  - {code: BDDK.MEVDUAT.TP, name: "Mevduat ve katılım fonu, TL cinsinden, banka grubuna göre (milyon TL)", freq: M, kind: level, unit: million_try, currency: TRY, remote: "1,10001+10009+10008+10010+10003+10004/MEVDUAT.Tp"}
