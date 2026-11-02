@@ -148,6 +148,12 @@ Rules:
    answers 302 to `/folders/2837/categorial1docs/<id>/<file>` (pinned host, Location checked by regex). xlsx from
    2015-01 (2017-02 is xls → skipped; 2014 xls and 2011–2013 PDF not integrated). Catalog `remote`:
    `perakende/<OTOMOBIL|HAFIF_TICARI|TOPLAM>.<TOPLAM|YERLI|ITHAL>`; market total = empty entity_id, brands are entities.
+   TSB (done — infrastructure/providers/tsb.py), live observation 2026-11-02: no robots.txt (404), no open licence (all
+   rights reserved). Listing: GET `/Statistic/GetStatistics` (JSON, per year/month); monthly "Prim Üretimleri
+   Sıralama" xlsx under /content/Statistics/ (pinned host), cumulative YTD TL per branch sheet, company code =
+   entity_id, SEKTÖR TOPLAMI = total. `/Statistic/GetStatisticReportStatus` switches downloads to an e-mail/OTP form;
+   if it is on, the provider stops (never bypassed). Catalog `remote`: `PRIM_URETIMLERI_SIRALAMA/<SHEET>[.YTD]`;
+   without .YTD the monthly premium is the YTD difference. Shares: use the .YTD series.
 6. KAP: do NOT bulk-scrape kap.org.tr; use the MKK API Portal.
 7. Google Trends: manual CSV import adapter only.
 
