@@ -1,0 +1,54 @@
+{
+ "Result": [
+  {
+   "Id": 985,
+   "FileName": "Prim Üretimleri Sıralama 2014-9",
+   "FilePath": "/content/Statistics/3_Prim_Uretimleri_Sıralama_2014-9.xls",
+   "StatisticPeriodName": null,
+   "CategoryUrl": "genel-sigorta-verileri",
+   "LanguageAbbreviation": "tr-TR",
+   "CreatedDate": "2021-03-01T11:53:00",
+   "PeriodYear": 2014,
+   "SubCategoryUrl": "prim-adet",
+   "PeriodMonth": 9,
+   "StatisticCategoryId": 1,
+   "StatisticSubCategoryId": 1,
+   "StatisticPeriodId": 0,
+   "Order": 99430
+  },
+  {
+   "Id": 987,
+   "FileName": "Direkt Endirekt Primler 2014-9",
+   "FilePath": "/content/Statistics/1_Direkt_Endirekt_Primler_2014-9.xls",
+   "StatisticPeriodName": null,
+   "CategoryUrl": "genel-sigorta-verileri",
+   "LanguageAbbreviation": "tr-TR",
+   "CreatedDate": "2021-03-01T11:45:00",
+   "PeriodYear": 2014,
+   "SubCategoryUrl": "prim-adet",
+   "PeriodMonth": 9,
+   "StatisticCategoryId": 1,
+   "StatisticSubCategoryId": 1,
+   "StatisticPeriodId": 0,
+   "Order": 99421
+  },
+  {
+   "Id": 983,
+   "FileName": "Kasko 1 2014-9",
+   "FilePath": "/content/Statistics/5_KaskoPrimAdet_2014-9.xls",
+   "StatisticPeriodName": null,
+   "CategoryUrl": "genel-sigorta-verileri",
+   "LanguageAbbreviation": "tr-TR",
+   "CreatedDate": "2021-03-01T11:58:00",
+   "PeriodYear": 2014,
+   "SubCategoryUrl": "prim-adet",
+   "PeriodMonth": 9,
+   "StatisticCategoryId": 1,
+   "StatisticSubCategoryId": 1,
+   "StatisticPeriodId": 0,
+   "Order": 99422
+  }
+ ],
+ "TotalCount": 8,
+ "PagePeriod": 0
+}

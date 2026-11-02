@@ -18,6 +18,7 @@ from mlbooster.domain.services.market_share import MAX_ROWS, TOTAL_ALIASES, Shar
 from mlbooster.domain.validation import DateRange, series_code, slug
 
 REVISION_DAYS = 400  # a stale cache is refreshed from about a year back (covers the sources' revision windows)
+NEGATIVE_TOLERANCE = 0.005  # negative entity amounts up to 0.5% of the market total are counted as zero
 
 
 class SourceShareTable:
@@ -59,23 +60,50 @@ class SourceShareTable:
         entity = df["entity_id"].fillna("") != ""
         if not entity.any():
             raise InvalidInput(f"{code} serisi oyuncu ya da grup kırılımı içermiyor; pazar payı için kırılımlı bir seri seçin")
-        names = df["entity_name"].where(df["entity_name"].notna() & entity, df["entity_id"])
+        # A renamed player (e.g. an insurer after a merger) keeps one label: its latest name in the cache.
+        named = df[entity & df["entity_name"].notna()].sort_values("date")
+        latest = named.groupby("entity_id")["entity_name"].last()
+        names = df["entity_id"].map(latest).where(entity).fillna(df["entity_id"])
         if names[entity].str.casefold().isin([a.casefold() for a in TOTAL_ALIASES]).any():
             raise InvalidInput(f"{code}: oyuncu adı pazar toplamı işaretiyle çakışıyor")
+        values, negative = _without_negatives(df, entity, code)
         table = pd.DataFrame(
             {"entity": names.where(entity, TOTAL_ALIASES[0]), "date": pd.to_datetime(df["date"]).dt.strftime("%Y-%m-%d"),
-             "value": df["value"].astype(float)}
+             "value": values}
         )  # fmt: skip
         meta = {
             "source": source.id, "series": code, "name": seed.name, "unit": seed.unit, "kind": seed.kind.value,
             "is_proxy": bool(df["is_proxy"].fillna(False).astype(bool).any()),
             "attribution": f"Kaynak: {source.owner} — {source.name}",
         }  # fmt: skip
+        if negative:
+            meta["negative_rows"] = negative
         return table.reset_index(drop=True), meta
 
     def _levels(self, source_id: str, code: str) -> pd.DataFrame:
         df = self._store.read(source_id, [code])
         return df[df["metric"] == "level"] if not df.empty else df
+
+
+def _without_negatives(df: pd.DataFrame, entity: pd.Series, code: str) -> tuple[pd.Series, int]:
+    """Entity values with net negative amounts set to zero. Source data can carry them legitimately (e.g. insurance
+    premiums net of cancellations), but a share cannot be negative; above a small tolerance of the market total the
+    series is not usable for shares (e.g. monthly differences around a merger) and is refused."""
+    values = df["value"].astype(float)
+    negative = entity & (values < 0)
+    if not negative.any():
+        return values, 0
+    dates = pd.to_datetime(df["date"])
+    shortfall = (-values[negative]).groupby(dates[negative]).sum()
+    totals = values[~entity].groupby(dates[~entity]).sum().reindex(shortfall.index)
+    ratio = (shortfall / totals.abs()).fillna(float("inf"))
+    if (ratio > NEGATIVE_TOLERANCE).any():
+        worst = ratio.idxmax()
+        raise InvalidInput(
+            f"{code}: bazı dönemlerde oyuncuların negatif net tutarları pazar toplamının %0,5'ini aşıyor "
+            f"(ör. {worst:%Y-%m}); bu seriyle pay hesaplanamaz. Kaynağın birikimli ya da stok niteliğindeki serisini seçin."
+        )
+    return values.where(~negative, 0.0), int(negative.sum())
 
 
 class AnalyzeMarketShare:
@@ -118,6 +146,9 @@ class AnalyzeMarketShare:
         config = replace(config, kind=kind or series_kind, unit=config.unit or meta["unit"] or "")
         out = self(table, config, sector_id, start)
         out["meta"]["source"] = meta
+        if meta.get("negative_rows"):
+            out["issues"].append({"severity": "info", "check": "negative_values",
+                                  "message": f"{meta['negative_rows']} satırda negatif net tutar (iptal, iade) vardı; pay hesabında sıfır kabul edildi."})  # fmt: skip
         if meta["is_proxy"]:
             out["issues"].append({"severity": "medium", "check": "proxy",
                                   "message": "Seri doğrudan pazar verisi değil, proxy'dir; paylar yaklaşık olarak yorumlanmalıdır."})  # fmt: skip
