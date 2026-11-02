@@ -37,6 +37,7 @@ from mlbooster.application.use_cases import (
     RunHealthChecks,
     SearchSeries,
     SetFeatureSeries,
+    SourceShareTable,
 )
 from mlbooster.infrastructure.catalog_yaml import YamlCatalogRepository
 from mlbooster.infrastructure.providers.registry import ProviderRegistry
@@ -131,7 +132,9 @@ class Container:
 
     @cached_property
     def market_share(self) -> AnalyzeMarketShare:
-        return AnalyzeMarketShare(self.build_panel, self._tables)
+        return AnalyzeMarketShare(
+            self.build_panel, self._tables, SourceShareTable(self.catalog, self.fetch_series, self.observations)
+        )
 
     @property
     def _tables(self) -> TableReader:

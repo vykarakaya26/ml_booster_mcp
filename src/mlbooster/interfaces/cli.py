@@ -394,29 +394,42 @@ def features(
 
 @app.command("market-share")
 def market_share(
-    input: Annotated[Path, typer.Option("--input", help="Pazar payı tablosu (.csv/.json): entity, date, value[, segment]")],
+    input: Annotated[Path | None, typer.Option("--input", help="Pazar payı tablosu (.csv/.json): entity, date, value[, segment]")] = None,
+    source: Annotated[str | None, typer.Option(help="--input yerine katalog kaynağı (ör. bddk); --series ile birlikte")] = None,
+    series: Annotated[str | None, typer.Option(help="Oyuncu/grup kırılımlı katalog serisi (ör. BDDK.AKTIF, BDDK.KREDI)")] = None,
+    refresh: Annotated[bool, typer.Option(help="--source ile: yerel cache'i yok sayıp veriyi yeniden çek")] = False,
     focus: Annotated[str | None, typer.Option(help="Odak oyuncu (rakip seti bu oyuncuya göre çıkarılır)")] = None,
     measure: Annotated[str, typer.Option(help="value (tutar/adet) | share (yüzde pay)")] = "value",
-    kind: Annotated[str, typer.Option(help="flow (satış, prim gibi dönemlik akım) | stock (abone, mevduat gibi stok)")] = "flow",
+    kind: Annotated[str | None, typer.Option(help="flow (satış, prim gibi dönemlik akım) | stock (abone, mevduat gibi stok); varsayılan flow, --source ile katalogdaki seri türü")] = None,
     unit: Annotated[str, typer.Option(help="Değer birimi (ör. adet, TL, abone)")] = "",
     total_entity: Annotated[str, typer.Option(help="Pazar toplamını taşıyan satırların oyuncu adı (TOTAL da kabul edilir)")] = "TOPLAM",
     basis: Annotated[str, typer.Option(help="auto | period (dönemlik) | ttm (son 12 ay toplamı)")] = "auto",
     trend_years: Annotated[int, typer.Option(help="Eğilim penceresi (yıl)")] = 3,
     top_n: Annotated[int, typer.Option(help="Grafikte ayrı gösterilecek oyuncu sayısı")] = 8,
     sector: Annotated[str | None, typer.Option(help="Sektör id: verilirse pazar büyümesi makro panelle ilişkilendirilir")] = None,
-    start: Annotated[str, typer.Option(help="Makro panel başlangıcı, YYYY-AA[-GG]")] = DEFAULT_START.isoformat(),
+    start: Annotated[str, typer.Option(help="Makro panel ve --source verisinin başlangıcı, YYYY-AA[-GG]")] = DEFAULT_START.isoformat(),
+    end: Annotated[str | None, typer.Option(help="--source ile: bitiş, YYYY-AA[-GG], varsayılan bugün")] = None,
     json_out: Annotated[Path | None, typer.Option("--json", help="Analizi bu JSON dosyasına yaz")] = None,
 ):
-    """Pazar payı analizi: paylar, yoğunlaşma (HHI, CR-k), oyuncu dinamikleri, rakip seti, segment bazında shift-share ayrıştırması."""
+    """Pazar payı analizi: paylar, yoğunlaşma (HHI, CR-k), oyuncu dinamikleri, rakip seti, segment bazında shift-share ayrıştırması.
+    Girdi bir tablo (--input) ya da oyuncu/grup kırılımlı bir katalog serisidir (--source bddk --series BDDK.AKTIF)."""
+    if (input is None) == (source is None) or (source is None) != (series is None):
+        _fail(ValueError("--input ya da --source ile --series birlikte verilmelidir (ikisi aynı anda değil)"))
     try:
-        config = ShareConfig(focus=focus, measure=measure, kind=kind, total_entity=total_entity, basis=basis,
+        config = ShareConfig(focus=focus, measure=measure, kind=kind or "flow", total_entity=total_entity, basis=basis,
                              trend_years=trend_years, top_n=top_n, unit=unit)  # fmt: skip
-        result = container().market_share.from_file(input, config, sector, _date(start))
+        if source is not None:
+            typer.echo(f"{source} kaynağından {series} çekiliyor (yerel cache kullanılır; ilk çekim birkaç dakika sürebilir)", err=True)
+            result = container().market_share.from_source(source, series, config, _date(start), _date(end), sector, refresh, kind)
+        else:
+            result = container().market_share.from_file(input, config, sector, _date(start))
     except DomainError as exc:
         _fail(exc)
     if json_out is not None:
         _write_json(result, json_out)
     meta, conc = result["meta"], result["concentration"]["latest"]
+    if src := meta.get("source"):
+        typer.echo(f"{src['name']} · {src['attribution']}")
     typer.echo(f"Dönem {meta['first']} – {meta['last']} · taban: {BASIS_LABELS.get(meta['basis'], meta['basis'])} · {meta['entities']} oyuncu")
     typer.echo(f"HHI {tr_num(conc['hhi'], ',.0f')} ({HHI_CLASS_LABELS.get(conc['class'], conc['class'])}) · CR3 %{tr_num(conc['cr3'], '.1f')} · "
                f"eşdeğer oyuncu {tr_num(conc['equivalent_players'], '.1f')}")

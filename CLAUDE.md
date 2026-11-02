@@ -106,6 +106,17 @@ Rules:
 3. EPİAŞ: POST https://giris.epias.com.tr/cas/v1/tickets (body: username, password; form-urlencoded),
    TGT cached for 8 hours, header "TGT". ≤60 requests/s, ≤1500/min; 429 → wait 30 s.
 4. BDDK / TBB / BKM: HTML tables + Excel downloads; change detection by file hash.
+   BDDK (done — infrastructure/providers/bddk.py), live observation 2026-11-02: no robots.txt (404); the terms of use
+   allow quotation with attribution, commercial use needs BDDK's written permission.
+   - The Aylık Bülten table is filled from POST `www.bddk.org.tr/BultenAylik/tr/Home/BasitRaporGetir` (pinned host;
+     form-urlencoded `tabloNo`, `yil`, `ay`, `paraBirimi`, repeated `taraf`) → JSON `{success, Json: {colModels,
+     data.rows[].cell}}`; one month per call, all requested bank groups at once, sorted by group code. The Excel
+     download (BasitExceleAktar) carries the same values. Raw responses go to bronze (content hash).
+   - Unpublished months → `success: false` with a message naming the available months (parsed to skip requests).
+   - Row labels change over time; rows are matched by `row_key()` (ASCII upper case, no stars or parentheses).
+   - Catalog `remote`: `<table>[,<total group>+<group>...]/<ROW_KEY>[.<column>]`; the total gets an empty
+     `entity_id`, the groups are entities (entity_id = group code). Panels use the total only; `market-share
+     --source bddk --series BDDK.AKTIF` turns the groups into shares (total → `TOPLAM`).
 5. BTK / ODMD / EPDK / TSB: monitor the announcement page, download the new PDF/Excel, extract with a parser,
    validate (shares sum to 100±0.5, consistency with the previous period), write to silver.
 6. KAP: do NOT bulk-scrape kap.org.tr; use the MKK API Portal.

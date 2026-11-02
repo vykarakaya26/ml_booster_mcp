@@ -7,7 +7,7 @@ Türkiye için ücretsiz veri kaynaklarını sektör bazında haritalayan ve ML'
 - **CLI / Python paketi**: `mlbooster`.
 - **Yerel web paneli**: `mlbooster web`. Sektörü, tarih aralığını, hedef seriyi ve modelleri tarayıcıdan seçersiniz; yalnızca bu bilgisayarda (127.0.0.1) çalışır.
 
-> **Durum:** Katalog 12 kaynak ve 9 sektör içeriyor (bankacılık, sigorta, telekom, otomotiv, akaryakıt, perakende, turizm, konut, makro_genel). Veri çeken provider'lar **TCMB EVDS3**, **TÜİK**, **BIS** ve **OECD**; dördü de canlı doğrulandı. BDDK, TBB, EPİAŞ, EPDK, BTK, TSB, ODMD ve BKM haritada yer alıyor ancak henüz veri çekmiyor; bu kaynakların adapter'ları yol haritasında.
+> **Durum:** Katalog 12 kaynak ve 9 sektör içeriyor (bankacılık, sigorta, telekom, otomotiv, akaryakıt, perakende, turizm, konut, makro_genel). Veri çeken provider'lar **TCMB EVDS3**, **TÜİK**, **BDDK**, **BIS** ve **OECD**; beşi de canlı doğrulandı. TBB, EPİAŞ, EPDK, BTK, TSB, ODMD ve BKM haritada yer alıyor ancak henüz veri çekmiyor; bu kaynakların adapter'ları yol haritasında.
 
 ### Veri kapsamı
 | Frekans | Seriler (örnekler) | Kaynak |
@@ -15,6 +15,7 @@ Türkiye için ücretsiz veri kaynaklarını sektör bazında haritalayan ve ML'
 | Günlük (iş günü) | USD/TRY, EUR/TRY, BIST 100, TLREF, AOFM, politika faizi | EVDS, BIS |
 | Haftalık | Sektörel kartlı harcamalar (toplam ve 14 sektör: market, giyim, yakıt, konaklama, havayolu, internet…), TCMB rezervleri, M2, kredi ve mevduat faizleri | EVDS |
 | Aylık | TÜFE (2025=100), ÜFE, PKA enflasyon beklentisi, işsizlik oranı, sanayi üretimi, perakende satış hacmi, kapasite kullanımı, konut fiyat endeksi ve satışları, OSD üretimi, güven endeksleri, BKM kartlı ödeme endeksi, reel/nominal efektif kur, OECD öncü göstergesi ve güven endeksleri | EVDS, TÜİK, BIS, OECD |
+| Aylık, banka grubuna göre | Bankacılık sektörünün toplam aktifleri, kredileri, mevduatı ve özkaynakları; kamu, yerli özel ve yabancı mevduat bankaları, katılım bankaları, kalkınma ve yatırım bankaları (ayrıca sahiplik kırılımı: kamu, yerli özel, yabancı) | BDDK Aylık Bülten |
 | Çeyreklik | Brüt dış borç, konut fiyatları (BIS), özel sektör kredisi/GSYH | EVDS, BIS |
 
 Paneller aylık (varsayılan), haftalık (`--freq W`, Cuma) ya da iş günü frekansında (`--freq B`) üretilebilir. Her frekansta point-in-time kuralı geçerlidir.
@@ -87,7 +88,7 @@ pip install "git+https://github.com/vykarakaya26/ml_booster_mcp.git"
 claude mcp add mlbooster -- mlbooster-mcp
 ```
 
-Araçlar: `list_sectors`, `list_sources`, `show_map`, `search_series`, `discover_series`, `set_feature_series`, `fetch_series`, `build_panel`, `audit_panel`, `run_backtest`, `prepare_panel`, `engineer_features`, `analyze_market_share`, `health`, `check_updates`.
+Araçlar: `list_sectors`, `list_sources`, `show_map`, `search_series`, `discover_series`, `set_feature_series`, `fetch_series`, `build_panel`, `audit_panel`, `run_backtest`, `prepare_panel`, `engineer_features`, `analyze_market_share`, `analyze_source_market_share`, `health`, `check_updates`.
 
 Seri kodlarını keşfetmek için TCMB'nin resmi EVDS-MCP sunucusu da eklenebilir:
 `claude mcp add --transport http evds https://mcp.tcmb.gov.tr/tcmb-mcp/evds/mcp`
@@ -109,6 +110,7 @@ mlbooster prep --sector makro_genel --target tufe_yoy --train-end 2022-12 --out 
 mlbooster features --sector makro_genel --target tufe_yoy --train-end 2022-12 --selected-out secilen.csv --json features.json
 mlbooster backtest --sector makro_genel --target tufe_yoy --panel-file secilen.csv --eval-start 2022-12  # seçim sonrası dönemde ölç
 mlbooster market-share --input pay.csv --focus "Marka X" --unit adet --sector otomotiv --json share.json
+mlbooster market-share --source bddk --series BDDK.AKTIF --start 2019-01 --focus Katılım  # banka grubu payları (BDDK)
 mlbooster health
 mlbooster web                                             # yerel web paneli: http://127.0.0.1:8765
 ```
@@ -191,6 +193,7 @@ flowchart LR
 Bu araç veri dağıtmaz; her kullanıcı veriyi kendi API key'iyle kaynaklardan çeker. Verilerin kullanım koşulları kaynak kurumlara aittir:
 
 - **TCMB EVDS:** Veriler kaynak gösterilerek kullanılabilir ve yayımlanabilir. Ticari bir üründe kullanıldığında veri, kullanıcılara/abonelere **ek ücret olarak yansıtılamaz**.
+- **BDDK:** Kaynak gösterilerek kısmen alıntı yapılabilir; **ticari amaçlı kullanım BDDK'nın yazılı iznine tabidir**. Veriler bankaların raporladığı konsolide olmayan bilgilerdir.
 - **TSB, ODMD, BKM, TBB vb.:** Açık veri lisansı yayımlamıyorlar. Ticari kullanım ve yeniden dağıtım öncesinde ilgili kurumun site koşullarını kontrol edin.
 - Proxy pazar payları (KAP gelirleri, Google Trends) gerçek pazar payı değildir ve `is_proxy` bayrağıyla ayrı tutulur.
 

@@ -1,0 +1,522 @@
+{
+ "success": true,
+ "Json": {
+  "colNames": [
+   "",
+   "",
+   "",
+   "BasitFont",
+   "TP",
+   "YP",
+   "Toplam"
+  ],
+  "colModels": [
+   {
+    "name": "BankaAdi",
+    "index": "BankaAdi",
+    "align": "left",
+    "sortable": false
+   },
+   {
+    "name": "BasitSira",
+    "index": "BasitSira",
+    "align": "center",
+    "sortable": false,
+    "sorttype": "int",
+    "width": "30"
+   },
+   {
+    "name": "Ad",
+    "index": "Ad",
+    "align": "left",
+    "sortable": false,
+    "width": "318"
+   },
+   {
+    "name": "BasitFont",
+    "index": "BasitFont",
+    "align": "left",
+    "sortable": false,
+    "hidden": true
+   },
+   {
+    "name": "Tp",
+    "index": "Tp",
+    "align": "right",
+    "width": "60",
+    "formatter": "integer",
+    "formatoptions": {
+     "thousandsSeparator": ".",
+     "defaultValue": "0"
+    },
+    "sortable": false
+   },
+   {
+    "name": "Yp",
+    "index": "Yp",
+    "align": "right",
+    "width": "60",
+    "formatter": "integer",
+    "formatoptions": {
+     "thousandsSeparator": ".",
+     "defaultValue": "0"
+    },
+    "sortable": false
+   },
+   {
+    "name": "Toplam",
+    "index": "Toplam",
+    "align": "right",
+    "width": "60",
+    "formatter": "integer",
+    "formatoptions": {
+     "thousandsSeparator": ".",
+     "defaultValue": "0"
+    },
+    "sortable": false
+   }
+  ],
+  "data": {
+   "page": "1",
+   "total": "1",
+   "records": "36",
+   "rows": [
+    {
+     "id": "10",
+     "cell": [
+      "Sektör",
+      10,
+      "Krediler*",
+      "",
+      18366372,
+      10399286,
+      28765658
+     ]
+    },
+    {
+     "id": "26",
+     "cell": [
+      "Sektör",
+      26,
+      "TOPLAM AKTİFLER",
+      "bold",
+      35775234,
+      21206815,
+      56982049
+     ]
+    },
+    {
+     "id": "27",
+     "cell": [
+      "Sektör",
+      27,
+      "Mevduat (Katılım Fonu)***",
+      "",
+      20165824,
+      12602623,
+      32768446
+     ]
+    },
+    {
+     "id": "55",
+     "cell": [
+      "Sektör",
+      55,
+      "TOPLAM ÖZKAYNAKLAR",
+      "bold",
+      4861867,
+      -26293,
+      4835574
+     ]
+    },
+    {
+     "id": "10",
+     "cell": [
+      "Katılım",
+      10,
+      "Krediler*",
+      "",
+      1409187,
+      925885,
+      2335071
+     ]
+    },
+    {
+     "id": "26",
+     "cell": [
+      "Katılım",
+      26,
+      "TOPLAM AKTİFLER",
+      "bold",
+      2742295,
+      2718814,
+      5461109
+     ]
+    },
+    {
+     "id": "27",
+     "cell": [
+      "Katılım",
+      27,
+      "Mevduat (Katılım Fonu)***",
+      "",
+      1728858,
+      1814524,
+      3543382
+     ]
+    },
+    {
+     "id": "55",
+     "cell": [
+      "Katılım",
+      55,
+      "TOPLAM ÖZKAYNAKLAR",
+      "bold",
+      377566,
+      -1893,
+      375672
+     ]
+    },
+    {
+     "id": "10",
+     "cell": [
+      "Kalkınma ve Yatırım",
+      10,
+      "Krediler*",
+      "",
+      797452,
+      1296014,
+      2093466
+     ]
+    },
+    {
+     "id": "26",
+     "cell": [
+      "Kalkınma ve Yatırım",
+      26,
+      "TOPLAM AKTİFLER",
+      "bold",
+      2110620,
+      1654253,
+      3764874
+     ]
+    },
+    {
+     "id": "27",
+     "cell": [
+      "Kalkınma ve Yatırım",
+      27,
+      "Mevduat (Katılım Fonu)***",
+      "",
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "id": "55",
+     "cell": [
+      "Kalkınma ve Yatırım",
+      55,
+      "TOPLAM ÖZKAYNAKLAR",
+      "bold",
+      586415,
+      -313,
+      586102
+     ]
+    },
+    {
+     "id": "10",
+     "cell": [
+      "Yerli Özel",
+      10,
+      "Krediler*",
+      "",
+      5430316,
+      2799596,
+      8229912
+     ]
+    },
+    {
+     "id": "26",
+     "cell": [
+      "Yerli Özel",
+      26,
+      "TOPLAM AKTİFLER",
+      "bold",
+      10374395,
+      5745527,
+      16119922
+     ]
+    },
+    {
+     "id": "27",
+     "cell": [
+      "Yerli Özel",
+      27,
+      "Mevduat (Katılım Fonu)***",
+      "",
+      5588582,
+      3654787,
+      9243369
+     ]
+    },
+    {
+     "id": "55",
+     "cell": [
+      "Yerli Özel",
+      55,
+      "TOPLAM ÖZKAYNAKLAR",
+      "bold",
+      1412691,
+      -1020,
+      1411672
+     ]
+    },
+    {
+     "id": "10",
+     "cell": [
+      "Kamu",
+      10,
+      "Krediler*",
+      "",
+      8128323,
+      5288334,
+      13416656
+     ]
+    },
+    {
+     "id": "26",
+     "cell": [
+      "Kamu",
+      26,
+      "TOPLAM AKTİFLER",
+      "bold",
+      16624127,
+      10265074,
+      26889201
+     ]
+    },
+    {
+     "id": "27",
+     "cell": [
+      "Kamu",
+      27,
+      "Mevduat (Katılım Fonu)***",
+      "",
+      9731758,
+      5501354,
+      15233112
+     ]
+    },
+    {
+     "id": "55",
+     "cell": [
+      "Kamu",
+      55,
+      "TOPLAM ÖZKAYNAKLAR",
+      "bold",
+      2013945,
+      -21355,
+      1992590
+     ]
+    },
+    {
+     "id": "10",
+     "cell": [
+      "Yabancı",
+      10,
+      "Krediler*",
+      "",
+      4807733,
+      2311357,
+      7119090
+     ]
+    },
+    {
+     "id": "26",
+     "cell": [
+      "Yabancı",
+      26,
+      "TOPLAM AKTİFLER",
+      "bold",
+      8776712,
+      5196215,
+      13972927
+     ]
+    },
+    {
+     "id": "27",
+     "cell": [
+      "Yabancı",
+      27,
+      "Mevduat (Katılım Fonu)***",
+      "",
+      4845484,
+      3446481,
+      8291966
+     ]
+    },
+    {
+     "id": "55",
+     "cell": [
+      "Yabancı",
+      55,
+      "TOPLAM ÖZKAYNAKLAR",
+      "bold",
+      1435230,
+      -3919,
+      1431312
+     ]
+    },
+    {
+     "id": "10",
+     "cell": [
+      "Mevduat-Yerli Özel",
+      10,
+      "Krediler*",
+      "",
+      5182334,
+      2443802,
+      7626135
+     ]
+    },
+    {
+     "id": "26",
+     "cell": [
+      "Mevduat-Yerli Özel",
+      26,
+      "TOPLAM AKTİFLER",
+      "bold",
+      9774280,
+      5218464,
+      14992744
+     ]
+    },
+    {
+     "id": "27",
+     "cell": [
+      "Mevduat-Yerli Özel",
+      27,
+      "Mevduat (Katılım Fonu)***",
+      "",
+      5519518,
+      3576112,
+      9095629
+     ]
+    },
+    {
+     "id": "55",
+     "cell": [
+      "Mevduat-Yerli Özel",
+      55,
+      "TOPLAM ÖZKAYNAKLAR",
+      "bold",
+      1253392,
+      -1459,
+      1251933
+     ]
+    },
+    {
+     "id": "10",
+     "cell": [
+      "Mevduat-Kamu",
+      10,
+      "Krediler*",
+      "",
+      6876182,
+      3889729,
+      10765911
+     ]
+    },
+    {
+     "id": "26",
+     "cell": [
+      "Mevduat-Kamu",
+      26,
+      "TOPLAM AKTİFLER",
+      "bold",
+      13746170,
+      7745587,
+      21491757
+     ]
+    },
+    {
+     "id": "27",
+     "cell": [
+      "Mevduat-Kamu",
+      27,
+      "Mevduat (Katılım Fonu)***",
+      "",
+      8867262,
+      4718454,
+      13585716
+     ]
+    },
+    {
+     "id": "55",
+     "cell": [
+      "Mevduat-Kamu",
+      55,
+      "TOPLAM ÖZKAYNAKLAR",
+      "bold",
+      1434433,
+      -19350,
+      1415083
+     ]
+    },
+    {
+     "id": "10",
+     "cell": [
+      "Mevduat-Yabancı",
+      10,
+      "Krediler*",
+      "",
+      4101218,
+      1843857,
+      5945075
+     ]
+    },
+    {
+     "id": "26",
+     "cell": [
+      "Mevduat-Yabancı",
+      26,
+      "TOPLAM AKTİFLER",
+      "bold",
+      7401869,
+      3869697,
+      11271566
+     ]
+    },
+    {
+     "id": "27",
+     "cell": [
+      "Mevduat-Yabancı",
+      27,
+      "Mevduat (Katılım Fonu)***",
+      "",
+      4050185,
+      2493534,
+      6543719
+     ]
+    },
+    {
+     "id": "55",
+     "cell": [
+      "Mevduat-Yabancı",
+      55,
+      "TOPLAM ÖZKAYNAKLAR",
+      "bold",
+      1210061,
+      -3278,
+      1206783
+     ]
+    }
+   ]
+  },
+  "caption": "Bilanço (milyon TL), Dönem:2026/9",
+  "uyari": "<br/>* Bankalar tarafından diğer bankalara kullandırılan krediler, “Krediler” kalemi içerisinde yer almamaktadır. Bu tür",
+  "duyurular": ""
+ }
+}
