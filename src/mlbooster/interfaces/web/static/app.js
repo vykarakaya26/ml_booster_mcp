@@ -1083,7 +1083,7 @@ views.pazar = async (root) => {
   };
 
   fill(root,
-    viewHead("Pazar payı", "Pazar payı ve rakipler", "Kendi pazar payı tablonuzu yükleyin ya da kaynaktan çekin (katalogdaki oyuncu kırılımlı kaynaklardan: BDDK, TBB, TSB, ODMD, EPDK…): paylar, yoğunlaşma (HHI, CR3/CR5), pay kazanan ve kaybeden oyuncular, rakip seti ve segment bazında shift-share ayrıştırması hesaplanır. Tablo yalnızca bu bilgisayarda işlenir, diske yazılmaz."),
+    viewHead("Pazar payı", "Pazar payı ve rakipler", "Kendi pazar payı tablonuzu yükleyin ya da kaynaktan çekin (katalogdaki oyuncu kırılımlı kaynaklardan: BDDK, TBB, TSB, BTK, ODMD, EPDK): paylar, yoğunlaşma (HHI, CR3/CR5), pay kazanan ve kaybeden oyuncular, rakip seti ve segment bazında shift-share ayrıştırması hesaplanır. Tablo yalnızca bu bilgisayarda işlenir, diske yazılmaz."),
     h("section", { class: "card" },
       h("div", { class: "button-row", role: "group", "aria-label": "Veri girişi" }, modeTable, modeSource),
       sourcePick,

@@ -122,6 +122,8 @@ class SourceSchema(_Strict):
     adapter: str | None = None
     priority: int = 99
     storage: StorageSchema = Field(default_factory=StorageSchema)
+    # Response size limit in MB; raise it only for sources that publish large files (hard cap 200 MB).
+    max_response_mb: int = Field(default=50, ge=1, le=200)
     series: list[SeedSchema] = Field(default_factory=list)
 
     @field_validator("id")
@@ -169,6 +171,7 @@ class SourceSchema(_Strict):
             priority=self.priority,
             series=tuple(SeedSeries(**s.model_dump()) for s in self.series),
             storage=StoragePolicy(self.storage.raw, self.storage.observations),
+            max_response_mb=self.max_response_mb,
         )
 
 

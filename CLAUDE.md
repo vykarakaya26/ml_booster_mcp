@@ -161,6 +161,14 @@ Rules:
    `petrol|lpg/<COLUMN>`; the total gets an empty `entity_id`, holders are keyed by the first two words of their title
    (renames in `epdk.ALIASES`). Checks: holders sum to the total ±0.5 %, published shares 100±0.5, month-on-month total
    < 3×. Office files: size-capped before decompression, XML with a DTD refused.
+   BTK (done — infrastructure/providers/btk.py), live observation 2026-11-02: robots.txt allows all but /api/ and
+   /_next/; no terms page (footer "Tüm Hakları Saklıdır": attribution, no redistribution, no commercial use). Report
+   list /elektronik-haberlesme-pazar-verileri (server-rendered HTML, one PDF per quarter, 2009-Q1 →; 2018-Q2/Q4
+   missing); PDFs on the same host under /s3/, 40–46 MB (`max_response_mb: 150` for this source). Only the text layer
+   is read through PDFium (signature check, nothing rendered): Çizelge 1-3 (operator revenue), 3-1, 3-2 (fixed
+   broadband) and the mobile share sentence (charts are images, so mobile subscriber counts by operator are not
+   available). Tables must add up (shares 100±0.5, operators = printed total) or they are rejected (2025-Q4 fixed
+   broadband, 2021-Q1 unreadable text layer: known_breaks). Lag 99 days. Catalog `remote`: `<table>/<column>`.
 6. KAP: do NOT bulk-scrape kap.org.tr; use the MKK API Portal.
 7. Google Trends: manual CSV import adapter only.
 
@@ -180,7 +188,7 @@ currency, is_proxy, vintage_ts, publication_lag_days. Key: source_id, series_id,
   entity is `TOPLAM` (default; `TOTAL` is also accepted, case-insensitive).
 
 ## Acceptance criteria (MVP)
-- 10 adapters (EVDS3 ✓, TÜİK ✓, BDDK ✓, TBB ✓, EPİAŞ ✓ code / healthcheck needs the user's account, EPDK ✓, BTK, TSB ✓,
+- 10 adapters (EVDS3 ✓, TÜİK ✓, BDDK ✓, TBB ✓, EPİAŞ ✓ code / healthcheck needs the user's account, EPDK ✓, BTK ✓, TSB ✓,
   ODMD ✓, BKM ✓) pass the healthcheck.
 - Market share series for 5 sectors (banking, insurance, telecom, automotive, fuel retail; sector IDs bankacilik,
   sigorta, telekom, otomotiv, akaryakit) in the gold panel.
