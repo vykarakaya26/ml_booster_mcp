@@ -1,0 +1,54 @@
+{
+ "Result": [
+  {
+   "Id": 5559,
+   "FileName": "3 Prim Üretimleri Sıralama 2026-09",
+   "FilePath": "/content/Statistics/3 Prim Üretimleri Sıralama 2026 09.xlsx",
+   "StatisticPeriodName": null,
+   "CategoryUrl": "genel-sigorta-verileri",
+   "LanguageAbbreviation": "tr-TR",
+   "CreatedDate": "2026-10-19T11:43:31.353624",
+   "PeriodYear": 2026,
+   "SubCategoryUrl": "prim-adet",
+   "PeriodMonth": 9,
+   "StatisticCategoryId": 1,
+   "StatisticSubCategoryId": 1,
+   "StatisticPeriodId": 0,
+   "Order": 94874
+  },
+  {
+   "Id": 5566,
+   "FileName": "10 Satış Kanalı Bazında Satış Şekli Prim Üretimi 2026-09",
+   "FilePath": "/content/Statistics/10 Satış Kanalı Bazında Satış Şekli Prim Üretimi 2026 09.xlsx",
+   "StatisticPeriodName": null,
+   "CategoryUrl": "genel-sigorta-verileri",
+   "LanguageAbbreviation": "tr-TR",
+   "CreatedDate": "2026-10-19T11:46:01.643306",
+   "PeriodYear": 2026,
+   "SubCategoryUrl": "prim-adet",
+   "PeriodMonth": 9,
+   "StatisticCategoryId": 1,
+   "StatisticSubCategoryId": 1,
+   "StatisticPeriodId": 0,
+   "Order": 94867
+  },
+  {
+   "Id": 5565,
+   "FileName": "9 KZK Ferdi Kaza Prim-Adet 2026-09",
+   "FilePath": "/content/Statistics/9 KZK Ferdi Kaza Prim Adet 2026 09.xlsx",
+   "StatisticPeriodName": null,
+   "CategoryUrl": "genel-sigorta-verileri",
+   "LanguageAbbreviation": "tr-TR",
+   "CreatedDate": "2026-10-19T11:45:40.115763",
+   "PeriodYear": 2026,
+   "SubCategoryUrl": "prim-adet",
+   "PeriodMonth": 9,
+   "StatisticCategoryId": 1,
+   "StatisticSubCategoryId": 1,
+   "StatisticPeriodId": 0,
+   "Order": 94868
+  }
+ ],
+ "TotalCount": 10,
+ "PagePeriod": 0
+}

@@ -15,6 +15,7 @@ from mlbooster.infrastructure.providers.evds3 import Evds3Provider
 from mlbooster.infrastructure.providers.odmd import OdmdProvider
 from mlbooster.infrastructure.providers.sdmx import SdmxCsvProvider
 from mlbooster.infrastructure.providers.tbb import TbbProvider
+from mlbooster.infrastructure.providers.tsb import TsbProvider
 from mlbooster.infrastructure.providers.tuik import TuikProvider
 from mlbooster.infrastructure.secret_store import EnvSecretProvider
 from mlbooster.infrastructure.storage.raw_store import RawStore
@@ -27,6 +28,7 @@ PROVIDERS: dict[str, type] = {
     "odmd": OdmdProvider,
     "sdmx": SdmxCsvProvider,
     "tbb": TbbProvider,
+    "tsb": TsbProvider,
     "tuik": TuikProvider,
 }
 
