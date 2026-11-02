@@ -1,13 +1,48 @@
 id: tsb
 name: TSB prim üretimi (şirket × branş)
 owner: Türkiye Sigorta Birliği
-base_url: https://www.tsb.org.tr
+# The provider pins this host, reads the statistics listing (/Statistic/GetStatistics) and downloads the monthly
+# "Prim Üretimleri Sıralama" Excel file from /content/Statistics/.
+base_url: https://www.tsb.org.tr/tr/istatistik/genel-sigorta-verileri/prim-adet
 access: file_download
 auth: {type: none}
-license: {attribution: required, notes: "Açık veri lisansı yayımlanmamış; kurumun kullanım koşulları kontrol edilmelidir."}
+rate_limit: {rps: 2, backoff: exponential, notes: "Her ay için bir liste isteği ve bir Excel dosyası (yaklaşık 350 KB) indirilir."}
+license: {commercial: false, attribution: required, notes: "TSB açık veri lisansı yayımlamıyor; sitede tüm hakların Türkiye Sigorta, Reasürans ve Emeklilik Şirketleri Birliği'ne ait olduğu belirtiliyor. Kaynak gösterilerek analiz amacıyla kullanılmalı; ticari kullanım ve yeniden dağıtım için TSB'den izin alınmalıdır. Dosyalar geçici rakamlardır ve sonraki yüklemelerle revize edilir; kesin sonuçlar için şirketlerin gelir tablolarına başvurulmalıdır."}
 frequency: [M]
-formats: [xlsx, pdf]
+formats: [xlsx]
 sectors: [sigorta]
-publication_lag_days: 45  # estimated
-verification_status: reported
+publication_lag_days: 21  # Sep 2026 file on 19 Oct, Aug 2026 on 16–21 Sep, Jul 2026 on 17 Aug
+verification_status: verified
+verification_notes: "2026-11-02: tsb.org.tr istatistik listesi (GetStatistics, JSON) ve aylık 'Prim Üretimleri Sıralama' Excel dosyaları anahtarsız olarak canlı test edildi. Dosyalar 2014-10'dan bu yana aynı yapıda (.xlsx; daha eskileri .xls ve okunmuyor). 2014-10 ile 2026-09 arasında erişilebilen bütün dosyalar okundu; şirketlerin toplamı her sayfada sektör toplamını tutuyor; Eylül 2026 toplam prim üretimi 1.097,1 milyar TL (yıl başından itibaren). Sayfadaki iletişim formu (e-posta doğrulamalı indirme) kapalı; açılırsa provider indirmeyi durdurur. robots.txt yok (404)."
+known_breaks:
+  - "2016-04: dosya listede var ama sunucuda bulunmuyor (404); 2017-10: dosya listede yok. Bu ayların ve izleyen ayın (2016-05, 2017-11) aylık prim üretimi hesaplanamıyor."
+  - "2020-08: Halk Sigorta (1021) ve Ziraat Sigorta (1042) Türkiye Sigorta'ya (eski Güneş Sigorta, kod 1020), Halk Hayat ve Ziraat Hayat Türkiye Hayat ve Emeklilik'e (eski Vakıf Emeklilik, kod 3018) katıldı; birleşen şirketler 2020-07'den sonra listede yok ve birikimli tutarları devralan şirkete geçti. Bu yüzden 2020-08 aylık serisinde devralan şirket yüksek, devredenler negatif görünür (toplam doğrudur); pay analizinde son 12 ay (ttm) ya da .YTD serileri kullanılmalı. Şirket adı olarak serideki en son ad kullanılır."
+  - "Aylık seriler birikimli (yıl başından itibaren) rakamların farkıdır; önceki ayın revizyonu izleyen aya yansır, bu yüzden küçük branşlarda negatif aylık değer görülebilir (ör. tarım 2026-08)."
+adapter: tsb
 priority: 8
+# remote: "PRIM_URETIMLERI_SIRALAMA/<SHEET>[.YTD]". SHEET is the sheet name as an ASCII key (Trafik → TRAFIK,
+# Hastalık-Sağlık → HASTALIK_SAGLIK, Genel Toplam → GENEL_TOPLAM, Dev.Dest.Tarım Sigortaları →
+# DEV_DEST_TARIM_SIGORTALARI). Without .YTD: monthly premium (difference of the cumulative figures, flow; for panels and
+# forecasting); with .YTD: cumulative premium from 1 January as published (its shares equal TSB's "Pazar Payı %"; use
+# these for market share: monthly company figures turn negative around cancellations, revisions and mergers).
+series:
+  - {code: TSB.PRIM.TOPLAM, name: "Toplam prim üretimi (hayat ve hayat dışı), şirket bazında, aylık (TL)", freq: M, kind: flow, unit: TRY, currency: TRY, remote: "PRIM_URETIMLERI_SIRALAMA/GENEL_TOPLAM", canary: true}
+  - {code: TSB.PRIM.HAYATDISI, name: "Hayat dışı prim üretimi, şirket bazında, aylık (TL)", freq: M, kind: flow, unit: TRY, currency: TRY, remote: "PRIM_URETIMLERI_SIRALAMA/HAYATDISI"}
+  - {code: TSB.PRIM.HAYAT, name: "Hayat branşı prim üretimi, şirket bazında, aylık (TL)", freq: M, kind: flow, unit: TRY, currency: TRY, remote: "PRIM_URETIMLERI_SIRALAMA/HAYAT"}
+  - {code: TSB.PRIM.TRAFIK, name: "Trafik sigortası prim üretimi (yeşil kart dahil), şirket bazında, aylık (TL)", freq: M, kind: flow, unit: TRY, currency: TRY, remote: "PRIM_URETIMLERI_SIRALAMA/TRAFIK"}
+  - {code: TSB.PRIM.KASKO, name: "Kasko prim üretimi, şirket bazında, aylık (TL)", freq: M, kind: flow, unit: TRY, currency: TRY, remote: "PRIM_URETIMLERI_SIRALAMA/KASKO"}
+  - {code: TSB.PRIM.SAGLIK, name: "Hastalık-sağlık prim üretimi, şirket bazında, aylık (TL)", freq: M, kind: flow, unit: TRY, currency: TRY, remote: "PRIM_URETIMLERI_SIRALAMA/HASTALIK_SAGLIK"}
+  - {code: TSB.PRIM.YANGIN, name: "Yangın ve doğal afetler prim üretimi, şirket bazında, aylık (TL)", freq: M, kind: flow, unit: TRY, currency: TRY, remote: "PRIM_URETIMLERI_SIRALAMA/YANGIN_VE_DOGAL_AFETLER"}
+  - {code: TSB.PRIM.GENEL_ZARARLAR, name: "Genel zararlar prim üretimi, şirket bazında, aylık (TL)", freq: M, kind: flow, unit: TRY, currency: TRY, remote: "PRIM_URETIMLERI_SIRALAMA/GENEL_ZARARLAR"}
+  - {code: TSB.PRIM.KAZA, name: "Kaza (ferdi kaza) prim üretimi, şirket bazında, aylık (TL)", freq: M, kind: flow, unit: TRY, currency: TRY, remote: "PRIM_URETIMLERI_SIRALAMA/KAZA"}
+  - {code: TSB.PRIM.TARIM, name: "Devlet destekli tarım sigortaları prim üretimi, şirket bazında, aylık (TL)", freq: M, kind: flow, unit: TRY, currency: TRY, remote: "PRIM_URETIMLERI_SIRALAMA/DEV_DEST_TARIM_SIGORTALARI"}
+  - {code: TSB.PRIM.TOPLAM.YTD, name: "Toplam prim üretimi (hayat ve hayat dışı), şirket bazında, yıl başından itibaren birikimli (TL)", freq: M, kind: level, unit: TRY, currency: TRY, remote: "PRIM_URETIMLERI_SIRALAMA/GENEL_TOPLAM.YTD"}
+  - {code: TSB.PRIM.HAYATDISI.YTD, name: "Hayat dışı prim üretimi, şirket bazında, yıl başından itibaren birikimli (TL)", freq: M, kind: level, unit: TRY, currency: TRY, remote: "PRIM_URETIMLERI_SIRALAMA/HAYATDISI.YTD"}
+  - {code: TSB.PRIM.HAYAT.YTD, name: "Hayat branşı prim üretimi, şirket bazında, yıl başından itibaren birikimli (TL)", freq: M, kind: level, unit: TRY, currency: TRY, remote: "PRIM_URETIMLERI_SIRALAMA/HAYAT.YTD"}
+  - {code: TSB.PRIM.TRAFIK.YTD, name: "Trafik sigortası prim üretimi (yeşil kart dahil), şirket bazında, yıl başından itibaren birikimli (TL)", freq: M, kind: level, unit: TRY, currency: TRY, remote: "PRIM_URETIMLERI_SIRALAMA/TRAFIK.YTD"}
+  - {code: TSB.PRIM.KASKO.YTD, name: "Kasko prim üretimi, şirket bazında, yıl başından itibaren birikimli (TL)", freq: M, kind: level, unit: TRY, currency: TRY, remote: "PRIM_URETIMLERI_SIRALAMA/KASKO.YTD"}
+  - {code: TSB.PRIM.SAGLIK.YTD, name: "Hastalık-sağlık prim üretimi, şirket bazında, yıl başından itibaren birikimli (TL)", freq: M, kind: level, unit: TRY, currency: TRY, remote: "PRIM_URETIMLERI_SIRALAMA/HASTALIK_SAGLIK.YTD"}
+  - {code: TSB.PRIM.YANGIN.YTD, name: "Yangın ve doğal afetler prim üretimi, şirket bazında, yıl başından itibaren birikimli (TL)", freq: M, kind: level, unit: TRY, currency: TRY, remote: "PRIM_URETIMLERI_SIRALAMA/YANGIN_VE_DOGAL_AFETLER.YTD"}
+  - {code: TSB.PRIM.GENEL_ZARARLAR.YTD, name: "Genel zararlar prim üretimi, şirket bazında, yıl başından itibaren birikimli (TL)", freq: M, kind: level, unit: TRY, currency: TRY, remote: "PRIM_URETIMLERI_SIRALAMA/GENEL_ZARARLAR.YTD"}
+  - {code: TSB.PRIM.KAZA.YTD, name: "Kaza (ferdi kaza) prim üretimi, şirket bazında, yıl başından itibaren birikimli (TL)", freq: M, kind: level, unit: TRY, currency: TRY, remote: "PRIM_URETIMLERI_SIRALAMA/KAZA.YTD"}
+  - {code: TSB.PRIM.TARIM.YTD, name: "Devlet destekli tarım sigortaları prim üretimi, şirket bazında, yıl başından itibaren birikimli (TL)", freq: M, kind: level, unit: TRY, currency: TRY, remote: "PRIM_URETIMLERI_SIRALAMA/DEV_DEST_TARIM_SIGORTALARI.YTD"}

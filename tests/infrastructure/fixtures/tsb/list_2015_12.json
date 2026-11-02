@@ -1,0 +1,54 @@
+{
+ "Result": [
+  {
+   "Id": 865,
+   "FileName": "Prim Üretimleri Sıralama 2015-12",
+   "FilePath": "/content/Statistics/3_Prim_Uretimleri_Sıralama_2015-12.xlsx",
+   "StatisticPeriodName": null,
+   "CategoryUrl": "genel-sigorta-verileri",
+   "LanguageAbbreviation": "tr-TR",
+   "CreatedDate": "2021-03-01T15:29:00",
+   "PeriodYear": 2015,
+   "SubCategoryUrl": "prim-adet",
+   "PeriodMonth": 12,
+   "StatisticCategoryId": 1,
+   "StatisticSubCategoryId": 1,
+   "StatisticPeriodId": 0,
+   "Order": 99092
+  },
+  {
+   "Id": 864,
+   "FileName": "Alt Branş Teminat Adetleri 2015-12",
+   "FilePath": "/content/Statistics/4_Alt_Brans_Teminat_Adetleri_2015-12.xlsx",
+   "StatisticPeriodName": null,
+   "CategoryUrl": "genel-sigorta-verileri",
+   "LanguageAbbreviation": "tr-TR",
+   "CreatedDate": "2021-03-01T15:29:00",
+   "PeriodYear": 2015,
+   "SubCategoryUrl": "prim-adet",
+   "PeriodMonth": 12,
+   "StatisticCategoryId": 1,
+   "StatisticSubCategoryId": 1,
+   "StatisticPeriodId": 0,
+   "Order": 99078
+  },
+  {
+   "Id": 867,
+   "FileName": "Direkt-Endirekt Primler 2015-12",
+   "FilePath": "/content/Statistics/1_Direkt-Endirekt_Primler_2015-12.xlsx",
+   "StatisticPeriodName": null,
+   "CategoryUrl": "genel-sigorta-verileri",
+   "LanguageAbbreviation": "tr-TR",
+   "CreatedDate": "2021-03-01T15:28:00",
+   "PeriodYear": 2015,
+   "SubCategoryUrl": "prim-adet",
+   "PeriodMonth": 12,
+   "StatisticCategoryId": 1,
+   "StatisticSubCategoryId": 1,
+   "StatisticPeriodId": 0,
+   "Order": 99082
+  }
+ ],
+ "TotalCount": 10,
+ "PagePeriod": 0
+}

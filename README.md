@@ -7,7 +7,7 @@ Türkiye için ücretsiz veri kaynaklarını sektör bazında haritalayan ve ML'
 - **CLI / Python paketi**: `mlbooster`.
 - **Yerel web paneli**: `mlbooster web`. Sektörü, tarih aralığını, hedef seriyi ve modelleri tarayıcıdan seçersiniz; yalnızca bu bilgisayarda (127.0.0.1) çalışır.
 
-> **Durum:** Katalog 12 kaynak ve 9 sektör içeriyor (bankacılık, sigorta, telekom, otomotiv, akaryakıt, perakende, turizm, konut, makro_genel). Veri çeken provider'lar **TCMB EVDS3**, **TÜİK**, **BDDK**, **ODMD** (marka bazında aylık otomobil ve hafif ticari satışları; `mlbooster market-share --source odmd --series ODMD.OTOMOBIL`), **TBB** (banka bazında çeyreklik aktif, kredi, mevduat ve özkaynak; `mlbooster market-share --source tbb --series TBB.AKTIF`), **BIS** ve **OECD**; yedisi de canlı doğrulandı. **EPİAŞ** adapter'ı hazır; kullanmak için ücretsiz bir Şeffaflık Platformu hesabı gerekir (aşağıda). EPDK, BTK, TSB ve BKM haritada yer alıyor ancak henüz veri çekmiyor; bu kaynakların adapter'ları yol haritasında.
+> **Durum:** Katalog 12 kaynak ve 9 sektör içeriyor (bankacılık, sigorta, telekom, otomotiv, akaryakıt, perakende, turizm, konut, makro_genel). Veri çeken provider'lar **TCMB EVDS3**, **TÜİK**, **BDDK**, **TSB** (şirket ve branş bazında prim üretimi; `mlbooster market-share --source tsb --series TSB.PRIM.TRAFIK.YTD`), **BKM** (kartlı ödeme istatistikleri; lisans gereği yerel depoya yazılmaz), **ODMD** (marka bazında aylık otomobil ve hafif ticari satışları; `mlbooster market-share --source odmd --series ODMD.OTOMOBIL`), **TBB** (banka bazında çeyreklik aktif, kredi, mevduat ve özkaynak; `mlbooster market-share --source tbb --series TBB.AKTIF`), **BIS** ve **OECD**; dokuzu da canlı doğrulandı. **EPİAŞ** adapter'ı hazır; kullanmak için ücretsiz bir Şeffaflık Platformu hesabı gerekir (aşağıda). EPDK ve BTK haritada yer alıyor ancak henüz veri çekmiyor; bu kaynakların adapter'ları yol haritasında.
 
 ### Veri kapsamı
 | Frekans | Seriler (örnekler) | Kaynak |
@@ -198,7 +198,9 @@ Bu araç veri dağıtmaz; her kullanıcı veriyi kendi API key'iyle kaynaklardan
 - **BDDK:** Kaynak gösterilerek kısmen alıntı yapılabilir; **ticari amaçlı kullanım BDDK'nın yazılı iznine tabidir**. Veriler bankaların raporladığı konsolide olmayan bilgilerdir.
 - **TBB:** Kaynak gösterilerek yeniden yayımlanabilir; **ticari kullanım TBB'nin yazılı iznine tabidir**.
 - **ODMD:** Açık kullanım koşulu yayımlamıyor ("Tüm Hakları Saklıdır"); analizde kaynak gösterilerek kullanın, ham dosyaları yeniden dağıtmayın, ticari kullanım için ODMD'nin yazılı iznini alın. Tesla rakamları ODMD tahminidir.
-- **TSB, BKM vb.:** Açık veri lisansı yayımlamıyorlar. Ticari kullanım ve yeniden dağıtım öncesinde ilgili kurumun site koşullarını kontrol edin.
+- **BKM:** Raporlar kaynak gösterilerek kullanılabilir; sitenin yasal uyarısı kopyalama, yeniden dağıtım, kalıcı saklama ve ticari kullanımı BKM'nin yazılı iznine bağlar. Bu nedenle BKM verileri yerel depoya yazılmaz, her istekte kaynaktan yeniden çekilir.
+- **TSB:** Açık lisans yayımlamıyor (tüm hakları TSB'ye ait); kaynak gösterilerek kullanın, ticari kullanım için TSB'nin yazılı iznini alın. Dosyalardaki rakamlar geçicidir.
+- **Diğer kurumlar:** Açık veri lisansı yayımlamayanlarda ticari kullanım ve yeniden dağıtım öncesinde ilgili kurumun site koşullarını kontrol edin.
 - Proxy pazar payları (KAP gelirleri, Google Trends) gerçek pazar payı değildir ve `is_proxy` bayrağıyla ayrı tutulur.
 
 ## Geliştirme

@@ -1,0 +1,9 @@
+{
+ "DataCast": 13,
+ "Value": "false",
+ "Description": "İstatistik Raporları Switch Kontrolü",
+ "Name": "IsActiveStatisticReport",
+ "LanguageId": 1,
+ "Language": null,
+ "Id": 14
+}

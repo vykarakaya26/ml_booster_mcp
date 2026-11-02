@@ -130,6 +130,15 @@ Rules:
      `entity_id`, the groups are entities (entity_id = group code). Panels use the total only; `market-share
      --source bddk --series BDDK.AKTIF` turns the groups into shares (total → `TOPLAM`). The sector's
      `market_share_sources[].series` lists the series offered for this (web panel "Kaynaktan çek" mode).
+   BKM (done — infrastructure/providers/bkm.py), live observation 2026-11-02: robots.txt blocks only /wp-admin/. The
+   reports require attribution; the site legal notice reserves copying, redistribution, storage for later use and
+   commercial use to BKM's written permission, so the catalog sets `storage: {raw: false, observations: false}`
+   (honoured by `ProviderRegistry` and `FetchSeries`: nothing goes to bronze or silver, panels refetch BKM on every
+   build) and the test fixtures carry synthetic numbers. Each "Dönemsel Bilgiler" report is a server-rendered HTML
+   page (pinned host bkm.com.tr) with one table per year since 2017; the `?xls=1` Excel is the same HTML. Merchant
+   groups via `?filter_group=<n>`. No bank-level data. Catalog `remote`: `<report slug>[,<filter_group>]/<COLUMN>
+   [+<COLUMN>...]`, COLUMN = header keys top to bottom joined with '.' (e.g. `ISLEM_TUTARI_MILYON_TL.TOPLAM`); '+'
+   sums columns. Lag 40 days.
 5. BTK / ODMD / EPDK / TSB: monitor the announcement page, download the new PDF/Excel, extract with a parser,
    validate (shares sum to 100±0.5, consistency with the previous period), write to silver.
    ODMD (done — infrastructure/providers/odmd.py), live observation 2026-11-02: no robots.txt (404), no terms page
@@ -139,6 +148,12 @@ Rules:
    answers 302 to `/folders/2837/categorial1docs/<id>/<file>` (pinned host, Location checked by regex). xlsx from
    2015-01 (2017-02 is xls → skipped; 2014 xls and 2011–2013 PDF not integrated). Catalog `remote`:
    `perakende/<OTOMOBIL|HAFIF_TICARI|TOPLAM>.<TOPLAM|YERLI|ITHAL>`; market total = empty entity_id, brands are entities.
+   TSB (done — infrastructure/providers/tsb.py), live observation 2026-11-02: no robots.txt (404), no open licence (all
+   rights reserved). Listing: GET `/Statistic/GetStatistics` (JSON, per year/month); monthly "Prim Üretimleri
+   Sıralama" xlsx under /content/Statistics/ (pinned host), cumulative YTD TL per branch sheet, company code =
+   entity_id, SEKTÖR TOPLAMI = total. `/Statistic/GetStatisticReportStatus` switches downloads to an e-mail/OTP form;
+   if it is on, the provider stops (never bypassed). Catalog `remote`: `PRIM_URETIMLERI_SIRALAMA/<SHEET>[.YTD]`;
+   without .YTD the monthly premium is the YTD difference. Shares: use the .YTD series.
 6. KAP: do NOT bulk-scrape kap.org.tr; use the MKK API Portal.
 7. Google Trends: manual CSV import adapter only.
 
