@@ -268,3 +268,72 @@ def test_views_drop_optional_sections_instead_of_printing_null():
     app_js = (WEB_STATIC / "app.js").read_text(encoding="utf-8")
     assert "function fill(el, ...children)" in app_js
     assert not re.search(r"\b(root|out|detail)\.replaceChildren\(", app_js)
+
+
+@pytest.fixture
+def source_client(catalog_repo):
+    from fakes import EntityFactory
+
+    factory = EntityFactory()
+
+    def container():
+        return Container(
+            catalog=catalog_repo, providers=factory, observations=InMemoryObservationStore(),
+            panels=InMemoryPanelStore(), overrides=catalog_repo,
+        )  # fmt: skip
+
+    client = TestClient(create_app(container, token=TOKEN), base_url=BASE, raise_server_exceptions=False)
+    client.factory = factory
+    return client
+
+
+def test_share_series_lists_sources_with_a_ready_provider(source_client, client):
+    res = source_client.get("/api/share-series", headers=AUTH)
+    assert res.status_code == 200
+    (bddk,) = res.json()  # TBB, ODMD, ... have no provider yet
+    assert bddk["source"] == "bddk" and "bankacilik" in bddk["sectors"] and "yazılı iznine" in bddk["license"]
+    assert {"code": "BDDK.AKTIF", "name": "Toplam aktifler, banka grubuna göre (milyon TL)", "unit": "million_try"} in bddk["series"]
+    assert client.get("/api/share-series", headers=AUTH).json() == []  # only evds3 is ready there
+    assert source_client.get("/api/share-series").status_code == 403
+
+
+def test_market_share_from_source(source_client):
+    body = {"source": "bddk", "series": "BDDK.AKTIF", "start": "2023-01", "end": "2025-12", "focus": "Katılım"}
+    res = source_client.post("/api/market-share/source", json=body, headers=AUTH)
+    assert res.status_code == 200, res.text
+    out = res.json()
+    assert out["meta"]["unit"] == "milyon TL" and out["meta"]["kind"] == "stock" and out["meta"]["entities"] == 3
+    assert out["meta"]["source"]["attribution"] == "Kaynak: BDDK — BDDK Aylık Bülten" and out["meta"]["has_total"]
+    assert out["competitors"]["focus"] == "Katılım" and out["labels"]["trend"]["gaining"]
+    assert out["market"]["coverage"][-1] == pytest.approx(100)
+    calls = source_client.factory.calls
+    assert calls[0].period.start.isoformat() == "2023-01-01" and calls[0].series_ids == ("BDDK.AKTIF",)
+    again = source_client.post("/api/market-share/source", json={**body, "focus": None}, headers=AUTH)
+    assert again.status_code == 200 and len(calls) == 1  # second request is served from the store
+    refreshed = source_client.post("/api/market-share/source", json={**body, "refresh": True}, headers=AUTH)
+    assert refreshed.status_code == 200 and len(calls) == 2
+
+
+@pytest.mark.parametrize(
+    ("body", "match"),
+    [
+        ({"series": "BDDK.AKTIF"}, "'source' alanı zorunlu"),
+        ({"source": "bddk"}, "'series' alanı zorunlu"),
+        ({"source": "../etc", "series": "BDDK.AKTIF"}, "Geçersiz"),
+        ({"source": "bddk", "series": "BDDK.AKTIF&x=1"}, "Geçersiz seri"),
+        ({"source": "bddk", "series": "BDDK.YOK"}, "serisi yok"),
+        ({"source": "bddk", "series": "BDDK.AKTIF", "start": "dün"}, "YYYY-AA"),
+        ({"source": "bddk", "series": "BDDK.AKTIF", "refresh": "evet"}, "doğru/yanlış"),
+        ({"source": "bddk", "series": "BDDK.AKTIF", "basis": "x"}, "basis"),
+        ({"source": "tbb", "series": "X"}, "serisi yok"),
+    ],
+)
+def test_market_share_from_source_rejects_bad_input(source_client, body, match):
+    res = source_client.post("/api/market-share/source", json=body, headers=AUTH)
+    assert res.status_code == 400 and match in res.json()["error"]
+
+
+def test_web_assets_offer_the_source_mode():
+    js = (Path(__file__).parents[2] / "src/mlbooster/interfaces/web/static/app.js").read_text(encoding="utf-8")
+    assert '"/api/market-share/source"' in js and '"/api/share-series"' in js and "Kaynaktan çek" in js
+    assert ".innerHTML" not in js

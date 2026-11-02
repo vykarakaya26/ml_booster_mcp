@@ -52,7 +52,7 @@ from mlbooster.interfaces.presenters import (
     quality_dict,
     sector_map_dict,
 )
-from mlbooster.interfaces.web.labels import sector_feature_info
+from mlbooster.interfaces.web.labels import UNITS, sector_feature_info
 
 log = logging.getLogger(__name__)
 
@@ -64,6 +64,7 @@ MAX_TABLE_BODY_BYTES = 8 * 1024 * 1024  # market share table sent as text (the r
 TABLE_FORMATS = ("csv", "json")
 MAX_PREDICTION_DATES = 120
 PANEL_FREQS = ("M", "W", "B")
+SOURCE_SHARE_START = date(2015, 1, 1)  # monthly bulletins answer one month per request; the first pull stays short
 
 SECURITY_HEADERS = {
     "content-security-policy": (
@@ -415,6 +416,31 @@ def create_app(container_factory: Callable[[], Container] = build_container, tok
 
         return await call(run)
 
+    async def share_series(request: Request) -> list[dict]:
+        return await call(lambda: container().share_series())
+
+    async def market_share_source(request: Request) -> dict:
+        data = await _body(request)
+        source = _str(data, "source", required=True)
+        series = _str(data, "series", required=True)
+        start = _date(data, "start", SOURCE_SHARE_START)
+        end = _date(data, "end", None)
+        refresh = _bool(data, "refresh", False)
+        config = ShareConfig(  # kind and unit come from the catalog series
+            focus=_str(data, "focus"),
+            basis=_str(data, "basis", "auto"),
+            trend_years=_int(data, "trend_years", 3, 1, 10),
+            top_n=_int(data, "top_n", 8, 3, 20),
+        )
+
+        def run():
+            result = container().market_share.from_source(source, series, config, start, end, refresh=refresh)
+            result["meta"]["unit"] = UNITS.get(result["meta"]["unit"], result["meta"]["unit"])
+            labels = {"trend": TREND_LABELS, "hhi_class": HHI_CLASS_LABELS, "basis": BASIS_LABELS, "severity": SEVERITY_LABELS}
+            return result | {"generated_at": _now(), "labels": labels}
+
+        return await call(run)
+
     async def health(request: Request) -> list[dict]:
         source = request.query_params.get("source") or None
         return await call(lambda: [health_dict(r) for r in container().health(source)])
@@ -429,6 +455,8 @@ def create_app(container_factory: Callable[[], Container] = build_container, tok
         Route("/api/audit", endpoint(audit), methods=["POST"]),
         Route("/api/backtest", endpoint(backtest), methods=["POST"]),
         Route("/api/market-share", endpoint(market_share), methods=["POST"]),
+        Route("/api/market-share/source", endpoint(market_share_source), methods=["POST"]),
+        Route("/api/share-series", endpoint(share_series)),
         Route("/api/health", endpoint(health)),
         Mount("/static", StaticFiles(directory=STATIC_DIR), name="static"),
     ]

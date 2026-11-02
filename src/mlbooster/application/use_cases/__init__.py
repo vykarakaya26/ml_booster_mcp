@@ -1,5 +1,11 @@
 from mlbooster.application.use_cases.analysis import AuditPanel, RunBacktest
-from mlbooster.application.use_cases.catalog import GetSectorMap, ListReadyProviders, ListSectors, ListSources
+from mlbooster.application.use_cases.catalog import (
+    GetSectorMap,
+    ListReadyProviders,
+    ListSectors,
+    ListShareSeries,
+    ListSources,
+)
 from mlbooster.application.use_cases.discovery import SearchSeries, SetFeatureSeries
 from mlbooster.application.use_cases.files import ExportTable, ReadPanelFile
 from mlbooster.application.use_cases.health import CheckForUpdates, RunHealthChecks
@@ -20,6 +26,7 @@ __all__ = [
     "GetSectorMap",
     "ListReadyProviders",
     "ListSectors",
+    "ListShareSeries",
     "ListSources",
     "PreparePanel",
     "ReadPanelFile",

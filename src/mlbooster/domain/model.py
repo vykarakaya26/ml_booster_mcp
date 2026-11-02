@@ -268,6 +268,7 @@ class ShareSource:
     metric: str
     is_proxy: bool = False
     notes: str | None = None
+    series: tuple[str, ...] = ()  # catalog series with entity rows that the source's provider returns
 
 
 @dataclass(frozen=True)
