@@ -9,7 +9,7 @@ macro_features:
   - {name: ufe_yoy, source: evds3, series: TP.TUFE1YI.T1, transform: yoy_pct}
 sector_sources: [epdk, epias]
 market_share_sources:
-  - {source: epdk, metric: "dağıtıcı bazında satış tonu payı (akaryakıt, LPG)"}
+  - {source: epdk, metric: "lisans sahibi bazında yurt içi satış tonu payı: toplam, benzin, motorin (EPDK.PETROL.*); dağıtıcı bazında LPG satış payı: toplam, otogaz, tüplü, dökme (EPDK.LPG.*)"}
 ml_use_cases: ["Hacim tahmini", "Marj modeli"]
 feature_recipes:
   - {name: ufe_tufe_farki, op: spread, inputs: [ufe_yoy, tufe_yoy], note: "Üretici ve tüketici enflasyonu arasındaki fark; maliyet baskısının fiyatlara yansıması"}

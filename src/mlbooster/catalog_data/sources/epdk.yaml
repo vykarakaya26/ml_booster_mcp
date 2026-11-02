@@ -1,13 +1,32 @@
 id: epdk
-name: EPDK aylık sektör raporları (petrol, LPG, doğal gaz, elektrik)
+name: EPDK aylık sektör raporları (petrol, LPG)
 owner: EPDK
-base_url: https://www.epdk.gov.tr
-access: pdf_report
+# The provider pins this host and reads the monthly report lists (/Detay/Icerik/3-0-104/..., /Detay/Icerik/3-0-105/...)
+# and their files (/Detay/DownloadDocument?id=...): Word reports 2016-2025, Excel annexes from 2026.
+base_url: https://www.epdk.gov.tr/
+access: file_download
 auth: {type: none}
-license: {attribution: required, notes: "Kamuya açık yayın."}
-frequency: [M, A]
-formats: [pdf, xlsx]
+rate_limit: {rps: 1, backoff: exponential, notes: "Her ay için bir rapor dosyası (~1 MB) indirilir; 2016'dan bugüne tam geçmiş yaklaşık 130 dosyadır."}
+license: {attribution: required, notes: "EPDK'nın internet sitesinde herkese açık yayımlanan aylık sektör raporları (Petrol Piyasası ve LPG Piyasası Aylık Sektör Raporu). Sitede kullanım şartları sayfası ve robots.txt yok; kaynak gösterilerek kullanılmalıdır. Ticari kullanım için açık bir izin ya da yasak bulunamadı. Lisans sahipleri bildirim düzeltmesi yapabildiği için yayımlanmış raporlar sonradan revize edilebilir."}
+frequency: [M]
+formats: [docx, xlsx]
 sectors: [akaryakit, enerji]
-publication_lag_days: 60  # estimated
-verification_status: reported
+publication_lag_days: 60  # report files dated 43-60 days after the month (Aug 2026 report announced 13 Oct 2026)
+verification_status: verified
+verification_notes: "2026-11-02: Petrol ve LPG aylık rapor listeleri ile rapor dosyaları anahtarsız olarak canlı test edildi. 2016-01..2026-08 arasındaki bütün aylarda lisans sahiplerinin satışları yayımlanan toplamı ±%0,5 içinde tamamlıyor ve ardışık aylar tutarlı. Ağustos 2026 LPG ürün toplamları Excel ekindeki aylık ürün tablolarıyla aynı. 2015 ve öncesi raporlar eski .doc ya da PDF biçiminde olduğu için okunmuyor."
+known_breaks: ["2016-01: daha önceki aylık raporlar .doc/PDF biçiminde; seriler 2016-01'de başlıyor", "2019-10: Total Oil Türkiye A.Ş.'nin unvanı Güzel Enerji Akaryakıt A.Ş. oldu; iki unvan tek oyuncu (GUZEL_ENERJI) olarak birleştirildi", "2025-03: BP Petrolleri A.Ş. listede yer almıyor", "2026-01: Word raporunun yerini PDF rapor ve Excel eki aldı (aynı tablolar)"]
+adapter: epdk
 priority: 6
+# remote: "petrol/<COLUMN>" (BENZIN, MOTORIN, FUEL_OIL, HAVACILIK, DENIZCILIK, GAZYAGI, DIGER, TOPLAM) from the table
+# "Lisans Sahibi Şirketlere Göre Yurtiçi Satış" (every licence holder: dağıtıcı, rafinerici, ihrakiye), or
+# "lpg/<COLUMN>" (TUPLU, DOKME, OTOGAZ, TOPLAM) from "LPG Satışlarının Dağıtıcılara ve Ürün Türüne Göre Dağılımı".
+# The published total is the series total (empty entity_id); holders are entities keyed by the first two words of
+# their title (PETROL_OFISI, OPET_PETROLCULUK, SHELL_TURCAS, AYGAZ...).
+series:
+  - {code: EPDK.PETROL.TOPLAM, name: "Petrol ürünleri yurt içi satışları, lisans sahibine göre: toplam (ton)", freq: M, kind: flow, unit: ton, remote: "petrol/TOPLAM", canary: true}
+  - {code: EPDK.PETROL.BENZIN, name: "Benzin yurt içi satışları, lisans sahibine göre (ton)", freq: M, kind: flow, unit: ton, remote: "petrol/BENZIN"}
+  - {code: EPDK.PETROL.MOTORIN, name: "Motorin yurt içi satışları, lisans sahibine göre (ton)", freq: M, kind: flow, unit: ton, remote: "petrol/MOTORIN"}
+  - {code: EPDK.LPG.TOPLAM, name: "LPG satışları, dağıtıcıya göre: toplam (ton)", freq: M, kind: flow, unit: ton, remote: "lpg/TOPLAM"}
+  - {code: EPDK.LPG.OTOGAZ, name: "Otogaz satışları, dağıtıcıya göre (ton)", freq: M, kind: flow, unit: ton, remote: "lpg/OTOGAZ"}
+  - {code: EPDK.LPG.TUPLU, name: "Tüplü LPG satışları, dağıtıcıya göre (ton)", freq: M, kind: flow, unit: ton, remote: "lpg/TUPLU"}
+  - {code: EPDK.LPG.DOKME, name: "Dökme LPG satışları, dağıtıcıya göre (ton)", freq: M, kind: flow, unit: ton, remote: "lpg/DOKME"}
