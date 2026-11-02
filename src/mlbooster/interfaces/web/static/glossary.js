@@ -117,6 +117,42 @@ export const GLOSSARY = {
     term: "Durağanlık",
     text: "Serinin ortalama ve yayılımının zaman içinde sabit kalması. Durağan olmayan seriler genellikle fark ya da yıllık değişim alınarak modellenir.",
   },
+  market_share: {
+    term: "Pazar payı",
+    text: "Bir oyuncunun satış, prim ya da abone gibi değerinin pazar toplamına oranı. Pazar toplamı tabloda TOPLAM (ya da TOTAL) satırlarıyla verilmezse listelenen oyuncuların toplamı kullanılır.",
+  },
+  ttm: {
+    term: "Son 12 ay toplamı (TTM)",
+    text: "Akım verilerde pay, son 12 ayın toplamı üzerinden hesaplanır. Mevsimsellik ve tek aylık dalgalanmalar böylece payı bozmaz. Aylık ya da çeyreklik akım verisinde en az iki yıllık gözlem varsa otomatik seçilir.",
+  },
+  hhi: {
+    term: "HHI (Herfindahl–Hirschman endeksi)",
+    text: "Oyuncu paylarının (yüzde olarak) karelerinin toplamı; 0 ile 10.000 arasındadır. AB Yatay Birleşme Rehberi'ne göre 1.000'in altı düşük, 1.000–2.000 orta, 2.000'in üstü yüksek yoğunlaşmadır.",
+  },
+  cr_k: {
+    term: "CR3 / CR5",
+    text: "En büyük 3 ya da 5 oyuncunun toplam pazar payı. HHI'yi tamamlar: HHI payların dağılımına, CR-k yalnızca en büyüklere bakar.",
+  },
+  equivalent_players: {
+    term: "Eşdeğer oyuncu sayısı",
+    text: "10.000 / HHI. Aynı yoğunlaşmayı üretecek, eşit paylı oyuncu sayısıdır. Örneğin HHI 2.500 ise pazar, dört eşit oyunculu bir pazar kadar yoğundur.",
+  },
+  share_trend: {
+    term: "Pay eğilimi",
+    text: "Seçilen penceredeki dönemlik paylara doğrusal trend uydurulur; eğim yılda kaç puan pay kazanıldığını ya da kaybedildiğini gösterir. Eğim en az 0,2 puan/yıl ve t istatistiği mutlak değerce en az 2 ise eğilim anlamlı kabul edilir.",
+  },
+  substitution: {
+    term: "Substitution correlation",
+    text: "Odak oyuncunun dönemlik pay değişimleri ile diğer oyuncularınkinin korelasyonu. Güçlü negatif korelasyon, odak oyuncunun kazandığı payın o oyuncudan geldiğine işaret eder. En az 12 gözlem ve |r| ≥ 2/√n koşulunda anlamlı sayılır; nedensellik kanıtı değildir.",
+  },
+  shift_share: {
+    term: "Shift-share ayrıştırması",
+    text: "Odak oyuncunun toplam paydaki değişimini iki parçaya ayırır: segment içi pay etkisi (segmentlerde pay kazanıp kaybetmek) ve segment karması etkisi (güçlü olduğu segmentlerin büyüyüp küçülmesi). İki etkinin toplamı değişime tam eşittir.",
+  },
+  coverage_share: {
+    term: "Kapsama oranı",
+    text: "Tabloda listelenen oyuncuların toplamının pazar toplamına oranı. %80'in altındaysa paylar pazarın bir bölümünü temsil eder; yorumlarken bu dikkate alınmalıdır.",
+  },
 };
 
 export const MODEL_INFO = {

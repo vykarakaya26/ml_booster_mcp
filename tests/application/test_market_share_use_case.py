@@ -26,6 +26,10 @@ class StubReader:
     def read(self, path):
         return self.frame
 
+    def parse(self, text, fmt):
+        self.parsed = (text, fmt)
+        return self.frame
+
 
 def _records():
     months = pd.period_range("2020-01", "2025-12", freq="M").astype(str)
@@ -51,3 +55,9 @@ def test_rejects_bad_records_and_sector():
 def test_from_file_uses_reader():
     uc = AnalyzeMarketShare(StubPanel(), StubReader(pd.DataFrame(_records())))
     assert uc.from_file("ignored.csv", ShareConfig())["meta"]["entities"] == 2
+
+
+def test_from_text_uses_reader_parse():
+    reader = StubReader(pd.DataFrame(_records()))
+    out = AnalyzeMarketShare(StubPanel(), reader).from_text("entity,date,value", "csv", ShareConfig(focus="B"))
+    assert reader.parsed == ("entity,date,value", "csv") and out["competitors"]["focus"] == "B"
