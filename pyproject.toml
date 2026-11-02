@@ -5,7 +5,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "mlbooster"
-version = "0.18.3"
+version = "0.19.0"
 description = "ML Booster Map: map of free data sources for Turkey and builder of ML-ready panels"
 requires-python = ">=3.12"
 license = "MIT"
@@ -24,6 +24,7 @@ dependencies = [
     "uvicorn>=0.31",
     "openpyxl>=3.1",
     "pdfplumber>=0.11",
+    "cryptography>=42",  # RS256 signing of Google service-account JWTs (already pulled in by pdfplumber)
 ]
 
 [project.optional-dependencies]

@@ -32,6 +32,13 @@ Key yalnızca HTTP header'ında ve yalnızca `evds3.tcmb.gov.tr` adresine gönde
 
 **EPİAŞ (isteğe bağlı):** Elektrik piyasası verileri (PTF, SMF, tüketim, üretim) için [kayit.epias.com.tr](https://kayit.epias.com.tr) adresinden ücretsiz bir Şeffaflık Platformu hesabı açın ve aynı `.env` dosyasına `EPIAS_USERNAME` (kayıt e-postası) ile `EPIAS_PASSWORD` değerlerini yazın. Kimlik bilgileri yalnızca `giris.epias.com.tr` adresine gönderilir; alınan TGT yalnızca bellekte tutulur. Bu değerler yoksa EPİAŞ healthcheck'i atlanır.
 
+**Google Trends (isteğe bağlı, BigQuery):** Türkiye'nin günlük Google Trends listeleri (Top 25 ve yükselen 25 terim) Google'ın BigQuery'deki ücretsiz public dataset'inden çekilir (`--source bq_trends`). Kaynak yalnızca son 30 günün listelerini tutar; mlbooster her çekimde yeni günleri yerel depoya yazar, geçmiş orada birikir. `BQT.ILGI.<TERIM>` (ör. `BQT.ILGI.TOGG`) listeye girmiş bir terimin 5 yıllık haftalık arama ilgisini il kırılımıyla verir. İstenen herhangi bir terim sorgulanamaz. Değerler arama ilgisi proxy'sidir, pazar payı değildir.
+
+1. Bir Google Cloud projesi açın ya da seçin (BigQuery sandbox kart bilgisi istemez).
+2. `gcloud auth application-default login` çalıştırın ya da "BigQuery Job User" rolü olan bir service account anahtarının yolunu `GOOGLE_APPLICATION_CREDENTIALS` ile verin.
+3. `.env` dosyasına `BQ_PROJECT_ID=<proje-kimliği>` yazın. Sorgular bu projeye faturalanır; ayda 1 TiB ücretsizdir ve her sorgu `BQ_MAX_BYTES_BILLED` tavanıyla (varsayılan 5 GiB) sınırlanır.
+4. `mlbooster health --source bq_trends` ile bağlantıyı kontrol edin.
+
 ## 2a. Claude Code plugin'i (önerilen)
 
 [uv](https://docs.astral.sh/uv/) gerekir; MCP sunucusu `uvx` ile otomatik kurulur.
