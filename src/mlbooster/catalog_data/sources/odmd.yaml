@@ -1,13 +1,28 @@
 id: odmd
-name: ODMD aylık basın bülteni (marka/model/segment)
+name: ODMD perakende satışlar (marka bazında otomobil ve hafif ticari araç)
 owner: Otomotiv Distribütörleri ve Mobilite Derneği
-base_url: https://www.odmd.org.tr
-access: pdf_report
+# The provider pins this host, reads the report list "Pazar - Perakende Satışlar" (neuralnetwork.aspx?type=36) and
+# downloads the monthly xlsx files through wf_docudownload.aspx (302 to /folders/2837/categorial1docs/<id>/<file>).
+base_url: https://www.odmd.org.tr/web_2837_1/
+access: file_download
 auth: {type: none}
-license: {attribution: required, notes: "Basın bülteni; ticari amaçla yeniden dağıtım koşulları kontrol edilmelidir."}
+rate_limit: {rps: 2, backoff: exponential, notes: "Her ay için iki istek (indirme bağlantısı ve xlsx dosyası); rapor listesinin her sayfası 12 kayıt içerir."}
+license: {commercial: false, redistribution: false, attribution: required, notes: "Sitede kullanım şartları sayfası yok; altbilgi: '© ODMD - Tüm Hakları Saklıdır'. Aylık raporlar üyeleri, basını ve kamuoyunu bilgilendirmek için açık olarak yayımlanıyor. Kaynak gösterilerek analizde kullanılabilir; ham dosyaların yeniden dağıtımı ve ticari kullanım için ODMD'nin yazılı izni alınmalıdır. Tesla verileri ODMD'nin tahminidir."}
 frequency: [M]
-formats: [pdf]
+formats: [xlsx, pdf]
 sectors: [otomotiv]
-publication_lag_days: 5  # estimated
-verification_status: reported
+publication_lag_days: 5  # bulletins appear 1-4 days after month end (Sep 2026 → 2 Oct 2026, Jan 2025 → 4 Feb 2025)
+verification_status: verified
+verification_notes: "2026-11-02: 'Pazar - Perakende Satışlar' rapor listesi ve aylık xlsx dosyaları anahtarsız olarak canlı test edildi. 2015-01 – 2026-09 arasındaki 140 aylık dosyanın hepsinde marka toplamları TOPLAM satırına birebir eşit. Eylül 2026 toplamları (otomobil 63.736, hafif ticari 19.733, toplam 83.469) 2 Ekim 2026 tarihli basın bülteniyle aynı. robots.txt yok (404); indirme bağlantısı yalnızca liste sayfasının açtığı anonim oturum çereziyle çalışıyor."
+known_breaks: ["2015-01 öncesi: 2014 dosyaları xls, 2011-2013 dosyaları PDF; seriler 2015-01'de başlar", "2017-02: yalnızca xls olarak yayımlandı; bu ay eksiktir", "2023-05: Tesla verileri ODMD tahmini olarak işaretlenmeye başladı", "2024-02: SSANGYONG, KG MOBILITY – SSANGYONG adıyla raporlanıyor (tek oyuncu olarak birleştirildi)", "2026-03: JAECOO, OMODA & JAECOO adıyla raporlanıyor (tek oyuncu olarak birleştirildi; marka kapsamı genişlemiş olabilir)"]
+adapter: odmd
 priority: 9
+# remote: "perakende/<SEGMENT>.<COLUMN>"; SEGMENT = OTOMOBIL | HAFIF_TICARI | TOPLAM, COLUMN = TOPLAM | YERLI | ITHAL.
+# The market total has an empty entity_id; brands are entities (entity_id = brand key, e.g. MERCEDES_BENZ).
+series:
+  - {code: ODMD.TOPLAM, name: "Otomobil ve hafif ticari araç satışları, markaya göre (adet)", freq: M, kind: flow, unit: count, remote: "perakende/TOPLAM.TOPLAM", canary: true}
+  - {code: ODMD.OTOMOBIL, name: "Otomobil satışları, markaya göre (adet)", freq: M, kind: flow, unit: count, remote: "perakende/OTOMOBIL.TOPLAM"}
+  - {code: ODMD.HAFIF_TICARI, name: "Hafif ticari araç satışları, markaya göre (adet)", freq: M, kind: flow, unit: count, remote: "perakende/HAFIF_TICARI.TOPLAM"}
+  - {code: ODMD.OTOMOBIL.YERLI, name: "Yerli üretim otomobil satışları, markaya göre (adet)", freq: M, kind: flow, unit: count, remote: "perakende/OTOMOBIL.YERLI"}
+  - {code: ODMD.OTOMOBIL.ITHAL, name: "İthal otomobil satışları, markaya göre (adet)", freq: M, kind: flow, unit: count, remote: "perakende/OTOMOBIL.ITHAL"}
+  - {code: ODMD.TOPLAM.YERLI, name: "Yerli üretim otomobil ve hafif ticari araç satışları, markaya göre (adet)", freq: M, kind: flow, unit: count, remote: "perakende/TOPLAM.YERLI"}
