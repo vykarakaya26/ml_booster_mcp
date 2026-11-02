@@ -11,6 +11,7 @@ from mlbooster.infrastructure.http_client import RateLimiter, SecureHttpClient
 from mlbooster.infrastructure.providers.bddk import BddkProvider
 from mlbooster.infrastructure.providers.epias import EpiasProvider
 from mlbooster.infrastructure.providers.evds3 import Evds3Provider
+from mlbooster.infrastructure.providers.odmd import OdmdProvider
 from mlbooster.infrastructure.providers.sdmx import SdmxCsvProvider
 from mlbooster.infrastructure.providers.tbb import TbbProvider
 from mlbooster.infrastructure.providers.tuik import TuikProvider
@@ -21,6 +22,7 @@ PROVIDERS: dict[str, type] = {
     "bddk": BddkProvider,
     "epias": EpiasProvider,
     "evds3": Evds3Provider,
+    "odmd": OdmdProvider,
     "sdmx": SdmxCsvProvider,
     "tbb": TbbProvider,
     "tuik": TuikProvider,

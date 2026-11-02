@@ -10,7 +10,7 @@ kullanılmadan önce birincil kaynaktan kontrol edilmelidir.
 
 | Sektör | Kaynak | Ölçü | Frekans | Biçim | Dikkat edilecek noktalar |
 |---|---|---|---|---|---|
-| Otomotiv | ODMD aylık basın bülteni | Marka, model ve segment bazında perakende satış adedi | Aylık | PDF | Yalnızca üye distribütörleri kapsar `[doğrula]`; binek ve hafif ticari ayrı raporlanır; ÖTV ve kredi düzenlemelerinden önce talep öne çekilebilir. |
+| Otomotiv | ODMD perakende satışlar (otomatik: `market-share --source odmd --series ODMD.OTOMOBIL`) | Marka bazında otomobil ve hafif ticari araç satış adedi, yerli/ithal kırılımıyla; pazar toplamı dahil | Aylık (2015-01'den bu yana; 2017-02 eksik) | xlsx (provider), PDF bülten | Akımdır. `ODMD.TOPLAM`, `ODMD.HAFIF_TICARI`, `ODMD.OTOMOBIL.YERLI`/`.ITHAL` serileri de vardır. Tablo bütün pazarı kapsar; Tesla verileri ODMD tahminidir. Ham dosyaların yeniden dağıtımı ve ticari kullanım için ODMD'nin izni gerekir. Publication lag 1–4 gündür. ÖTV ve kredi düzenlemelerinden önce talep öne çekilebilir. |
 | Sigorta | TSB prim üretimi | Şirket × branş prim üretimi (TL) | Aylık | XLSX, PDF | Nominaldir; branş tanımları (trafik, kasko, sağlık, hayat) şirketler arasında tutarlıdır. Hayat ve hayat dışı ayrı pazarlar olarak ele alınmalıdır. |
 | Telekom | BTK Üç Aylık Pazar Verileri Raporu | Operatör bazında abone, gelir ve trafik payı | Çeyreklik | PDF | Abone sayısı stoktur (`--kind stock`); publication lag uzundur. Bazı paylar yalnızca yüzde olarak verilir (`--measure share`). |
 | Akaryakıt | EPDK petrol piyasası ve LPG sektör raporları | Dağıtıcı bazında satış (ton, m³) | Aylık, yıllık | PDF, XLSX | Her ürün (benzin, motorin, LPG) ayrı bir pazardır; segment kolonu olarak verilmelidir. |
