@@ -21,6 +21,7 @@ dependencies = [
     "mcp>=2.0,<3",
     "starlette>=0.40",  # local web panel (already pulled in by mcp)
     "uvicorn>=0.31",
+    "openpyxl>=3.1",
 ]
 
 [project.optional-dependencies]
