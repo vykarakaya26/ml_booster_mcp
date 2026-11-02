@@ -5,7 +5,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "mlbooster"
-version = "0.8.0"
+version = "0.9.0"
 description = "ML Booster Map: map of free data sources for Turkey and builder of ML-ready panels"
 requires-python = ">=3.12"
 license = "MIT"
