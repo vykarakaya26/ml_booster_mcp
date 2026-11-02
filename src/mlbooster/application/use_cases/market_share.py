@@ -13,7 +13,8 @@ from mlbooster.application.ports import CatalogRepository, ObservationStore, Tab
 from mlbooster.application.use_cases.panel import BuildPanel, _asked_from, _covers_start, _is_stale
 from mlbooster.application.use_cases.series import FetchSeries
 from mlbooster.domain.errors import InvalidInput
-from mlbooster.domain.model import SeriesKind
+from mlbooster.domain.model import Frequency, SeriesKind
+from mlbooster.domain.services.frequency import to_monthly
 from mlbooster.domain.services.market_share import MAX_ROWS, TOTAL_ALIASES, ShareConfig, analyze
 from mlbooster.domain.validation import DateRange, series_code, slug
 
@@ -26,7 +27,10 @@ class SourceShareTable:
     groups). The series total (empty entity_id) becomes the market total row `TOPLAM`.
 
     Reads the local store first: a cache that covers the period is used as is; a stale one is topped up from about a
-    year back instead of refetching the whole history (monthly bulletins answer one month per request)."""
+    year back instead of refetching the whole history (monthly bulletins answer one month per request).
+
+    Sub-monthly series (e.g. EPİAŞ daily generation by source) are aggregated to calendar months first (flow → sum,
+    level → mean, an incomplete last month is dropped): the share analysis works on monthly or coarser periods."""
 
     def __init__(self, catalog: CatalogRepository, fetch: FetchSeries, store: ObservationStore):
         self._catalog = catalog
@@ -57,6 +61,11 @@ class SourceShareTable:
             df = df[(dates >= pd.Timestamp(period.start)) & (dates <= pd.Timestamp(period.end))]
         if df.empty:
             raise InvalidInput(f"{code}: {period.start} – {period.end} aralığında gözlem yok")
+        freq = Frequency(seed.freq)
+        if freq.is_high:
+            df = _monthly(df, freq, seed.kind)
+            if df.empty:
+                raise InvalidInput(f"{code}: {period.start} – {period.end} aralığında tamamlanmış ay yok")
         entity = df["entity_id"].fillna("") != ""
         if not entity.any():
             raise InvalidInput(f"{code} serisi oyuncu ya da grup kırılımı içermiyor; pazar payı için kırılımlı bir seri seçin")
@@ -78,11 +87,34 @@ class SourceShareTable:
         }  # fmt: skip
         if negative:
             meta["negative_rows"] = negative
+        if freq.is_high:
+            meta["aggregated_from"] = freq.value
         return table.reset_index(drop=True), meta
 
     def _levels(self, source_id: str, code: str) -> pd.DataFrame:
         df = self._store.read(source_id, [code])
         return df[df["metric"] == "level"] if not df.empty else df
+
+
+def _monthly(df: pd.DataFrame, freq: Frequency, kind: SeriesKind) -> pd.DataFrame:
+    """Entity and total rows of a sub-monthly series as calendar-month rows (month-end dates). Months after the last
+    complete month of the total are dropped, so every entity covers the same months."""
+    df = df[df["freq"] == freq.value] if "freq" in df.columns and (df["freq"] == freq.value).any() else df
+    frames = []
+    for entity_id, rows in df.groupby(df["entity_id"].fillna(""), sort=False):
+        values = pd.Series(rows["value"].astype(float).to_numpy(), index=pd.to_datetime(rows["date"]))
+        monthly = to_monthly(values, freq, kind=kind)
+        named = rows["entity_name"].dropna()
+        frames.append(pd.DataFrame({
+            "entity_id": entity_id, "entity_name": named.iloc[-1] if len(named) else None,
+            "date": monthly.index.date, "value": monthly.to_numpy(),
+            "is_proxy": bool(rows["is_proxy"].fillna(False).astype(bool).any()),
+        }))  # fmt: skip
+    out = pd.concat(frames, ignore_index=True)
+    totals = out[out["entity_id"] == ""]
+    if not totals.empty:
+        out = out[out["date"] <= totals["date"].max()]
+    return out.reset_index(drop=True)
 
 
 def _without_negatives(df: pd.DataFrame, entity: pd.Series, code: str) -> tuple[pd.Series, int]:
@@ -146,6 +178,9 @@ class AnalyzeMarketShare:
         config = replace(config, kind=kind or series_kind, unit=config.unit or meta["unit"] or "")
         out = self(table, config, sector_id, start)
         out["meta"]["source"] = meta
+        if meta.get("aggregated_from"):
+            out["issues"].append({"severity": "info", "check": "aggregated_to_monthly",
+                                  "message": "Seri ay altı frekansta; paylar takvim aylarına çevrilerek hesaplandı (akım: toplam, stok: ortalama, tamamlanmamış son ay hariç)."})  # fmt: skip
         if meta.get("negative_rows"):
             out["issues"].append({"severity": "info", "check": "negative_values",
                                   "message": f"{meta['negative_rows']} satırda negatif net tutar (iptal, iade) vardı; pay hesabında sıfır kabul edildi."})  # fmt: skip
