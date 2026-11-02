@@ -1,3 +1,3 @@
 """ML Booster Map: free Turkish data sources → ML-ready panel."""
 
-__version__ = "0.10.0"
+__version__ = "0.11.0"
