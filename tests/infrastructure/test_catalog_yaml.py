@@ -62,6 +62,18 @@ def test_rejects_http_base_url(tmp_path):
         _write(tmp_path, SOURCE.format(id="x", url="http://example.com")).load()
 
 
+@pytest.mark.parametrize(("extra", "limit"), [("", 50), ("max_response_mb: 150\n", 150), ("max_response_mb: 200\n", 200)])
+def test_response_size_limit_defaults_to_50_mb(tmp_path, extra, limit):
+    catalog = _write(tmp_path, SOURCE.format(id="x", url="https://example.com") + extra).load()
+    assert catalog.source("x").max_response_mb == limit
+
+
+@pytest.mark.parametrize("value", ["201", "0", "1000"])
+def test_rejects_response_size_limit_outside_bounds(tmp_path, value):
+    with pytest.raises(InconsistentCatalog, match="max_response_mb"):
+        _write(tmp_path, SOURCE.format(id="x", url="https://example.com") + f"max_response_mb: {value}\n").load()
+
+
 def test_rejects_path_traversal_id(tmp_path):
     with pytest.raises(InconsistentCatalog):
         _write(tmp_path, SOURCE.format(id="'../x'", url="https://example.com")).load()

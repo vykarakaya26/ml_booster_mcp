@@ -1,13 +1,35 @@
 id: btk
 name: BTK Üç Aylık Pazar Verileri Raporu
 owner: BTK
-base_url: https://www.btk.gov.tr
+# The provider pins this host, reads the report list from /elektronik-haberlesme-pazar-verileri and downloads the
+# quarterly PDFs from /s3/... on the same host.
+base_url: https://www.btk.gov.tr/elektronik-haberlesme-pazar-verileri
 access: pdf_report
 auth: {type: none}
-license: {attribution: required, notes: "Kamuya açık yayın."}
+rate_limit: {rps: 1, backoff: exponential, notes: "Her çeyrek tek bir PDF rapordur (son raporlar 40-46 MB); indirilen raporlar yerel bronze katmanında saklanır ve yeniden indirilmez."}
+license: {commercial: false, redistribution: false, attribution: required, notes: "Sitede ayrı bir kullanım şartları sayfası yok; altbilgide 'Tüm Hakları Saklıdır' yazıyor. Rapor kamuya açık resmi istatistik yayınıdır ve kaynak gösterilerek alıntılanabilir; ticari kullanım ve yeniden dağıtım için BTK'nın izni alınmalıdır. Rakamlar işletmecilerin bildirimlerine dayanır ve sonraki raporlarda revize edilebilir."}
 frequency: [Q]
 formats: [pdf]
 sectors: [telekom]
-publication_lag_days: 100  # estimated; the Q4 report is published after January
-verification_status: reported
+publication_lag_days: 100  # the 2026-Q2 report went online on 7 Oct 2026 (99 days)
+verification_status: verified
+verification_notes: "2026-11-02: Duyuru sayfası ve çeyreklik PDF raporlar anahtarsız olarak canlı test edildi (robots.txt yalnızca /api/ ve /_next/ yollarını kapatıyor). 2016-Q4, 2019-Q4, 2023-Q2, 2025-Q4, 2026-Q1 ve 2026-Q2 raporlarında gelir çizelgesi (Çizelge 1-3), mobil abone payı cümlesi, sabit genişbant payları (Çizelge 3-2) ve internet abone sayıları (Çizelge 3-1) okundu ve doğrulandı. Rapor listesinde 2018-Q2 ve 2018-Q4 yok; Excel eki yayımlanmıyor. Grafikler görsel olduğundan mobil abone sayısı işletmeci bazında yalnızca pay olarak alınabiliyor."
+known_breaks:
+  - "2017: Raporlar Avea yerine TT Mobil adını kullanmaya başladı (aynı oyuncu, entity_id TT_MOBIL)"
+  - "2026-Q1: M2M aboneleri toplam mobil abone sayısından ayrıldı; abone sayısına göre paylar süreklilik gösteriyor"
+  - "2026-Q2: 5G hizmeti başladı (1 Nisan 2026)"
+  - "2021-Q1: Raporun metin katmanında font eşlemesi bozuk (rakamlar ve Türkçe harfler başka karakterlerle kodlanmış); mobil abone payı bu çeyrek için okunamıyor, gelir verisi sonraki raporlardan alınıyor"
+  - "2025-Q4: Sabit genişbant pay çizelgesindeki paylar %98,35'e ulaşıyor (bir satır eksik); doğrulamadan geçmediği için bu çeyrek atlanır"
+adapter: btk
 priority: 7
+max_response_mb: 150  # reports are 40-46 MB and growing (2026-Q1: 45.6 MB); the default 50 MB would soon refuse them
+# remote: "<table>/<column>" of the report a series is read from; see infrastructure/providers/btk.py.
+# Entity rows: operators (entity_id = TURKCELL, VODAFONE, TT_MOBIL, TURK_TELEKOM, TTNET, ...); the total has an empty
+# entity_id (operator total for revenue, 100 for share series).
+series:
+  - {code: BTK.GELIR, name: "Türk Telekom ve mobil işletmecilerin üç aylık net satış gelirleri, işletmeciye göre (TL)", freq: Q, kind: flow, unit: try, currency: TRY, remote: gelir/net_satis, canary: true}
+  - {code: BTK.MOBIL.ABONE.PAY, name: "Mobil işletmecilerin abone sayısına göre pazar payları: Turkcell, Vodafone, TT Mobil (%)", freq: Q, kind: level, unit: percent, remote: mobil_abone_pay/abone, canary: true}
+  - {code: BTK.SGB.ABONE.PAY, name: "Sabit genişbant işletmecilerinin abone sayısına göre pazar payları (%)", freq: Q, kind: level, unit: percent, remote: sabit_genisbant_pay/abone}
+  - {code: BTK.SGB.GELIR.PAY, name: "Sabit genişbant işletmecilerinin gelire göre pazar payları (%)", freq: Q, kind: level, unit: percent, remote: sabit_genisbant_pay/gelir}
+  - {code: BTK.INTERNET.ABONE, name: "Toplam internet (genişbant) abone sayısı, sabit ve mobil", freq: Q, kind: level, unit: count, remote: internet_abone/toplam}
+  - {code: BTK.FIBER.ABONE, name: "Fiber internet abone sayısı (FTTH + FTTB)", freq: Q, kind: level, unit: count, remote: internet_abone/fiber}

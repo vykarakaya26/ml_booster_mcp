@@ -10,6 +10,7 @@ from mlbooster.domain.model import Source
 from mlbooster.infrastructure.http_client import RateLimiter, SecureHttpClient
 from mlbooster.infrastructure.providers.bddk import BddkProvider
 from mlbooster.infrastructure.providers.bkm import BkmProvider
+from mlbooster.infrastructure.providers.btk import BtkProvider
 from mlbooster.infrastructure.providers.epdk import EpdkProvider
 from mlbooster.infrastructure.providers.epias import EpiasProvider
 from mlbooster.infrastructure.providers.evds3 import Evds3Provider
@@ -24,6 +25,7 @@ from mlbooster.infrastructure.storage.raw_store import RawStore
 PROVIDERS: dict[str, type] = {
     "bddk": BddkProvider,
     "bkm": BkmProvider,
+    "btk": BtkProvider,
     "epdk": EpdkProvider,
     "epias": EpiasProvider,
     "evds3": Evds3Provider,
@@ -50,7 +52,7 @@ class ProviderRegistry:
 
     def _default_http(self, source: Source) -> SecureHttpClient:
         limiter = self._limiters.setdefault(source.id, RateLimiter(source.rate_limit.rps))
-        return SecureHttpClient(rps=source.rate_limit.rps, limiter=limiter)
+        return SecureHttpClient(rps=source.rate_limit.rps, limiter=limiter, max_bytes=source.max_response_mb * 1024 * 1024)
 
     def available(self) -> set[str]:
         return set(PROVIDERS)
