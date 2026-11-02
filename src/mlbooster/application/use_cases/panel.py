@@ -97,7 +97,7 @@ class BuildPanel:
         )
         if not covered or _is_stale(df):  # fetch with a buffer; for the cache the requested start is sufficient
             request = FetchRequest.create(source_id, [code], _with_history(period.start), period.end, formula=formula)
-            df = _single_series(self._fetch(request), metric, seed.freq.value if seed else None)
+            df = _single_series(self._fetch(request, refresh=refresh), metric, seed.freq.value if seed else None)
         if df.empty:
             raise ProviderError(f"{code}: veri yok")
         return df

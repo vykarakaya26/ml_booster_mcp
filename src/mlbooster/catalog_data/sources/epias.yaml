@@ -14,6 +14,9 @@ auth:
 # rps 1 stays under both. Range per call (SEF1117, verified 2026-11-03): one year for PTF, SMF and consumption,
 # three months for generation; the provider cuts requests at calendar month ends (limits live in the provider).
 rate_limit: {rps: 1, per_minute: 60, backoff: fixed, blocked_seconds_on_429: 30, notes: "Bir istek PTF, SMF ve tüketim için en fazla 1 yıllık, üretim için en fazla 3 aylık saatlik veri döndürür; 429 alındığında 30 saniye beklenir."}
+# Hourly services answer at most 3 months (generation) or 1 year per call: without a start date the last 5 years are
+# fetched once, later calls only add the missing history and the last 7 days (real-time values may still be revised).
+history: {default_years: 5, revision_days: 7}
 license: {attribution: required, notes: "Veriler EPİAŞ Şeffaflık Platformu'ndan kaynak gösterilerek kullanılır. Web servis erişimi ücretsiz kullanıcı hesabı gerektirir (kayit.epias.com.tr). Ticari kullanım koşulları yayımlanmamıştır; doğrulanmadı."}
 frequency: [H, D]
 formats: [json]

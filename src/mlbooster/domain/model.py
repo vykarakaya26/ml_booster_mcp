@@ -152,6 +152,21 @@ class StoragePolicy:
 
 
 @dataclass(frozen=True)
+class HistoryPolicy:
+    """How a source's history is pulled and kept (opt-in per source; others refetch the requested range).
+    default_years: history fetched when no start date is given; revision_days: when the local store already holds the
+    series, only the history before the earliest request and the tail from (last cached day - revision_days) are
+    fetched again, the rest is served from the store."""
+
+    default_years: int | None = None
+    revision_days: int | None = None
+
+    @property
+    def incremental(self) -> bool:
+        return self.revision_days is not None
+
+
+@dataclass(frozen=True)
 class LicenseSpec:
     commercial: bool | None
     redistribution: bool | None
@@ -194,6 +209,7 @@ class Source:
     priority: int = 99
     series: tuple[SeedSeries, ...] = ()
     storage: StoragePolicy = StoragePolicy()
+    history: HistoryPolicy = HistoryPolicy()
     max_response_mb: int = 50  # largest HTTP response accepted from this source (catalog caps it at 200)
 
     def seed(self, code: str) -> SeedSeries | None:
