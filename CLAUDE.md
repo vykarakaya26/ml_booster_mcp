@@ -115,6 +115,9 @@ Rules:
    inclusive (T00:00 returns all its hours) and responses are not paged. Dates carry the Europe/Istanbul offset of
    that day (+02:00 in winters before Sep 2016; +03:00 there returns the previous day). Generation `total` = sources
    + `importExport`; domestic generation (`generation`, the `by_source` total) is the sum of the sources.
+   History: catalog `history: {default_years: 5, revision_days: 7}` (opt-in per source; only EPİAŞ): `fetch` without
+   a start goes back 5 years; later fetches request only history before the earliest earlier request plus the tail
+   from (last cached day − revision_days); `--refresh` / `refresh=true` refetches everything.
 4. BDDK / TBB / BKM: HTML tables + Excel downloads; change detection by file hash.
    BDDK (done — infrastructure/providers/bddk.py), live observation 2026-11-02: no robots.txt (404); the terms of use
    allow quotation with attribution, commercial use needs BDDK's written permission.
