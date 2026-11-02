@@ -1,10 +1,20 @@
 """EPİAŞ Şeffaflık Platformu provider: hourly electricity market data, aggregated to daily values.
 
 Public documentation checked 2026-11-02 (seffaflik.epias.com.tr/electricity-service/technical/en/index.html and its
-swagger.json; CAS REST guide on epias.com.tr):
+swagger.json; CAS REST guide on epias.com.tr), responses with a valid TGT verified live 2026-11-03:
 - Every data service is `POST https://seffaflik.epias.com.tr/electricity-service/v1/...` with a JSON body
-  `{"startDate": "2023-01-01T00:00:00+03:00", "endDate": ...}` (ISO-8601, Turkish time) and a `TGT` header.
-  The response is `{"items": [{"date": "...+03:00", "hour": "00:00", <fields>}], "page": ..., "statistic(s)": ...}`.
+  `{"startDate": "2023-01-01T00:00:00+03:00", "endDate": ...}` (ISO-8601, Turkish local time) and a `TGT` header.
+  The response is `{"items": [{"date": "...+03:00", "hour": "00:00", <fields>}], "page": null, "statistic(s)"/"totals"}`;
+  `date` is the hour in local time. Both dates are days: start..end returns every hour of both days (no paging seen
+  even for 8784 rows).
+- The offset must be the one valid on that day in Europe/Istanbul (+02:00 in winters before September 2016):
+  `2015-01-01T00:00:00+03:00` is 31 Dec 23:00 local time and returns 31 December.
+- Range limit per call (400 `(BUS)SEF1117 "... tanımlanmış aralıktan (3 MONTH) fazla olamaz!"`): one year for PTF,
+  SMF and consumption, three months for generation; the end may be at most start + N calendar months (Jan 1–Apr 1
+  and Nov 30–Feb 28 pass, Jan 1–Apr 2 does not). Requests are therefore cut at calendar month ends.
+- Generation `total` = sum of the source fields + `importExport` (net exchange, negative when exporting); domestic
+  generation is the sum of the sources (pseudo field `generation`, also the total of `by_source`).
+- Data start (live): SMF 2011-01, PTF 2011-11, generation 2013-10, consumption 2016-01 at the latest.
 - The TGT comes from `POST https://giris.epias.com.tr/cas/v1/tickets` (form-urlencoded `username`, `password`,
   `Accept: text/plain`); success is `201 Created` with the body `TGT-...`, wrong credentials give 401. The documented
   TGT lifetime is 2 hours (CLAUDE.md says 8; the catalog `ttl_hours` follows the documentation).
@@ -13,12 +23,11 @@ swagger.json; CAS REST guide on epias.com.tr):
 - The gateway sends `RateLimit-Limit` per service (observed: 60 per 60 s for the MCP service, 3600 per hour for the
   others); the catalog rps keeps every service under that. robots.txt allows everything.
 
-Response contents with a valid TGT were not observed (no account); the field names come from swagger.json.
-
 The catalog `remote` field is `<dataset>/<field>`: the dataset names one of the services below and the field one
-of its numeric item fields. For `realtime-generation/by_source` the total is written with an empty `entity_id` and
-every generation source is an entity (entity_id = API field). Hourly values are aggregated to daily ones by the
-seed `kind` (level → mean, flow → sum); days with fewer than 23 hourly values (e.g. today) are dropped.
+of its numeric item fields. For `realtime-generation/by_source` domestic generation is written with an empty
+`entity_id` and every generation source is an entity (entity_id = API field). Hourly values are aggregated to daily
+ones by the seed `kind` (level → mean, flow → sum); a day missing more than one of its local hours (e.g. today) is
+dropped (DST days have 23 or 25 hours).
 
 Credentials (EPIAS_USERNAME, EPIAS_PASSWORD) are read from the environment only, are sent only in the form body to
 the pinned login host, and the TGT is sent only in the header to the pinned data host. Neither is written to URLs,
@@ -36,6 +45,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import UTC, date, datetime, timedelta
 from urllib.parse import urlencode, urlsplit
+from zoneinfo import ZoneInfo
 
 import pandas as pd
 
@@ -50,7 +60,6 @@ from mlbooster.application.errors import (
 from mlbooster.domain.errors import InvalidInput
 from mlbooster.domain.model import Frequency, HealthResult, HealthStatus, SeedSeries, SeriesKind, Source
 from mlbooster.domain.observations import OBSERVATION_COLUMNS, empty_observations
-from mlbooster.domain.services.chunking import date_chunks
 from mlbooster.infrastructure.http_client import HttpResponse, SecureHttpClient
 from mlbooster.infrastructure.secret_store import EnvSecretProvider, Secret, redact
 from mlbooster.infrastructure.storage.raw_store import RawStore
@@ -63,26 +72,27 @@ PASSWORD_ENV = "EPIAS_PASSWORD"
 TGT_HEADER = "TGT"
 DEFAULT_TTL_HOURS = 2.0
 TTL_MARGIN_SECONDS = 600  # renew a little before the server lets the ticket expire
-DEFAULT_MAX_OBS = 2232  # hourly values per call (93 days); the documentation states no range limit
 DEFAULT_BLOCKED_SECONDS = 30
-MIN_HOURS_PER_DAY = 23  # 23-hour days existed while Turkey still switched to summer time (until 2016)
+ISTANBUL = ZoneInfo("Europe/Istanbul")
 MAX_ITEMS_PER_RESPONSE = 200_000
 BY_SOURCE = "by_source"
+GENERATION = "generation"  # pseudo field: sum of the generation sources (= total - importExport)
 _HEALTH_LOOKBACK_DAYS = 14
 _STALENESS_MARGIN_DAYS = 3
 
 _SERVICE = "/electricity-service/v1/"
-# dataset key → (service path, numeric item fields)
-DATASETS: dict[str, tuple[str, frozenset[str]]] = {
-    "dam-mcp": ("markets/dam/data/mcp", frozenset({"price", "priceUsd", "priceEur"})),
-    "bpm-smp": ("markets/bpm/data/system-marginal-price", frozenset({"systemMarginalPrice"})),
-    "realtime-consumption": ("consumption/data/realtime-consumption", frozenset({"consumption"})),
+# dataset key → (service path, numeric item fields, calendar months per call; SEF1117 above that, verified live)
+DATASETS: dict[str, tuple[str, frozenset[str], int]] = {
+    "dam-mcp": ("markets/dam/data/mcp", frozenset({"price", "priceUsd", "priceEur"}), 12),
+    "bpm-smp": ("markets/bpm/data/system-marginal-price", frozenset({"systemMarginalPrice"}), 12),
+    "realtime-consumption": ("consumption/data/realtime-consumption", frozenset({"consumption"}), 12),
     "realtime-generation": (
         "generation/data/realtime-generation",
         frozenset({
             "total", "naturalGas", "dammedHydro", "lignite", "river", "importCoal", "wind", "sun", "fueloil",
             "geothermal", "asphaltiteCoal", "blackCoal", "biomass", "naphta", "lng", "importExport", "wasteheat",
         }),
+        3,
     ),
 }  # fmt: skip
 # Entity labels of the generation sources (unknown new fields, e.g. nuclear, keep their API name as label).
@@ -107,7 +117,9 @@ def parse_remote(remote: str) -> tuple[str, str]:
             f"EPİAŞ remote alanı '<veri seti>/<alan>' biçiminde olmalıdır; veri setleri: {sorted(DATASETS)}"
         )
     dataset, field = m["dataset"], m["field"]
-    if field not in DATASETS[dataset][1] and not (field == BY_SOURCE and dataset == "realtime-generation"):
+    if field not in DATASETS[dataset][1] and not (
+        field in (BY_SOURCE, GENERATION) and dataset == "realtime-generation"
+    ):
         raise InvalidInput(f"EPİAŞ {dataset} veri setinde '{field}' alanı yok")
     return dataset, field
 
@@ -152,7 +164,26 @@ TICKETS = TicketCache()
 
 
 def _iso(d: date) -> str:
-    return f"{d.isoformat()}T00:00:00+03:00"
+    """Local midnight with the offset valid on that day (Turkey used +02:00 in winter until 2016)."""
+    return datetime(d.year, d.month, d.day, tzinfo=ISTANBUL).isoformat()
+
+
+def month_chunks(start: date, end: date, months: int) -> list[tuple[date, date]]:
+    """[start, end] cut at calendar month ends so that each piece spans at most `months` calendar months."""
+    chunks, cursor = [], start
+    while cursor <= end:
+        years, month = divmod(cursor.month - 1 + months, 12)
+        chunk_end = min(date(cursor.year + years, month + 1, 1) - timedelta(days=1), end)
+        chunks.append((cursor, chunk_end))
+        cursor = chunk_end + timedelta(days=1)
+    return chunks
+
+
+def _hours_in_day(d: date) -> int:
+    """23 or 25 on DST transition days (until 2016), 24 otherwise. Same-zone subtraction ignores DST, hence UTC."""
+    nxt = d + timedelta(days=1)
+    midnight = [datetime(x.year, x.month, x.day, tzinfo=ISTANBUL).astimezone(UTC) for x in (d, nxt)]
+    return round((midnight[1] - midnight[0]).total_seconds() / 3600)
 
 
 class EpiasProvider:
@@ -180,7 +211,6 @@ class EpiasProvider:
         ttl_hours = source.auth.ttl_hours or DEFAULT_TTL_HOURS
         self._ttl_seconds = max(60.0, ttl_hours * 3600 - TTL_MARGIN_SECONDS)
         self._blocked_seconds = source.rate_limit.blocked_seconds_on_429 or DEFAULT_BLOCKED_SECONDS
-        self._days_per_call = max(1, (source.rate_limit.max_obs_per_call or DEFAULT_MAX_OBS) // 24)
 
     # --- Authentication ------------------------------------------------------------------
 
@@ -245,7 +275,7 @@ class EpiasProvider:
         page = doc.get("page")
         if isinstance(page, dict) and isinstance(page.get("total"), int) and page["total"] > len(items):
             raise UnexpectedResponse(
-                f"EPİAŞ yanıtı sayfalanmış ({len(items)}/{page['total']}); max_obs_per_call değerini küçültün"
+                f"EPİAŞ yanıtı sayfalanmış ({len(items)}/{page['total']}); veriler eksik kalacağı için istek durduruldu"
             )
         if self._raw_store is not None:  # only the public date range goes into the manifest URL
             self._raw_store.save(self.source.id, f"{url}?{urlencode(body)}", response.content, "application/json")
@@ -322,9 +352,7 @@ class EpiasProvider:
         vintage, frames = datetime.now(UTC), []
         for dataset in sorted({d for _, (d, _) in seeds}):
             items: list[dict] = []
-            for start, end in date_chunks(
-                request.period.start, request.period.end, Frequency.DAILY, self._days_per_call
-            ):
+            for start, end in month_chunks(request.period.start, request.period.end, DATASETS[dataset][2]):
                 items += self._post(dataset, start, end)
             hourly = _hourly(items, request.period.start, request.period.end)
             for seed, (d, field) in seeds:
@@ -393,11 +421,30 @@ def _hourly(items: list[dict], start: date, end: date) -> pd.DataFrame:
         raise UnexpectedResponse("EPİAŞ yanıtında tanınmayan tarih biçimi") from None
     frame = pd.DataFrame(items)
     hours = frame["hour"].astype(str) if "hour" in frame.columns else pd.Series("", index=frame.index)
-    # `date` carries the hour already (local +03:00); `hour` is kept in the key for services that put only the day there.
+    # `date` carries the hour already (local time); `hour` is kept in the key for services that put only the day there.
     frame["stamp"] = [f"{s.isoformat()}|{h}" for s, h in zip(stamps, hours, strict=True)]
     frame["day"] = [s.date() for s in stamps]
     frame = frame[(frame["day"] >= start) & (frame["day"] <= end)]
     return frame.drop_duplicates("stamp", keep="last")
+
+
+def _numeric(hourly: pd.DataFrame, name: str, code: str) -> pd.Series | None:
+    """Numeric values of one item field; None if the field holds something else (e.g. text)."""
+    if name not in hourly.columns:
+        raise UnexpectedResponse(f"{code}: EPİAŞ yanıtında '{name}' alanı yok")
+    raw = hourly[name]
+    if raw.map(lambda v: v is not None and (isinstance(v, bool) or not isinstance(v, int | float))).any():
+        return None
+    return pd.to_numeric(raw, errors="coerce")
+
+
+def _generation_parts(hourly: pd.DataFrame, code: str) -> dict[str, pd.Series]:
+    """Hourly values of every generation source (unknown new numeric fields included, text fields skipped)."""
+    names = sorted(c for c in hourly.columns if c not in _NOT_A_SOURCE | {"day", "stamp"})
+    parts = {name: values for name in names if (values := _numeric(hourly, name, code)) is not None}
+    if not parts:
+        raise UnexpectedResponse(f"{code}: EPİAŞ üretim yanıtında kaynak alanı yok")
+    return parts
 
 
 def _daily(hourly: pd.DataFrame, seed: SeedSeries, field: str) -> pd.DataFrame:
@@ -405,24 +452,23 @@ def _daily(hourly: pd.DataFrame, seed: SeedSeries, field: str) -> pd.DataFrame:
     columns = ["series_id", "entity_id", "entity_name", "date", "value"]
     if hourly.empty:
         return pd.DataFrame(columns=columns)
-    if field == BY_SOURCE:
-        fields = ["total"] + sorted(c for c in hourly.columns if c not in _NOT_A_SOURCE | {"day", "stamp"})
+    series: dict[str, pd.Series] = {}  # entity_id → hourly values; "" is the series total
+    if field in (BY_SOURCE, GENERATION):
+        parts = _generation_parts(hourly, seed.code)
+        series[""] = pd.concat(parts, axis=1).sum(axis=1, min_count=1)
+        if field == BY_SOURCE:
+            series.update(parts)
     else:
-        fields = [field]
+        values = _numeric(hourly, field, seed.code)
+        if values is None:
+            raise UnexpectedResponse(f"{seed.code}: EPİAŞ yanıtında sayısal olmayan '{field}' değeri")
+        series[""] = values
     how = "sum" if seed.kind is SeriesKind.FLOW else "mean"
     out = []
-    for i, name in enumerate(fields):
-        if name not in hourly.columns:
-            raise UnexpectedResponse(f"{seed.code}: EPİAŞ yanıtında '{name}' alanı yok")
-        raw = hourly[name]
-        if raw.map(lambda v: v is not None and (isinstance(v, bool) or not isinstance(v, int | float))).any():
-            if field == BY_SOURCE and i > 0:
-                continue  # a non-numeric extra field is not a generation source
-            raise UnexpectedResponse(f"{seed.code}: EPİAŞ yanıtında sayısal olmayan '{name}' değeri")
-        values = pd.to_numeric(raw, errors="coerce")
+    for entity, values in series.items():
         grouped = values.groupby(hourly["day"]).agg([how, "count"])
-        grouped = grouped[grouped["count"] >= MIN_HOURS_PER_DAY]  # incomplete days (e.g. today) are dropped
-        entity = name if field == BY_SOURCE and i > 0 else ""
-        label = None if entity == "" else GENERATION_SOURCES.get(name, name)
-        out += [(seed.code, entity, label, day, float(v)) for day, v in grouped[how].items()]
+        # A day missing more than one local hour (e.g. today) is dropped; DST days have 23 or 25 hours.
+        complete = [n >= _hours_in_day(day) - 1 for day, n in grouped["count"].items()]
+        label = GENERATION_SOURCES.get(entity, entity) if entity else None
+        out += [(seed.code, entity, label, day, float(v)) for day, v in grouped.loc[complete, how].items()]
     return pd.DataFrame(out, columns=columns)

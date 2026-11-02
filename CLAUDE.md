@@ -109,7 +109,11 @@ Rules:
    JSON {startDate, endDate} (+03:00) and the `TGT` header. No TGT → 401 AUTH002 (generation: 406 text), bad TGT →
    401 AUTH009. Gateway limits per service (60/60 s for PTF, 3600/h others) → rps 1; 429 → wait 30 s. Hourly → daily
    by kind (price mean, flow sum). Credentials: EPIAS_USERNAME / EPIAS_PASSWORD in .env; healthcheck is skipped
-   without them. Valid-TGT responses are not yet verified live (catalog verification_status: reported).
+   without them. Verified live 2026-11-03: range per call is 1 year (PTF, SMF, consumption) or 3 months (generation),
+   end ≤ start + N calendar months, else 400 `(BUS)SEF1117`; requests are cut at calendar month ends. The end day is
+   inclusive (T00:00 returns all its hours) and responses are not paged. Dates carry the Europe/Istanbul offset of
+   that day (+02:00 in winters before Sep 2016; +03:00 there returns the previous day). Generation `total` = sources
+   + `importExport`; domestic generation (`generation`, the `by_source` total) is the sum of the sources.
 4. BDDK / TBB / BKM: HTML tables + Excel downloads; change detection by file hash.
    BDDK (done — infrastructure/providers/bddk.py), live observation 2026-11-02: no robots.txt (404); the terms of use
    allow quotation with attribution, commercial use needs BDDK's written permission.
