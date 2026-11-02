@@ -68,3 +68,30 @@ def test_intermediate_dirs_are_private(tmp_path):
     ensure_private_dir(tmp_path / "a" / "b" / "c")
     for d in ["a", "a/b", "a/b/c"]:
         assert stat.S_IMODE(os.stat(tmp_path / d).st_mode) & 0o077 == 0, d
+
+
+def test_requested_start_keeps_earliest_and_survives_reopen(tmp_path):
+    store = ParquetObservationStore(tmp_path / "silver")
+    assert store.requested_start("evds3", "TP.APIFON4", "level") is None
+    store.record_requested_start("evds3", ["TP.APIFON4"], "level", date(2015, 1, 1))
+    store.record_requested_start("evds3", ["TP.APIFON4"], "level", date(2018, 1, 1))  # later: unchanged
+    store.record_requested_start("evds3", ["TP.APIFON4"], "level", date(2008, 11, 22))
+    reopened = ParquetObservationStore(tmp_path / "silver")
+    assert reopened.requested_start("evds3", "TP.APIFON4", "level") == date(2008, 11, 22)
+    assert reopened.requested_start("evds3", "TP.APIFON4", "pct_change") is None  # metrics are kept apart
+    path = tmp_path / "silver" / "source_id=evds3" / "_requested_starts.json"
+    assert stat.S_IMODE(os.stat(path).st_mode) == 0o600
+    assert reopened.read("evds3").empty  # the record file is not read as observations
+
+
+def test_requested_start_validates_and_tolerates_corrupt_file(tmp_path):
+    store = ParquetObservationStore(tmp_path / "silver")
+    with pytest.raises(InvalidInput):
+        store.record_requested_start("../x", ["TP.A"], "level", date(2020, 1, 1))
+    with pytest.raises(InvalidInput):
+        store.record_requested_start("evds3", ["TP&x=1"], "level", date(2020, 1, 1))
+    with pytest.raises(InvalidInput):
+        store.requested_start("evds3", "TP.A", "level/../")
+    store.record_requested_start("evds3", ["TP.A"], "level", date(2020, 1, 1))
+    (tmp_path / "silver" / "source_id=evds3" / "_requested_starts.json").write_text("{bozuk")
+    assert store.requested_start("evds3", "TP.A", "level") is None  # corrupt record: only one extra fetch

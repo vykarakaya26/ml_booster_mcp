@@ -92,7 +92,10 @@ class BuildPanel:
         seed = catalog.source(source_id).seed(code)
         df = pd.DataFrame() if refresh else self._store.read(source_id, [code])
         df = _single_series(df, metric, seed.freq.value if seed else None)
-        if df.empty or not _covers_start(df, period.start) or _is_stale(df):  # fetch with a buffer; for the cache the requested start is sufficient
+        covered = not df.empty and (
+            _covers_start(df, period.start) or _asked_from(self._store.requested_start(source_id, code, metric), period.start)
+        )
+        if not covered or _is_stale(df):  # fetch with a buffer; for the cache the requested start is sufficient
             request = FetchRequest.create(source_id, [code], _with_history(period.start), period.end, formula=formula)
             df = _single_series(self._fetch(request), metric, seed.freq.value if seed else None)
         if df.empty:
@@ -135,6 +138,12 @@ def _covers_start(df: pd.DataFrame, start: date) -> bool:
     freq = Frequency(df["freq"].iloc[0])
     tolerance = max(7, int(freq.min_period_days * 1.1))
     return pd.Timestamp(df["date"].min()) <= pd.Timestamp(start) + pd.Timedelta(days=tolerance)
+
+
+def _asked_from(requested: date | None, start: date) -> bool:
+    """If the provider was already asked from `start` or earlier, the series simply begins later than `start`
+    even though the first cached observation is after it; fetching again would bring no new data."""
+    return requested is not None and requested <= start
 
 
 HISTORY_DAYS = 400  # buffer before the start for yoy_pct (12 months) + publication lag

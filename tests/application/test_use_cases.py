@@ -98,7 +98,22 @@ def test_build_panel_refetches_when_cache_misses_requested_start(deps):
     build("telekom", date(2024, 1, 1), date(2026, 9, 30))
     assert _known_calls(providers) == narrow_calls
     build("telekom", date(2015, 1, 1), date(2026, 9, 30))
-    assert _known_calls(providers) > narrow_calls
+    wide_calls = _known_calls(providers)
+    assert wide_calls > narrow_calls
+
+
+def test_series_starting_after_requested_start_is_not_refetched(deps):
+    """A series that starts in 2024 at the source is read from the cache once it was requested from 2015."""
+    catalog, providers, store, panels = deps
+    build = BuildPanel(catalog, providers, store, panels)
+    build("telekom", date(2015, 1, 1), date(2026, 9, 30))
+    calls = _known_calls(providers)
+    assert store.requested_start("evds3", "TP.DK.USD.A", "level") <= date(2015, 1, 1)
+    build("telekom", date(2015, 1, 1), date(2026, 9, 30))
+    build("telekom", date(2018, 6, 1), date(2026, 9, 30))
+    assert _known_calls(providers) == calls
+    build("telekom", date(2010, 1, 1), date(2026, 9, 30))  # an earlier start was never requested
+    assert _known_calls(providers) > calls
 
 
 def test_cached_rows_of_other_frequency_are_ignored(deps):

@@ -5,7 +5,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "mlbooster"
-version = "0.7.0"
+version = "0.8.0"
 description = "ML Booster Map: map of free data sources for Turkey and builder of ML-ready panels"
 requires-python = ">=3.12"
 license = "MIT"
@@ -19,6 +19,8 @@ dependencies = [
     "typer>=0.12",
     "python-dotenv>=1.0",
     "mcp>=2.0,<3",
+    "starlette>=0.40",  # local web panel (already pulled in by mcp)
+    "uvicorn>=0.31",
 ]
 
 [project.optional-dependencies]

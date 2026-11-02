@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import date, datetime
 from pathlib import Path
 from typing import Protocol
 
@@ -72,6 +72,16 @@ class ObservationStore(Protocol):
         as_of: datetime | None = None,
     ) -> pd.DataFrame:
         """For each key, the latest vintage up to the `as_of` instant."""
+        ...
+
+    def record_requested_start(self, source_id: str, series_ids: list[str], metric: str, start: date) -> None:
+        """Records that the provider was asked for the full history of these series from `start` onwards.
+        The record is only ever moved to an earlier date."""
+        ...
+
+    def requested_start(self, source_id: str, series_id: str, metric: str) -> date | None:
+        """Earliest start the provider was asked for, for this series and metric; None without a record.
+        If the series' first observation is later than this date, the source has no earlier data."""
         ...
 
 

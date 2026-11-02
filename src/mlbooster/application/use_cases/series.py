@@ -37,6 +37,8 @@ class FetchSeries:
             observations = provider.fetch(request)
         if not observations.empty:
             self._store.write(observations)
+            returned = sorted(set(observations["series_id"]))
+            self._store.record_requested_start(source.id, returned, request.metric, request.period.start)
         return observations
 
     def summarize(self, request: FetchRequest, max_rows: int = 50) -> FetchSummary:

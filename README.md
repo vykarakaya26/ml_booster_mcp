@@ -5,6 +5,7 @@ Türkiye için ücretsiz veri kaynaklarını sektör bazında haritalayan ve ML'
 - **Claude Code plugin'i**: MCP sunucusu ve uçtan uca birlikte çalışan 7 skill. "Otomotiv sektörünü analiz et" gibi doğal dildeki bir istek, paylaşılabilir bir HTML rapor üretir.
 - **MCP sunucusu**: Claude Code ya da Claude Desktop'tan araç olarak.
 - **CLI / Python paketi**: `mlbooster`.
+- **Yerel web paneli**: `mlbooster web`. Sektörü, tarih aralığını, hedef seriyi ve modelleri tarayıcıdan seçersiniz; yalnızca bu bilgisayarda (127.0.0.1) çalışır.
 
 > **Durum:** Katalog 12 kaynak ve 9 sektör içeriyor (bankacılık, sigorta, telekom, otomotiv, akaryakıt, perakende, turizm, konut, makro_genel). Veri çeken provider'lar **TCMB EVDS3**, **BIS** ve **OECD**; üçü de canlı doğrulandı. TÜİK, BDDK, TBB, EPİAŞ, EPDK, BTK, TSB, ODMD ve BKM haritada yer alıyor ancak henüz veri çekmiyor; bu kaynakların adapter'ları yol haritasında.
 
@@ -109,7 +110,25 @@ mlbooster features --sector makro_genel --target tufe_yoy --train-end 2022-12 --
 mlbooster backtest --sector makro_genel --target tufe_yoy --panel-file secilen.csv --eval-start 2022-12  # seçim sonrası dönemde ölç
 mlbooster market-share --input pay.csv --focus "Marka X" --unit adet --sector otomotiv --json share.json
 mlbooster health
+mlbooster web                                             # yerel web paneli: http://127.0.0.1:8765
 ```
+
+### Yerel web paneli
+
+`mlbooster web` komutu tarayıcıda bir panel açar. Panelde şu ekranlar bulunur:
+
+| Ekran | İçerik |
+|---|---|
+| Genel bakış | Adım akışı ve sektör kartları (her sektörde kaç feature'ın hazır olduğu) |
+| 1. Sektör ve kaynaklar | Okunur feature adları, dönüşüm, birim, kaynak ve yayın gecikmesi; eksik seri kodları için "Sizden gerekenler" |
+| 2. Feature paneli | Frekans seçimi (aylık, haftalık, iş günü), son değer ve önceki döneme göre farkı veren seri kartları, CSV/Parquet indirme |
+| 3. Veri kalitesi | Feature bazında durum, outlier ve structural break işaretli grafik, her bulgu için "Ne yapmalı?" |
+| 4. Tahmin çıtası | Hedef, çapa, ufuk ve model seçimi; naive'e göre iyileşme, dönemlere göre karşılaştırma, model kartı |
+| Kaynak durumu | Provider canary testleri |
+
+Her ekran bir "Kısaca" özetiyle başlar ve kaynak, veri çekim zamanı, kapsanan dönem ile eksik veriyi gösteren bir damgayla biter. Teknik terimler için aranabilir bir sözlük vardır.
+
+Panel aynı use case'leri CLI ve MCP ile ortak kullanır. Sunucu yalnızca `127.0.0.1` adresine bağlanır. Port `--port` ile değiştirilir; port doluysa sıradaki boş port kullanılır. Tarayıcının otomatik açılmasını `--no-open` kapatır.
 
 Veriler varsayılan olarak `~/.mlbooster/data` altında tutulur. Bu dizin `MLBOOSTER_DATA_DIR` ile değiştirilebilir:
 
@@ -140,7 +159,7 @@ Kod, bağımlılıkların yalnızca **dıştan içe** aktığı halkalara ayrıl
 
 ```mermaid
 flowchart LR
-    subgraph Interfaces["interfaces (CLI, MCP)"]
+    subgraph Interfaces["interfaces (CLI, MCP, web)"]
         subgraph Infrastructure["infrastructure (HTTP, YAML, Parquet/DuckDB, .env)"]
             subgraph Application["application (use case'ler + port'lar)"]
                 Domain["domain (entity'ler, value object'ler, saf servisler)"]
@@ -155,7 +174,7 @@ flowchart LR
 | Domain | `mlbooster.domain` | `Source`, `Sector`, `Frequency`, `DateRange`; frekans hizalama, chain-link deflator, feature dönüşümleri, girdi doğrulama | yalnızca stdlib + pandas/numpy |
 | Application | `mlbooster.application` | Use case'ler (`BuildPanel`, `FetchSeries`, `GetSectorMap`, ...) ve port'lar (`SeriesProvider`, `ObservationStore`, `CatalogRepository`, ...) | domain |
 | Infrastructure | `mlbooster.infrastructure` | Port uygulamaları: `Evds3Provider`, `SecureHttpClient`, `YamlCatalogRepository`, `ParquetObservationStore` | application, domain |
-| Interfaces | `mlbooster.interfaces` | typer CLI, MCP sunucusu, presenter'lar | application, domain, bootstrap |
+| Interfaces | `mlbooster.interfaces` | typer CLI, MCP sunucusu, yerel web paneli (Starlette), presenter'lar | application, domain, bootstrap |
 
 - **Bağımlılık kuralı test ediliyor:** [`tests/test_architecture.py`](tests/test_architecture.py) her modülün import'larını AST ile tarar. İçteki bir halka dıştakini ya da çekirdek bir G/Ç kütüphanesini import ederse test başarısız olur.
 - **Use case'ler fake port'larla test ediliyor:** [`tests/fakes.py`](tests/fakes.py) bellek içi provider ve store'lar sunar; `BuildPanel` HTTP ya da disk olmadan doğrulanır.
