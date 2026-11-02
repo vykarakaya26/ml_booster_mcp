@@ -189,6 +189,12 @@ class ShareSchema(_Strict):
     metric: str
     is_proxy: bool = False
     notes: str | None = None
+    series: list[str] = Field(default_factory=list)
+
+    @field_validator("series")
+    @classmethod
+    def _series(cls, v: list[str]) -> list[str]:
+        return [series_code(code) for code in v]
 
 
 class RecipeSchema(_Strict):
@@ -245,7 +251,7 @@ class SectorSchema(_Strict):
             name=self.name,
             macro_features=tuple(f.to_domain() for f in self.macro_features),
             sector_sources=tuple(self.sector_sources),
-            market_share_sources=tuple(ShareSource(**m.model_dump()) for m in self.market_share_sources),
+            market_share_sources=tuple(ShareSource(**{**m.model_dump(), "series": tuple(m.series)}) for m in self.market_share_sources),
             ml_use_cases=tuple(self.ml_use_cases),
             feature_recipes=self._recipes(),
             events=tuple(e.to_domain() for e in self.events),

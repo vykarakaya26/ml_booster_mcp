@@ -24,6 +24,14 @@ def test_every_mvp_sector_has_market_share_source(catalog):
     assert all(catalog.sector(s).market_share_sources for s in MVP_SECTORS)
 
 
+def test_market_share_series_exist_in_their_source(catalog):
+    """Series a sector offers for market share (web panel source mode) must be defined in the source catalog."""
+    listed = [(sector.id, m.source, code) for sector in catalog.sectors.values() for m in sector.market_share_sources for code in m.series]
+    assert ("bankacilik", "bddk", "BDDK.AKTIF") in listed
+    missing = [x for x in listed if catalog.source(x[1]).seed(x[2]) is None]
+    assert not missing, missing
+
+
 def _write(tmp_path, source_yaml: str, sector_yaml: str | None = None):
     (tmp_path / "sources").mkdir()
     (tmp_path / "sectors").mkdir()

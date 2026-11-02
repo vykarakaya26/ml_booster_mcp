@@ -4,56 +4,13 @@ from datetime import UTC, date, datetime, timedelta
 import pandas as pd
 import pytest
 
-from fakes import InMemoryObservationStore, InMemoryPanelStore
-from mlbooster.application.dto import FetchRequest
+from fakes import EntityFactory, InMemoryObservationStore, InMemoryPanelStore
 from mlbooster.application.use_cases.market_share import AnalyzeMarketShare, SourceShareTable
 from mlbooster.application.use_cases.panel import BuildPanel
 from mlbooster.application.use_cases.series import FetchSeries
 from mlbooster.domain.errors import InvalidInput
 from mlbooster.domain.model import Catalog, MacroFeature, SeriesKind, Transform
-from mlbooster.domain.observations import empty_observations
 from mlbooster.domain.services.market_share import ShareConfig
-
-GROUPS = {"10009": ("Mevduat-Kamu", 40.0), "10008": ("Mevduat-Yerli Özel", 35.0), "10003": ("Katılım", 25.0)}
-
-
-class EntityProvider:
-    """Provider fake that returns a sector total (empty entity_id) plus bank group rows for every month."""
-
-    def __init__(self, source, calls, proxy=False, groups=GROUPS):
-        self.source, self.calls, self.proxy, self.groups = source, calls, proxy, groups
-
-    def fetch(self, request: FetchRequest) -> pd.DataFrame:
-        self.calls.append(request)
-        months = pd.date_range(request.period.start, request.period.end, freq="ME")
-        rows = []
-        for i, d in enumerate(months):
-            growth = 1 + i / 100
-            parts = {code: (name, base * growth * (1 + (code == "10003") * i / 200)) for code, (name, base) in self.groups.items()}
-            rows.append(("", "Sektör", d.date(), sum(v for _, v in parts.values())))
-            rows += [(code, name, d.date(), v) for code, (name, v) in parts.items()]
-        if not rows:
-            return empty_observations()
-        df = pd.DataFrame(rows, columns=["entity_id", "entity_name", "date", "value"])
-        return df.assign(
-            source_id="bddk", dataset_id="aylik_bulten_1", series_id=request.series_ids[0], metric="level", freq="M",
-            unit="million_try", currency="TRY", is_proxy=self.proxy, vintage_ts=datetime.now(UTC), publication_lag_days=30,
-        )  # fmt: skip
-
-    def close(self):
-        pass
-
-
-class EntityFactory:
-    def __init__(self, **kwargs):
-        self.calls: list[FetchRequest] = []
-        self.kwargs = kwargs
-
-    def available(self):
-        return {"bddk", "evds3"}
-
-    def create(self, source):
-        return EntityProvider(source, self.calls, **self.kwargs)
 
 
 class StaticCatalog:

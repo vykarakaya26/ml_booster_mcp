@@ -16,6 +16,7 @@ UNITS = {
     "index": "endeks",
     "million_usd": "milyon ABD doları",
     "thousand_try": "bin TL",
+    "million_try": "milyon TL",
     "count": "adet",
 }
 
