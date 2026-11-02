@@ -103,8 +103,13 @@ Rules:
    - Legacy istab Excel links redirect to the portal SPA (HTML); MEDAS is a stateful ZK UI; nsiws → 401.
    - Catalog `remote`: `<agency,dataflow,version>/<one code per non-time dimension, in structure order>`.
    CPI (TÜFE) base 2025=100; the deflator is chain-linked from monthly % changes.
-3. EPİAŞ: POST https://giris.epias.com.tr/cas/v1/tickets (body: username, password; form-urlencoded),
-   TGT cached for 8 hours, header "TGT". ≤60 requests/s, ≤1500/min; 429 → wait 30 s.
+3. EPİAŞ (done — infrastructure/providers/epias.py): POST https://giris.epias.com.tr/cas/v1/tickets
+   (form-urlencoded username, password) → 201 `TGT-...`; documented TTL 2 hours (cached in memory only, renewed
+   10 min early and once after a 401/406). Data: POST https://seffaflik.epias.com.tr/electricity-service/v1/... with
+   JSON {startDate, endDate} (+03:00) and the `TGT` header. No TGT → 401 AUTH002 (generation: 406 text), bad TGT →
+   401 AUTH009. Gateway limits per service (60/60 s for PTF, 3600/h others) → rps 1; 429 → wait 30 s. Hourly → daily
+   by kind (price mean, flow sum). Credentials: EPIAS_USERNAME / EPIAS_PASSWORD in .env; healthcheck is skipped
+   without them. Valid-TGT responses are not yet verified live (catalog verification_status: reported).
 4. BDDK / TBB / BKM: HTML tables + Excel downloads; change detection by file hash.
    BDDK (done — infrastructure/providers/bddk.py), live observation 2026-11-02: no robots.txt (404); the terms of use
    allow quotation with attribution, commercial use needs BDDK's written permission.
@@ -116,7 +121,8 @@ Rules:
    - Row labels change over time; rows are matched by `row_key()` (ASCII upper case, no stars or parentheses).
    - Catalog `remote`: `<table>[,<total group>+<group>...]/<ROW_KEY>[.<column>]`; the total gets an empty
      `entity_id`, the groups are entities (entity_id = group code). Panels use the total only; `market-share
-     --source bddk --series BDDK.AKTIF` turns the groups into shares (total → `TOPLAM`).
+     --source bddk --series BDDK.AKTIF` turns the groups into shares (total → `TOPLAM`). The sector's
+     `market_share_sources[].series` lists the series offered for this (web panel "Kaynaktan çek" mode).
 5. BTK / ODMD / EPDK / TSB: monitor the announcement page, download the new PDF/Excel, extract with a parser,
    validate (shares sum to 100±0.5, consistency with the previous period), write to silver.
 6. KAP: do NOT bulk-scrape kap.org.tr; use the MKK API Portal.
