@@ -7,7 +7,7 @@ Türkiye için ücretsiz veri kaynaklarını sektör bazında haritalayan ve ML'
 - **CLI / Python paketi**: `mlbooster`.
 - **Yerel web paneli**: `mlbooster web`. Sektörü, tarih aralığını, hedef seriyi ve modelleri tarayıcıdan seçersiniz; yalnızca bu bilgisayarda (127.0.0.1) çalışır.
 
-> **Durum:** Katalog 12 kaynak ve 9 sektör içeriyor (bankacılık, sigorta, telekom, otomotiv, akaryakıt, perakende, turizm, konut, makro_genel). Veri çeken provider'lar **TCMB EVDS3**, **TÜİK**, **BDDK**, **BIS** ve **OECD**; beşi de canlı doğrulandı. TBB, EPİAŞ, EPDK, BTK, TSB, ODMD ve BKM haritada yer alıyor ancak henüz veri çekmiyor; bu kaynakların adapter'ları yol haritasında.
+> **Durum:** Katalog 12 kaynak ve 9 sektör içeriyor (bankacılık, sigorta, telekom, otomotiv, akaryakıt, perakende, turizm, konut, makro_genel). Veri çeken provider'lar **TCMB EVDS3**, **TÜİK**, **BDDK**, **BIS** ve **OECD**; beşi de canlı doğrulandı. **EPİAŞ** adapter'ı hazır; kullanmak için ücretsiz bir Şeffaflık Platformu hesabı gerekir (aşağıda). TBB, EPDK, BTK, TSB, ODMD ve BKM haritada yer alıyor ancak henüz veri çekmiyor; bu kaynakların adapter'ları yol haritasında.
 
 ### Veri kapsamı
 | Frekans | Seriler (örnekler) | Kaynak |
@@ -29,6 +29,8 @@ mkdir -p ~/.mlbooster && echo "EVDS_API_KEY=ANAHTARINIZ" >> ~/.mlbooster/.env &&
 ```
 
 Key yalnızca HTTP header'ında ve yalnızca `evds3.tcmb.gov.tr` adresine gönderilir. URL'lere, log'lara ve ham veri manifest'ine yazılmaz.
+
+**EPİAŞ (isteğe bağlı):** Elektrik piyasası verileri (PTF, SMF, tüketim, üretim) için [kayit.epias.com.tr](https://kayit.epias.com.tr) adresinden ücretsiz bir Şeffaflık Platformu hesabı açın ve aynı `.env` dosyasına `EPIAS_USERNAME` (kayıt e-postası) ile `EPIAS_PASSWORD` değerlerini yazın. Kimlik bilgileri yalnızca `giris.epias.com.tr` adresine gönderilir; alınan TGT yalnızca bellekte tutulur. Bu değerler yoksa EPİAŞ healthcheck'i atlanır.
 
 ## 2a. Claude Code plugin'i (önerilen)
 

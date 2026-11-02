@@ -19,7 +19,9 @@ macro_features:
   - {name: reel_efektif_kur, source: bis, series: BIS.REER.TR, transform: level}
   - {name: oecd_oncu_gosterge, source: oecd, series: OECD.CLI.TR, transform: level}
   - {name: oecd_is_guveni, source: oecd, series: OECD.BCI.TR, transform: level}
-sector_sources: []
+  - {name: elektrik_tuketimi_yoy, source: epias, series: EPIAS.TUKETIM, transform: yoy_pct, agg: sum}
+  - {name: ptf_yoy, source: epias, series: EPIAS.PTF, transform: yoy_pct, agg: avg}
+sector_sources: [epias]
 market_share_sources: []
 ml_use_cases: ["Makro nowcasting", "Rejim tespiti", "Feature havuzu"]
 feature_recipes:
