@@ -8,7 +8,10 @@ macro_features:
   - {name: kart_elektronik_reel_yoy, source: evds3, series: TP.KKHARTUT.KT8, transform: yoy_pct, agg: avg, real: true}
 sector_sources: [btk]
 market_share_sources:
-  - {source: btk, metric: "Mobil abone payı (BTK.MOBIL.ABONE.PAY), işletmeci gelirleri (BTK.GELIR), sabit genişbant abone ve gelir payları (BTK.SGB.ABONE.PAY, BTK.SGB.GELIR.PAY)", notes: "Çeyreklik Pazar Verileri Raporu (PDF); numara taşıma ve churn yalnızca grafik olarak yayımlanıyor"}
+  - source: btk
+    metric: "mobil abone payı, işletmeci net satış gelirleri, sabit genişbant abone ve gelir payları (çeyreklik Pazar Verileri Raporu)"
+    series: [BTK.MOBIL.ABONE.PAY, BTK.GELIR, BTK.SGB.ABONE.PAY, BTK.SGB.GELIR.PAY]
+    notes: "Numara taşıma ve churn raporda yalnızca grafik olarak yayımlanıyor"
 ml_use_cases: ["ARPU tahmini", "Churn", "Abone büyümesi"]
 feature_recipes:
   - {name: goreli_haberlesme_fiyati, op: spread, inputs: [haberlesme_tufe, tufe_yoy], note: "Haberleşme fiyat artışı − genel enflasyon (fiyatlama gücü; seri bağlandığında)"}

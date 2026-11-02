@@ -427,7 +427,7 @@ def test_index_errors(provider, response, error, message):
 @respx.mock
 def test_report_that_is_not_a_pdf_is_refused(provider):
     routes = _serve({(2026, 2): b"<html>"})
-    routes[(2026, 2)].mock(return_value=httpx.Response(200, content=b"<html>giris</html>", headers={"content-type": "application/pdf"}))
+    routes[(2026, 2)].mock(return_value=httpx.Response(200, content=b"<html>giris</html>", headers={"content-type": "application/octet-stream"}))
     with pytest.raises(UnexpectedResponse, match="PDF değil"):
         provider.fetch(FetchRequest.create("btk", ["BTK.GELIR"], date(2026, 4, 1), date(2026, 6, 30)))
 

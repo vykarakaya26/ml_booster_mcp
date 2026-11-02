@@ -6,7 +6,8 @@ Live findings 2026-11-02 (CLAUDE.md source rule 5):
 - The announcement page (/elektronik-haberlesme-pazar-verileri) is server-rendered HTML that lists one PDF per quarter
   ("2026-Q2 pdf - 40.9 MB") from 2009-Q1 on, linked as https://www.btk.gov.tr/s3/web-btk-site/<uuid>/<yyyy>/<mm>/<uuid>.pdf.
   There is no Excel or data annex; some quarters (2018-Q2, 2018-Q4) are missing. Recent reports are 40-45 MB.
-- The 2026-Q2 report went online on 7 Oct 2026 (Last-Modified), 99 days after the quarter end.
+- Recent reports are served as application/pdf, older uploads as application/octet-stream (the %PDF- signature is
+  checked either way). The 2026-Q2 report went online on 7 Oct 2026 (Last-Modified), 99 days after the quarter end.
 - Charts are raster images; only tables and the running text carry numbers. The tables used here have kept their
   layout since 2016 (the reports carry a text layer: InDesign/ABBYY/Adobe PDF):
   * Çizelge 1-3 "Türk Telekom ve Mobil İşletmecilerin Üç Aylık Net Satış Gelirleri, ₺": five quarters, rows
@@ -351,7 +352,7 @@ class BtkProvider:
 
     def reports(self) -> list[Report]:
         response = self._http.get(self._index_url, headers={"Accept": "text/html"})
-        self._check(response, "text/html")
+        self._check(response, ("text/html",))
         reports = parse_index(response.content.decode("utf-8", errors="replace"))
         if not reports:
             raise UnexpectedResponse(f"BTK duyuru sayfasında rapor bağlantısı bulunamadı: {self._index_url}")
@@ -361,20 +362,20 @@ class BtkProvider:
         if self._raw_store is not None and (cached := self._raw_store.load(self.source.id, report.url)) is not None:
             return cached
         response = self._http.get(report.url, headers={"Accept": "application/pdf"})
-        self._check(response, "application/pdf")
+        self._check(response, ("application/pdf", "application/octet-stream"))  # older uploads are octet-stream
         if not response.content.startswith(b"%PDF-"):
             raise UnexpectedResponse(f"BTK raporu PDF değil: {report.url}")
         if self._raw_store is not None:  # the bronze copy (content hash) doubles as change detection
             self._raw_store.save(self.source.id, report.url, response.content, "application/pdf")
         return response.content
 
-    def _check(self, response: HttpResponse, expected: str) -> None:
+    def _check(self, response: HttpResponse, expected: tuple[str, ...]) -> None:
         if 300 <= response.status < 400:
             raise UnexpectedResponse(f"BTK {response.status} yönlendirmesi döndürdü: {response.url}")
         if response.status != 200:
             raise ProviderError(f"BTK HTTP {response.status}: {response.url}")
-        if expected not in response.content_type:
-            raise UnexpectedResponse(f"BTK {expected} yerine başka bir içerik döndürdü ({response.content_type[:40]}): {response.url}")
+        if not any(e in response.content_type for e in expected):
+            raise UnexpectedResponse(f"BTK {expected[0]} yerine başka bir içerik döndürdü ({response.content_type[:40]}): {response.url}")
 
     def list_series(self, query: str | None = None) -> pd.DataFrame:
         fold = (query or "").translate(_TR_FOLD).casefold()

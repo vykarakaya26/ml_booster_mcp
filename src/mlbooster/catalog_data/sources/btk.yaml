@@ -18,6 +18,7 @@ known_breaks:
   - "2017: Raporlar Avea yerine TT Mobil adını kullanmaya başladı (aynı oyuncu, entity_id TT_MOBIL)"
   - "2026-Q1: M2M aboneleri toplam mobil abone sayısından ayrıldı; abone sayısına göre paylar süreklilik gösteriyor"
   - "2026-Q2: 5G hizmeti başladı (1 Nisan 2026)"
+  - "2021-Q1: Raporun metin katmanında font eşlemesi bozuk (rakamlar ve Türkçe harfler başka karakterlerle kodlanmış); mobil abone payı bu çeyrek için okunamıyor, gelir verisi sonraki raporlardan alınıyor"
   - "2025-Q4: Sabit genişbant pay çizelgesindeki paylar %98,35'e ulaşıyor (bir satır eksik); doğrulamadan geçmediği için bu çeyrek atlanır"
 adapter: btk
 priority: 7
