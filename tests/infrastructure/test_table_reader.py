@@ -34,3 +34,26 @@ def test_rejects_bad_files(tmp_path, name, content, match):
 def test_missing_file(tmp_path):
     with pytest.raises(InvalidInput, match="bulunamadı"):
         LocalTableReader().read(tmp_path / "missing.csv")
+
+
+def test_parse_reads_text_in_memory():
+    reader = LocalTableReader()
+    df = reader.parse("﻿entity;date;value\nA;2025-01;1,5\n", "csv")
+    assert df["value"].tolist() == [1.5] and list(df.columns) == ["entity", "date", "value"]
+    assert len(reader.parse('[{"entity": "A", "date": "2025", "value": 1}]', "json")) == 1
+
+
+@pytest.mark.parametrize(("text", "fmt", "match"), [
+    ("a,b\n1,2", "xlsx", "Desteklenen"),
+    ("   ", "csv", "boş"),
+    ("{bad", "json", "geçerli bir JSON"),
+])  # fmt: skip
+def test_parse_rejects_bad_text(text, fmt, match):
+    with pytest.raises(InvalidInput, match=match):
+        LocalTableReader().parse(text, fmt)
+
+
+def test_parse_enforces_size_limit(monkeypatch):
+    monkeypatch.setattr("mlbooster.infrastructure.table_reader.MAX_BYTES", 10)
+    with pytest.raises(InvalidInput, match="sınırını aşıyor"):
+        LocalTableReader().parse("entity,date,value\n", "csv")

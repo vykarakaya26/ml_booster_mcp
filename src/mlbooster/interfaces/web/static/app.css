@@ -16,6 +16,9 @@
   --accent-soft: #e6eef8;
   --series-1: #2a78d6;
   --series-2: #eb6834;
+  /* categorical palette for multi-player charts (market share) */
+  --cat-1: #2a78d6; --cat-2: #eb6834; --cat-3: #1a9a83; --cat-4: #c2408c; --cat-5: #7a5bd0;
+  --cat-6: #b07d10; --cat-7: #4b952b; --cat-8: #d14545; --cat-9: #5b6f82; --cat-10: #8a6a44;
   --ok: #1d6b3f;   --ok-bg: #e8f3ec;
   --warn: #8a5a00; --warn-bg: #fbf3e2;
   --crit: #b3261e; --crit-bg: #fbeceb;
@@ -33,6 +36,10 @@
     --border: rgba(255, 255, 255, 0.10);
     --accent: #3987e5; --accent-soft: #1b2b40;
     --series-1: #3987e5; --series-2: #d95926;
+  --cat-1: #3987e5; --cat-2: #d95926; --cat-3: #2bb39a; --cat-4: #df5ca8; --cat-5: #9b80ee;
+  --cat-6: #d0a32e; --cat-7: #66b544; --cat-8: #ec6b6b; --cat-9: #8ea2b5; --cat-10: #b38f66;
+    --cat-1: #3987e5; --cat-2: #d95926; --cat-3: #2bb39a; --cat-4: #df5ca8; --cat-5: #9b80ee;
+    --cat-6: #d0a32e; --cat-7: #66b544; --cat-8: #ec6b6b; --cat-9: #8ea2b5; --cat-10: #b38f66;
     --ok: #5ccf7f; --ok-bg: #16271c; --warn: #f1b84a; --warn-bg: #2c2410;
     --crit: #f08a84; --crit-bg: #2e1615; --none: #a3a29b; --none-bg: #262624;
     --dot-none: #5a5a55;
@@ -46,6 +53,8 @@
   --border: rgba(255, 255, 255, 0.10);
   --accent: #3987e5; --accent-soft: #1b2b40;
   --series-1: #3987e5; --series-2: #d95926;
+  --cat-1: #3987e5; --cat-2: #d95926; --cat-3: #2bb39a; --cat-4: #df5ca8; --cat-5: #9b80ee;
+  --cat-6: #d0a32e; --cat-7: #66b544; --cat-8: #ec6b6b; --cat-9: #8ea2b5; --cat-10: #b38f66;
   --ok: #5ccf7f; --ok-bg: #16271c; --warn: #f1b84a; --warn-bg: #2c2410;
   --crit: #f08a84; --crit-bg: #2e1615; --none: #a3a29b; --none-bg: #262624;
   --dot-none: #5a5a55;
@@ -73,14 +82,12 @@ code.pill { background: var(--surface-2); padding: 1px 6px; border-radius: 4px; 
 .brand small { color: var(--muted); font-size: 12px; }
 .brand-mark { width: 30px; height: 30px; border-radius: 8px; background: url("favicon.svg") center / cover; flex: none; }
 nav { display: flex; flex-direction: column; gap: 2px; }
-nav a, .nav-soon, .nav-button { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border-radius: 8px; color: var(--ink-2); text-decoration: none; font: inherit; text-align: left; }
+nav a, .nav-button { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border-radius: 8px; color: var(--ink-2); text-decoration: none; font: inherit; text-align: left; }
 nav a b { width: 20px; height: 20px; border-radius: 50%; background: var(--surface-2); border: 1px solid var(--border); font-size: 11px; display: inline-grid; place-items: center; flex: none; }
 nav a:hover, .nav-button:hover { background: var(--surface-2); color: var(--ink); }
 nav a[aria-current="page"] { background: var(--accent-soft); color: var(--ink); font-weight: 600; }
 nav a[aria-current="page"] b { background: var(--accent); color: var(--accent-ink); border-color: transparent; }
 .nav-label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); padding: 12px 10px 4px; }
-.nav-soon { color: var(--muted); cursor: default; }
-.nav-soon em { font-style: normal; font-size: 11px; border: 1px solid var(--border); border-radius: 999px; padding: 0 6px; }
 .nav-button { background: none; border: none; cursor: pointer; min-height: 0; font-weight: 400; }
 .sidebar-note { margin-top: auto; color: var(--muted); font-size: 12px; padding: 0 6px; }
 
@@ -90,7 +97,7 @@ nav a[aria-current="page"] b { background: var(--accent); color: var(--accent-in
 .field { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--ink-2); }
 .field > span { font-weight: 500; display: flex; align-items: center; gap: 4px; }
 select, input, button { font: inherit; color: inherit; }
-select, input[type="month"], input[type="number"], input[type="text"] {
+select, input[type="month"], input[type="number"], input[type="text"], textarea {
   background: var(--surface); border: 1px solid var(--axis); border-radius: 8px; padding: 6px 10px; min-height: 36px; max-width: 100%;
 }
 select:focus-visible, input:focus-visible, button:focus-visible, a:focus-visible, summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
@@ -263,14 +270,25 @@ details.about div { margin-top: 6px; display: flex; flex-direction: column; gap:
 .check input { margin-top: 3px; }
 .check small { display: block; color: var(--muted); font-size: 12px; }
 details.card > summary { cursor: pointer; font-weight: 600; }
+/* --- market share input --- */
+textarea { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; width: 100%; min-height: 150px; resize: vertical; line-height: 1.45; }
+.drop { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.3fr); gap: 16px; }
+.drop > div { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.file-pick { display: flex; flex-direction: column; gap: 10px; padding: 16px; border: 1px dashed var(--axis); border-radius: 10px; background: var(--surface-2); }
+.file-pick input[type="file"] { font-size: 13px; max-width: 100%; }
+.input-status { font-size: 12.5px; color: var(--ink-2); }
+.input-status strong { color: var(--ink); }
+.tag-after { margin-left: 8px; }
+.reasons { margin: 0; padding-left: 16px; }
+.reasons li { margin: 1px 0; }
 .split { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); gap: 22px; align-items: start; }
 
-@media (max-width: 1180px) { .grid-2, .split { grid-template-columns: 1fr; } .steps { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 1180px) { .grid-2, .split, .drop { grid-template-columns: 1fr; } .steps { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 900px) {
   .shell { grid-template-columns: 1fr; }
   .sidebar { position: static; height: auto; border-right: none; border-bottom: 1px solid var(--border); padding: 12px 16px; gap: 10px; }
   nav { flex-direction: row; overflow-x: auto; }
-  nav a, .nav-soon, .nav-button { white-space: nowrap; }
+  nav a, .nav-button { white-space: nowrap; }
   .nav-label, .sidebar-note { display: none; }
   .toolbar { padding: 10px 16px; position: static; }
   main { padding: 18px 16px 40px; }

@@ -1,6 +1,8 @@
-"""Reads the user's local CSV/JSON table (market share input).
+"""Reads the user's CSV/JSON table (market share input).
 
-Used only by the CLI; MCP tools do not accept file paths. An extension allowlist and a size limit are enforced.
+`read` takes a local path (CLI only; MCP tools do not accept file paths). `parse` takes in-memory text (the web
+panel sends the content of the file the user picked in the browser; nothing is written to disk). An extension
+allowlist and a size limit are enforced on both.
 """
 
 from __future__ import annotations
@@ -16,6 +18,7 @@ from mlbooster.domain.errors import InvalidInput
 
 MAX_BYTES = 20 * 1024 * 1024
 SUFFIXES = {".csv", ".json"}
+FORMATS = ("csv", "json")
 
 
 class LocalTableReader:
@@ -29,6 +32,16 @@ class LocalTableReader:
             raise InvalidInput(f"Dosya {MAX_BYTES // (1024 * 1024)} MB sınırını aşıyor: {path.name}")
         text = path.read_text(encoding="utf-8-sig")
         return _json(text, path.name) if path.suffix.lower() == ".json" else _csv(text, path.name)
+
+    def parse(self, text: str, fmt: str) -> pd.DataFrame:
+        if fmt not in FORMATS:
+            raise InvalidInput(f"Desteklenen biçimler: {', '.join(FORMATS)}")
+        if not isinstance(text, str) or not text.strip():
+            raise InvalidInput("Tablo boş")
+        if len(text.encode("utf-8")) > MAX_BYTES:
+            raise InvalidInput(f"Tablo {MAX_BYTES // (1024 * 1024)} MB sınırını aşıyor")
+        text = text.removeprefix("\ufeff")
+        return _json(text, "Tablo") if fmt == "json" else _csv(text, "Tablo")
 
     def read_panel(self, path: Path) -> pd.DataFrame:
         frame = self.read(path)

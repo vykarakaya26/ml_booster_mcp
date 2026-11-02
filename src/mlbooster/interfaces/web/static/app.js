@@ -24,6 +24,12 @@ function h(tag, attrs = {}, ...children) {
   return el;
 }
 
+// replaceChildren() turns null into the text "null"; optional sections (todo(), cards built with `cond ? … : null`)
+// are dropped here instead.
+function fill(el, ...children) {
+  el.replaceChildren(...children.flat().filter((c) => c !== null && c !== undefined && c !== false));
+}
+
 // --- formatting (Turkish) ---------------------------------------------------------------------------------
 
 const MONTHS = ["Ocak", "Şubat", "Mart", "Nisan", "Mayıs", "Haziran", "Temmuz", "Ağustos", "Eylül", "Ekim", "Kasım", "Aralık"];
@@ -91,12 +97,12 @@ async function busy(button, label, fn, out = null) {
   const original = button.textContent;
   button.disabled = true;
   button.replaceChildren(h("span", { class: "spinner", "aria-hidden": "true" }), label);
-  if (out) out.replaceChildren(h("p", { class: "empty" }, h("span", { class: "spinner", "aria-hidden": "true" }), WAIT_TEXT));
+  if (out) fill(out, h("p", { class: "empty" }, h("span", { class: "spinner", "aria-hidden": "true" }), WAIT_TEXT));
   notice(null);
   try {
     return await fn();
   } catch (err) {
-    if (out) out.replaceChildren();
+    if (out) fill(out);
     notice(err.message);
     return null;
   } finally {
@@ -197,7 +203,7 @@ function openGlossary(key) {
 
 // --- durum ------------------------------------------------------------------------------------------------
 
-const state = { meta: null, sectors: [], maps: new Map(), panels: new Map(), backtests: new Map(), audits: new Map() };
+const state = { meta: null, sectors: [], maps: new Map(), panels: new Map(), backtests: new Map(), audits: new Map(), share: null };
 
 const PREFS_KEY = "mlbooster-panel";
 function loadPrefs() { try { return JSON.parse(localStorage.getItem(PREFS_KEY)) || {}; } catch { return {}; } }
@@ -241,7 +247,7 @@ const views = {};
 views.genel = async (root) => {
   const go = (id, view = "harita") => { $("#sector").value = id; savePrefs({ sector: id }); location.hash = `#${view}`; };
   const total = state.sectors.reduce((a, s) => a + s.ready, 0);
-  root.replaceChildren(
+  fill(root,
     h("section", { class: "hero" },
       h("span", { class: "eyebrow" }, "ML Booster Map"),
       h("h1", {}, "Türkiye'de bir sektör seçin; makine öğrenmesine hazır veri setini kaynağıyla birlikte oluşturun"),
@@ -295,7 +301,7 @@ views.harita = async (root) => {
       h("p", {}, f.status === "pending_discovery" ? `Seri kodu bekleniyor. İpucu: ${f.discover_hint}` : i.description));
   };
 
-  root.replaceChildren(
+  fill(root,
     viewHead("Adım 1", `${m.sector.name}: hangi veriler var?`, "Sektör için tanımlı ücretsiz kaynaklar ve modelde kullanılacak feature'lar. Hazır feature'lar bir sonraki adımda panele dönüştürülür."),
     summary(
       [h("strong", {}, `${m.sector.name} için ${m.macro_features.length} feature tanımlı; ${ready} tanesi kullanıma hazır.`),
@@ -384,7 +390,7 @@ views.panel = async (root) => {
     const skipped = Object.entries(p.skipped);
     const rows = p.dates.slice(-12).map((d, k, arr) => ({ date: d, idx: p.dates.length - arr.length + k }));
     const period = p.dates.length ? `${monthName(p.dates[0])} – ${monthName(p.dates.at(-1))}` : "—";
-    out.replaceChildren(
+    fill(out,
       summary(
         [h("strong", {}, `Panel ${period} dönemini kapsıyor: ${p.rows} dönem, ${p.features.length} feature.`), " Her değer, kaynağın yayımladığı döneme yazıldı; tablo doğrudan model eğitiminde kullanılabilir."],
         skipped.length ? `${skipped.length} feature panele eklenemedi; nedenleri ve yapılması gerekenler aşağıda.` : "Tanımlı tüm hazır feature'lar panele eklendi."),
@@ -413,7 +419,7 @@ views.panel = async (root) => {
     render(p);
   }, out));
 
-  root.replaceChildren(
+  fill(root,
     viewHead("Adım 2", `${m.sector.name}: feature paneli`, "Hazır feature'lar aynı takvimde hizalanır. Günlük ve haftalık veriler aylığa indirgenir, çeyreklik veriler sonraki aylara taşınır."),
     h("section", { class: "card" },
       h("div", { class: "controls" },
@@ -464,7 +470,7 @@ views.kalite = async (root) => {
       const s = q.series.find((x) => x.feature === f);
       const i = info[f];
       const list = (byFeature.get(f) || []);
-      detail.replaceChildren(
+      fill(detail,
         h("div", { class: "card-head" }, h("div", {}, h("h2", {}, i?.label || f), h("span", { class: "code" }, f)), status(worst(list), { crit: "Aksiyon", warn: "Takip", ok: "Sorun yok" }[worst(list)])),
         q.columns[f] ? lineChart({
           dates: q.dates, series: [{ name: i?.label || f, values: q.columns[f], color: "var(--series-1)" }],
@@ -520,7 +526,7 @@ views.kalite = async (root) => {
     }
 
     const pairs = [...q.correlated_pairs, ...q.notable_pairs];
-    out.replaceChildren(
+    fill(out,
       summary(
         [h("strong", {}, `Denetim ${q.series.length} feature'da ${q.issues.length} bulgu üretti: ${q.counts.high ?? 0} kritik, ${q.counts.medium ?? 0} uyarı, ${q.counts.info ?? 0} bilgi.`)],
         q.counts.high ? "Kritik bulgular modellemeden önce giderilmelidir." : "Modellemeyi engelleyen kritik bulgu yok.",
@@ -553,7 +559,7 @@ views.kalite = async (root) => {
     render(q);
   }, out));
 
-  root.replaceChildren(
+  fill(root,
     viewHead("Adım 3", `${m.sector.name}: veri kalitesi`, "Feature'lar modellemeden önce denetlenir: durmuş seriler, eksik dönemler, outlier'lar, structural break'ler ve birbirinin kopyası olan feature'lar."),
     h("section", { class: "card" }, h("div", { class: "button-row" }, run,
       h("span", { class: "caption" }, "Bulgular üç düzeydedir: Kritik (modellemeden önce giderilmeli), Uyarı (incelenmeli), Bilgi (model tercihlerini etkiler)."))),
@@ -571,7 +577,7 @@ views.model = async (root) => {
   const prefs = loadPrefs();
   const features = m.macro_features.filter((f) => f.status === "ready").map((f) => f.name);
   if (!features.length) {
-    root.replaceChildren(viewHead("Adım 4", "Tahmin çıtası"), emptyState("Bu sektörde hazır feature yok", "Önce 1. adımda eksik seri kodlarını tamamlayın."));
+    fill(root, viewHead("Adım 4", "Tahmin çıtası"), emptyState("Bu sektörde hazır feature yok", "Önce 1. adımda eksik seri kodlarını tamamlayın."));
     return;
   }
   const option = (f, sel) => h("option", { value: f, selected: f === sel }, `${labelOf(m, f)} · ${info[f]?.transform_label || ""}`);
@@ -634,7 +640,7 @@ views.model = async (root) => {
     });
     const winsAll = regimes.length && regimes.every((x) => x.gain === null || x.gain > 0);
 
-    out.replaceChildren(
+    fill(out,
       summary(verdict,
         `Sınama ${r.common_origins} başlangıç noktasında yapıldı; her noktada model yalnızca o güne kadar bilinen veriyle kuruldu.`,
         regimes.length ? (winsAll ? "Üstünlük üç ekonomik dönemin hepsinde korunuyor; sonuç tek bir döneme bağlı değil." : "Üstünlük her dönemde korunmuyor; sonuçlar dönem tablosuyla birlikte yorumlanmalı.") : null,
@@ -706,7 +712,7 @@ views.model = async (root) => {
     render(r);
   }, out));
 
-  root.replaceChildren(
+  fill(root,
     viewHead("Adım 4", `${m.sector.name}: tahmin çıtası`, "Basit tahmin yöntemleri geçmişte sınanır. Ortaya çıkan en düşük hata, geliştireceğiniz ML modelinin aşması gereken çıtadır."),
     h("section", { class: "card" },
       h("div", { class: "controls" },
@@ -732,7 +738,7 @@ views.saglik = async (root) => {
     const rows = await getJSON("/api/health");
     const kind = { ok: ["ok", "Çalışıyor"], fail: ["crit", "Hata"], skipped: ["none", "Atlandı"] };
     const ok = rows.filter((r) => r.status === "ok").length;
-    out.replaceChildren(
+    fill(out,
       summary([h("strong", {}, `${rows.length} kaynaktan ${ok} tanesi şu anda veri veriyor.`)], "Atlanan kaynaklar ya henüz otomatik çekim desteği olmayan ya da API anahtarı gerektiren kaynaklardır."),
       h("section", { class: "card" }, table([
         { label: "Kaynak", render: (r) => h("code", { class: "pill" }, r.source_id) },
@@ -741,11 +747,301 @@ views.saglik = async (root) => {
         { label: "Denetlenen seriler", render: (r) => r.checked.join(", ") || "—" },
       ], rows)));
   }, out));
-  root.replaceChildren(
+  fill(root,
     viewHead(null, "Kaynak durumu", "Her kaynağın kritik serilerinden son gözlemin çekilip çekilemediğini denetler. EVDS için API anahtarı .env dosyasında EVDS_API_KEY olarak tanımlanmalıdır."),
     h("section", { class: "card" }, h("div", { class: "button-row" }, run)),
     out,
   );
+};
+
+// --- market share and competitors -----------------------------------------------------------------
+
+const SHARE_COLORS = Array.from({ length: 10 }, (_, i) => `var(--cat-${i + 1})`);
+const SHARE_REST = { "Diğer oyuncular": "var(--muted)", "Listelenmeyen": "var(--axis)" };
+const MAX_TABLE_BYTES = 8 * 1024 * 1024 - 16 * 1024; // the API caps the request at 8 MB; room for the JSON envelope
+const SAMPLE = { url: "/static/sample_market_share.csv", name: "sample_market_share.csv" };
+
+// Fixed decimals on this screen so columns line up (%9,8 and %26,6; +0,50 puan).
+const fx = (d) => new Intl.NumberFormat("tr-TR", { minimumFractionDigits: d, maximumFractionDigits: d });
+const signOf = (v, d) => (Math.abs(v) < 0.5 * 10 ** -d ? "" : v > 0 ? "+" : "−");
+const signed = (v, d) => `${signOf(v, d)}${fx(d).format(Math.abs(v))}`;
+const ppText = (v, d = 1) => (v === null || v === undefined ? "—" : `${signed(v, d)} puan`);
+const signedPct = (v, d = 1) => (v === null || v === undefined ? "—" : `${signOf(v, d)}%${fx(d).format(Math.abs(v))}`);
+const sharePct = (v, d = 1) => (v === null || v === undefined ? "—" : `%${fx(d).format(v)}`);
+const plainSigned = (v, d) => (v === null || v === undefined ? "—" : `${v < 0 && signOf(v, d) ? "−" : ""}${fx(d).format(Math.abs(v))}`);
+const lastValue = (arr) => [...(arr || [])].reverse().find((v) => v !== null && v !== undefined) ?? null;
+const tableFormat = (text, name) => (/\.json$/i.test(name || "") || /^\s*[[{]/.test(text) ? "json" : "csv");
+const byteSize = (text) => new Blob([text]).size;
+const sizeText = (bytes) => (bytes >= 1024 * 1024 ? `${nf(1).format(bytes / 1024 / 1024)} MB` : `${nf(0).format(Math.max(1, bytes / 1024))} KB`);
+
+function periodName(iso, ppy) {
+  if (!iso) return "—";
+  if (ppy === 4) return `${iso.slice(0, 4)} ${Math.ceil(Number(iso.slice(5, 7)) / 3)}. çeyrek`;
+  if (ppy === 1) return iso.slice(0, 4);
+  if (ppy === 52) return dateTR(iso);
+  return monthName(iso);
+}
+
+views.pazar = async (root) => {
+  const saved = state.share || {};
+  const opts = { measure: "value", kind: "flow", basis: "auto", unit: "", trend_years: 3, ...saved.opts };
+  let input = saved.input || null; // {text, name, kind: "file" | "paste" | "sample"}
+
+  const select = (label, value, options) => h("select", { "aria-label": label }, options.map(([v, l]) => h("option", { value: v, selected: v === value }, l)));
+  const measure = select("Değer türü", opts.measure, [["value", "Tutar ya da adet"], ["share", "Yüzde pay"]]);
+  const kind = select("Değerin niteliği", opts.kind, [["flow", "Akım (satış, prim)"], ["stock", "Stok (abone, mevduat)"]]);
+  const basis = select("Pay tabanı", opts.basis, [["auto", "Otomatik"], ["period", "Dönemlik"], ["ttm", "Son 12 ay toplamı"]]);
+  const unit = h("input", { type: "text", value: opts.unit, maxlength: 40, placeholder: "ör. adet, TL, abone", "aria-label": "Birim" });
+  const years = h("input", { type: "number", min: 1, max: 10, value: opts.trend_years, "aria-label": "Eğilim penceresi (yıl)" });
+  years.style.width = "90px";
+  const focus = h("select", { "aria-label": "Odak oyuncu" });
+  const file = h("input", { type: "file", accept: ".csv,.json,text/csv,application/json", "aria-label": "Pazar payı tablosu dosyası" });
+  const paste = h("textarea", { spellcheck: "false", "aria-label": "Pazar payı tablosunu yapıştırın", placeholder: "entity,date,value,segment\nMarka A,2024-01,1520,Binek\nMarka B,2024-01,980,Binek\nTOPLAM,2024-01,3100,Binek" });
+  const inputStatus = h("p", { class: "input-status", role: "status" });
+  const run = h("button", { type: "button" }, "Analiz et");
+  const sample = h("button", { type: "button", class: "ghost" }, "Örnek veriyi yükle");
+  const out = h("div", { class: "stack" });
+
+  const fillFocus = (players, chosen) => {
+    focus.replaceChildren(h("option", { value: "" }, players.length ? "Seçilmedi" : "Önce analiz edin"),
+      ...players.map((p) => h("option", { value: p.entity, selected: p.entity === chosen }, p.entity)));
+    focus.disabled = !players.length;
+  };
+  const showStatus = () => {
+    if (!input) { inputStatus.replaceChildren("Henüz tablo seçilmedi."); return; }
+    const rows = Math.max(0, input.text.trim().split(/\r?\n/).length - 1);
+    const what = { file: "Dosya", paste: "Yapıştırılan tablo", sample: "Örnek veri" }[input.kind];
+    inputStatus.replaceChildren(h("strong", {}, `${what}: `), input.kind === "paste" ? "" : `${input.name} · `,
+      tableFormat(input.text, input.name) === "json" ? "JSON" : `${nf(0).format(rows)} veri satırı`, ` · ${sizeText(byteSize(input.text))}`);
+  };
+
+  if (input?.kind !== "file" && input) paste.value = input.text;
+  fillFocus(saved.result?.players || [], saved.result?.meta.focus);
+  showStatus();
+
+  file.addEventListener("change", async () => {
+    const f = file.files[0];
+    if (!f) return;
+    notice(null);
+    if (f.size > MAX_TABLE_BYTES) { notice(`Dosya çok büyük (${sizeText(f.size)}); en fazla 8 MB yüklenebilir.`); file.value = ""; return; }
+    input = { text: await f.text(), name: f.name, kind: "file" };
+    paste.value = "";
+    fillFocus([]);
+    showStatus();
+  });
+  paste.addEventListener("input", () => {
+    input = paste.value.trim() ? { text: paste.value, name: "", kind: "paste" } : null;
+    file.value = "";
+    fillFocus([]);
+    showStatus();
+  });
+
+  const analyze = (button) => busy(button, "Hesaplanıyor", async () => {
+    if (!input) throw new Error("Önce bir dosya seçin, tabloyu yapıştırın ya da örnek veriyi yükleyin.");
+    if (byteSize(input.text) > MAX_TABLE_BYTES) throw new Error("Tablo 8 MB sınırını aşıyor.");
+    const body = {
+      text: input.text, format: tableFormat(input.text, input.name), focus: focus.value || undefined,
+      measure: measure.value, kind: kind.value, basis: basis.value, unit: unit.value.trim(), trend_years: Number(years.value),
+    };
+    const r = await postJSON("/api/market-share", body);
+    const { text, format, focus: _f, ...rest } = body;
+    state.share = { input, opts: rest, result: r };
+    fillFocus(r.players, r.meta.focus);
+    render(r, input, rest);
+  }, out);
+
+  run.addEventListener("click", () => analyze(run));
+  focus.addEventListener("change", () => analyze(run));
+  sample.addEventListener("click", async () => {
+    notice(null);
+    try {
+      const res = await fetch(SAMPLE.url);
+      if (!res.ok) throw new Error(`Örnek veri yüklenemedi (HTTP ${res.status}).`);
+      input = { text: await res.text(), name: SAMPLE.name, kind: "sample" };
+    } catch (err) { notice(err.message); return; }
+    paste.value = input.text;
+    file.value = "";
+    measure.value = "value"; kind.value = "flow"; basis.value = "auto"; unit.value = "adet";
+    fillFocus([]);
+    showStatus();
+    analyze(sample);
+  });
+
+  const render = (r, src, o) => {
+    const L = r.labels;
+    const meta = r.meta;
+    const ppy = meta.periods_per_year;
+    const conc = r.concentration.latest;
+    const ago = r.concentration.year_ago;
+    const players = r.players;
+    const fp = meta.focus ? players.find((p) => p.entity === meta.focus) : null;
+    const basisText = L.basis[meta.basis] || meta.basis;
+    const period = `${periodName(meta.first, ppy)} – ${periodName(meta.last, ppy)}`;
+    const trendOf = (p) => L.trend[p.trend] || p.trend;
+    const gainers = players.filter((p) => p.trend === "gaining").sort((a, b) => b.trend_pp_per_year - a.trend_pp_per_year);
+    const losers = players.filter((p) => p.trend === "losing").sort((a, b) => a.trend_pp_per_year - b.trend_pp_per_year);
+    const growth = meta.measure === "value" ? lastValue(r.market.growth_yoy_pct) : null;
+    const marketSize = meta.measure === "value" ? lastValue(r.market.total) : null;
+    const coverage = meta.has_total ? lastValue(r.market.coverage) : null;
+    const cands = r.competitors?.candidates || [];
+    const seg = r.segments;
+    const ss = seg?.shift_share;
+    const listNames = (list) => list.slice(0, 3).map((p) => `${p.entity} (${signed(p.trend_pp_per_year, 2)} puan/yıl)`).join(", ");
+    const trendKind = { gaining: "ok", losing: "crit", flat: "none", insufficient_data: "none" };
+
+    // shares over time: top players + focus, the rest grouped
+    let k = 0;
+    const shareSeries = Object.entries(r.shares.series).map(([name, values]) => {
+      const isFocus = name === meta.focus;
+      const color = SHARE_REST[name] || SHARE_COLORS[k++ % SHARE_COLORS.length];
+      return { name: isFocus ? `${name} (odak)` : name, values, color, width: isFocus ? 3.5 : null, dash: SHARE_REST[name] ? "4 4" : null };
+    });
+
+    const trendBars = (list, sign) => list.length
+      ? barChart(list.slice(0, 10).map((p) => ({ label: p.entity, value: Math.abs(p.trend_pp_per_year), highlight: p.entity === meta.focus, note: `t = ${plainSigned(p.trend_t, 1)} · pay ${sharePct(p.share)}` })),
+        { format: (v) => `${sign}${fx(2).format(v)} puan/yıl` })
+      : h("p", { class: "muted" }, "Bu grupta anlamlı eğilim gösteren oyuncu yok.");
+
+    const competitorCard = meta.focus
+      ? h("section", { class: "card" },
+        h("div", { class: "card-head" }, h("div", {}, h("h2", {}, `${meta.focus} için rakip seti`), h("p", {}, "Adaylar veriden çıkarılır: pay sıralamasında komşuluk, pazar liderliği, ters yönlü pay değişimi (substitution correlation) ve segment karmasının örtüşmesi. Gerekçe sayısı arttıkça aday güçlenir."))),
+        cands.length ? table([
+          { label: "Oyuncu", key: "entity" },
+          { label: "Pay", num: true, render: (c) => sharePct(c.share) },
+          { label: term("substitution", "Korelasyon (r)"), num: true, render: (c) => plainSigned(c.r, 2) },
+          { label: "Gerekçeler", render: (c) => h("ul", { class: "reasons" }, c.reasons.map((x) => h("li", {}, x))) },
+        ], cands) : h("p", { class: "muted" }, "Veriden belirgin bir rakip adayı çıkmadı."),
+        h("details", { class: "about" }, h("summary", {}, "Tüm oyuncularla substitution correlation"),
+          h("div", {}, table([
+            { label: "Oyuncu", key: "entity" },
+            { label: "r", num: true, render: (x) => plainSigned(x.r, 2) },
+            { label: "Gözlem (n)", num: true, key: "n" },
+            { label: "Anlamlı", render: (x) => (x.significant ? status("ok", "Evet") : status("none", "Hayır")) },
+          ], r.competitors.substitution))),
+        h("p", { class: "caption" }, "Negatif r, odak oyuncu pay kazanırken o oyuncunun pay kaybettiğini gösterir. En az 12 gözlem ve |r| ≥ 2/√n koşulunda anlamlı sayılır; nedensellik kanıtı değildir. Nitel ölçütlerle (fiyat segmenti, kanal, coğrafya) birlikte değerlendirin."))
+      : h("section", { class: "card" },
+        h("div", { class: "card-head" }, h("div", {}, h("h2", {}, "Rakip seti"), h("p", {}, "Rakip adaylarını görmek için yukarıdaki \"Odak oyuncu\" listesinden bir oyuncu seçin; analiz o oyuncuya göre yeniden hesaplanır."))));
+
+    const segmentCard = seg ? h("section", { class: "card" },
+      h("div", { class: "card-head" }, h("div", {}, h("h2", {}, `Segment kırılımı (${periodName(seg.date, ppy)})`), h("p", {}, "Her segmentin pazardaki ağırlığı, yoğunlaşması ve lideri." + (meta.focus ? ` ${meta.focus} için segment payları ve bir yıllık değişimleri.` : "")))),
+      table([
+        { label: "Segment", key: "segment" },
+        { label: "Ağırlık", num: true, render: (x) => sharePct(x.weight) },
+        { label: "Ağırlık değişimi", num: true, render: (x) => ppText(x.weight_d_pp) },
+        { label: "HHI", num: true, render: (x) => num(x.hhi, 0) },
+        { label: "Lider", render: (x) => (x.leader ? `${x.leader} (${sharePct(x.leader_share)})` : "—") },
+        ...(meta.focus ? [
+          { label: `${meta.focus} payı`, num: true, render: (x) => sharePct(x.focus_share) },
+          { label: "Bir yılda", num: true, render: (x) => ppText(x.focus_share_d_pp) }] : []),
+      ], seg.segments),
+      ss ? h("div", { class: "stack" },
+        h("h3", {}, term("shift_share", `Shift-share: ${periodName(ss.from, ppy)} → ${periodName(ss.to, ppy)}`)),
+        h("p", {}, `${meta.focus} payındaki ${ppText(ss.total_pp, 2)} değişimin ${ppText(ss.share_effect_pp, 2)} kısmı segment içi pay değişiminden, ${ppText(ss.mix_effect_pp, 2)} kısmı segment karmasındaki değişimden geliyor.`),
+        table([
+          { label: "Segment", key: "segment" },
+          { label: "Segment içi pay etkisi", num: true, render: (x) => ppText(x.share_effect_pp, 2) },
+          { label: "Segment karması etkisi", num: true, render: (x) => ppText(x.mix_effect_pp, 2) },
+          { label: "Toplam", num: true, render: (x) => ppText(x.share_effect_pp + x.mix_effect_pp, 2) },
+        ], [...ss.by_segment, { segment: "Toplam", share_effect_pp: ss.share_effect_pp, mix_effect_pp: ss.mix_effect_pp, total: true }],
+        { rowClass: (x) => (x.total ? "best" : null) }))
+        : meta.focus ? h("p", { class: "muted" }, "Shift-share için en az bir yıllık segment verisi gerekir.")
+          : h("p", { class: "caption" }, "Odak oyuncu seçildiğinde pay değişimi segment içi pay etkisi ve segment karması etkisine ayrıştırılır.")) : null;
+
+    fill(out,
+      summary(
+        [h("strong", {}, `${periodName(meta.last, ppy)} itibarıyla ilk üç oyuncunun toplam payı ${sharePct(conc.cr3)}; HHI ${num(conc.hhi, 0)} ile yoğunlaşma ${L.hhi_class[conc.class]} düzeyde.`),
+          ` Paylar ${basisText} tabanında, ${meta.entities} oyuncu üzerinden hesaplandı.`],
+        fp ? `${fp.entity} ${sharePct(fp.share)} payla ${fp.rank}. sırada; payı bir yılda ${ppText(fp.d_year_pp)} değişti, eğilim: ${trendOf(fp)}.` : "Rakip setini ve segment ayrıştırmasını görmek için odak oyuncuyu seçin.",
+        gainers.length || losers.length
+          ? `Son ${o.trend_years} yılda anlamlı biçimde pay kazananlar: ${gainers.length ? listNames(gainers) : "yok"}; pay kaybedenler: ${losers.length ? listNames(losers) : "yok"}.`
+          : `Son ${o.trend_years} yılda istatistiksel olarak anlamlı bir pay kazanımı ya da kaybı yok.`,
+        cands.length ? `${meta.focus} için öne çıkan rakip adayları: ${cands.slice(0, 3).map((c) => c.entity).join(", ")}.` : null),
+      h("div", { class: "tiles" },
+        tile("HHI", num(conc.hhi, 0), `${L.hhi_class[conc.class]} yoğunlaşma${ago ? ` · bir yıl önce ${num(ago.hhi, 0)}` : ""}`, "Hesap"),
+        tile("CR3 / CR5", `${sharePct(conc.cr3)} / ${sharePct(conc.cr5)}`, "ilk 3 ve ilk 5 oyuncunun toplam payı", "Hesap"),
+        tile("Eşdeğer oyuncu sayısı", fx(1).format(conc.equivalent_players), "aynı HHI'yi veren eşit paylı oyuncu sayısı", "Hesap"),
+        fp ? tile(`${fp.entity} payı`, sharePct(fp.share), `${fp.rank}. sıra · bir yılda ${ppText(fp.d_year_pp)}`, "Hesap") : null,
+        marketSize !== null ? tile("Pazar büyüklüğü", `${num(marketSize, 0)}${meta.unit ? ` ${meta.unit}` : ""}`, `${basisText}${growth !== null ? ` · bir yılda ${signedPct(growth)}` : ""}`, meta.has_total ? "Ölçüm" : "Hesap") : null,
+        coverage !== null ? tile("Kapsama oranı", sharePct(coverage), "listelenen oyuncular / pazar toplamı", "Hesap") : null),
+      h("section", { class: "card" },
+        h("div", { class: "card-head" }, h("div", {}, h("h2", {}, term("market_share", "Pazar payları")), h("p", {}, `${basisText} tabanında yüzde pay.${meta.focus ? " Kalın çizgi odak oyuncudur." : ""} Kesikli çizgiler küçük oyuncuların toplamını ve tabloda listelenmeyen kısmı gösterir.`))),
+        lineChart({ dates: r.shares.dates, series: shareSeries, height: 340, format: (v) => sharePct(v, 1) })),
+      h("div", { class: "grid-2" },
+        h("section", { class: "card" },
+          h("div", { class: "card-head" }, h("div", {}, h("h2", {}, term("hhi", "HHI")), h("p", {}, "1.000'in altı düşük, 1.000–2.000 orta, 2.000'in üstü yüksek yoğunlaşma (AB Yatay Birleşme Rehberi)."))),
+          lineChart({ dates: r.concentration.dates, series: [{ name: "HHI", values: r.concentration.hhi, color: "var(--series-1)" }], height: 220, format: (v) => num(v, 0) })),
+        h("section", { class: "card" },
+          h("div", { class: "card-head" }, h("div", {}, h("h2", {}, term("cr_k", "CR3 ve CR5")), h("p", {}, "En büyük 3 ve 5 oyuncunun toplam payı."))),
+          lineChart({ dates: r.concentration.dates, series: [
+            { name: "CR3", values: r.concentration.cr3, color: "var(--series-1)" },
+            { name: "CR5", values: r.concentration.cr5, color: "var(--series-2)" }], height: 220, format: (v) => sharePct(v, 1) }))),
+      h("div", { class: "grid-2" },
+        h("section", { class: "card" },
+          h("div", { class: "card-head" }, h("div", {}, h("h2", {}, term("share_trend", "Pay kazananlar")), h("p", {}, `Son ${o.trend_years} yılda yıllık pay eğilimi anlamlı biçimde pozitif olanlar.`))),
+          trendBars(gainers, "+")),
+        h("section", { class: "card" },
+          h("div", { class: "card-head" }, h("div", {}, h("h2", {}, term("share_trend", "Pay kaybedenler")), h("p", {}, `Son ${o.trend_years} yılda yıllık pay eğilimi anlamlı biçimde negatif olanlar.`))),
+          trendBars(losers, "−"))),
+      h("section", { class: "card" },
+        h("div", { class: "card-head" }, h("div", {}, h("h2", {}, "Oyuncular"), h("p", {}, `Son dönemdeki pay, değişimler ve eğilim. Eğilim yılda en az 0,2 puan ve |t| ≥ 2 ise anlamlı sayılır.`))),
+        table([
+          { label: "Sıra", num: true, key: "rank" },
+          { label: "Oyuncu", render: (p) => h("span", {}, p.entity, p.entity === meta.focus ? h("span", { class: "chip accent tag-after" }, "odak") : null) },
+          { label: "Pay", num: true, render: (p) => sharePct(p.share, 2) },
+          { label: "Önceki döneme göre", num: true, render: (p) => ppText(p.d_prev_pp, 2) },
+          { label: "Bir yılda", num: true, render: (p) => ppText(p.d_year_pp, 2) },
+          { label: "Eğilim (puan/yıl)", num: true, render: (p) => (p.trend_pp_per_year === null ? "—" : signed(p.trend_pp_per_year, 2)) },
+          { label: "t", num: true, render: (p) => plainSigned(p.trend_t, 1) },
+          { label: "Durum", render: (p) => status(trendKind[p.trend] || "none", trendOf(p)) },
+          ...(players.some((p) => p.growth_vs_market_pp !== undefined) ? [{ label: "Pazara göre büyüme", num: true, render: (p) => ppText(p.growth_vs_market_pp) }] : []),
+        ], players, { scroll: true, rowClass: (p) => (p.entity === meta.focus ? "best" : null) })),
+      competitorCard,
+      segmentCard,
+      r.issues.length ? h("section", { class: "card" },
+        h("div", { class: "card-head" }, h("div", {}, h("h2", {}, "Veri notları"), h("p", {}, "Tablo okunurken yapılan düzeltmeler ve yorumu etkileyen durumlar."))),
+        h("div", { class: "feature-list" }, r.issues.map((i) => h("div", { class: "feature-row" },
+          h("h3", {}, i.message), status(...(SEVERITY[i.severity] || ["none", i.severity])))))) : null,
+      h("details", { class: "card" }, h("summary", {}, "Yöntem: bu analiz nasıl yapıldı?"),
+        h("ul", {},
+          h("li", {}, h("strong", {}, "Pay: "), meta.has_total ? "Oyuncu değeri / TOPLAM satırlarındaki pazar toplamı." : "Oyuncu değeri / listelenen oyuncuların toplamı (pazar toplamı verilmedi)."),
+          h("li", {}, h("strong", {}, "Taban: "), `${basisText}. ${meta.basis === "ttm" ? "Akım verisinde mevsimselliği gidermek için son 12 ayın toplamı kullanıldı." : "Her dönemin kendi değeri kullanıldı."}`),
+          h("li", {}, h("strong", {}, "Yoğunlaşma: "), "HHI = payların karelerinin toplamı; CR3 ve CR5 = en büyük 3 ve 5 oyuncunun payı."),
+          h("li", {}, h("strong", {}, "Eğilim: "), `Son ${o.trend_years} yılın dönemlik paylarına doğrusal trend; eğim puan/yıl, anlamlılık t istatistiğiyle.`),
+          h("li", {}, h("strong", {}, "Sınırlamalar: "), "Sonuçlar yalnızca yüklenen tabloyu yansıtır. Rakip adayları istatistiksel ipucudur; fiyat, kanal ve coğrafya gibi nitel ölçütlerle doğrulanmalıdır."))),
+      stampBar({
+        sources: src.kind === "sample" ? "Örnek veri (sentetik, otomotiv benzeri)" : src.kind === "file" ? `Kullanıcı tablosu (${src.name})` : "Kullanıcı tablosu (yapıştırıldı)",
+        generated: stampTime(r.generated_at), period,
+        missing: r.issues.some((i) => i.check === "missing_periods") ? "eksik dönem var (Veri notları)" : "yok",
+      }),
+    );
+  };
+
+  fill(root,
+    viewHead("Pazar payı", "Pazar payı ve rakipler", "Kendi pazar payı tablonuzu yükleyin: paylar, yoğunlaşma (HHI, CR3/CR5), pay kazanan ve kaybeden oyuncular, rakip seti ve segment bazında shift-share ayrıştırması hesaplanır. Tablo yalnızca bu bilgisayarda işlenir, diske yazılmaz."),
+    h("section", { class: "card" },
+      h("div", { class: "drop" },
+        h("div", {},
+          h("div", { class: "file-pick" },
+            h("strong", {}, "Dosya seçin (CSV ya da JSON)"),
+            file,
+            h("p", { class: "caption" }, "Kolonlar: entity, date, value ve isteğe bağlı segment. Pazar toplamı, oyuncu adı TOPLAM (ya da TOTAL) olan satırlarla verilir. Dönem: YYYY-AA, YYYY-Qn ya da YYYY. Noktalı virgülle ayrılmış Excel çıktılarında ondalık virgül kabul edilir. En fazla 8 MB."),
+            h("div", { class: "button-row" }, sample)),
+          inputStatus),
+        h("div", {},
+          h("label", { class: "field" }, h("span", {}, "ya da tabloyu yapıştırın"), paste))),
+      h("div", { class: "controls" },
+        h("label", { class: "field" }, h("span", {}, "Değer türü"), measure),
+        h("label", { class: "field" }, h("span", {}, "Değerin niteliği"), kind),
+        h("label", { class: "field" }, h("span", {}, term("ttm", "Pay tabanı")), basis),
+        h("label", { class: "field" }, h("span", {}, "Birim"), unit),
+        h("label", { class: "field" }, h("span", {}, term("share_trend", "Eğilim penceresi (yıl)")), years),
+        h("label", { class: "field" }, h("span", {}, "Odak oyuncu"), focus)),
+      h("div", { class: "button-row" }, run,
+        h("span", { class: "caption" }, "Odak oyuncuyu değiştirdiğinizde analiz kendiliğinden yenilenir."))),
+    out,
+  );
+  if (saved.result) render(saved.result, saved.input, { ...opts });
+  else out.append(emptyState("Analiz henüz yapılmadı", "Bir tablo seçip \"Analiz et\" düğmesine basın ya da \"Örnek veriyi yükle\" ile sentetik otomotiv verisini deneyin."));
 };
 
 // --- routing and start-up -----------------------------------------------------------------------------
@@ -756,14 +1052,14 @@ async function route() {
   document.querySelectorAll("nav a").forEach((a) => (a.dataset.view === view ? a.setAttribute("aria-current", "page") : a.removeAttribute("aria-current")));
   const root = $("#view");
   $("#tooltip").hidden = true; // no mouseleave fires when the chart is replaced
-  root.replaceChildren(h("p", { class: "muted" }, h("span", { class: "spinner", "aria-hidden": "true" }), "Yükleniyor"));
+  fill(root, h("p", { class: "muted" }, h("span", { class: "spinner", "aria-hidden": "true" }), "Yükleniyor"));
   notice(null);
   try {
     await views[view](root);
     if (view !== "genel") root.focus({ preventScroll: true });
     window.scrollTo(0, 0);
   } catch (err) {
-    root.replaceChildren();
+    fill(root);
     notice(err.message);
   }
 }

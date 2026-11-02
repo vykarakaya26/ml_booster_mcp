@@ -129,6 +129,7 @@ function buildLineChart({ dates, series, band = null, markers = null, events = [
   // x labels: year starts, thinned to fit the width
   const years = [];
   dates.forEach((d, i) => { if (i === 0 || d.slice(0, 4) !== dates[i - 1].slice(0, 4)) years.push(i); });
+  if (years.length > 2 && years[1] - years[0] < n / 20) years.shift(); // a stub first year (e.g. a December start) would overlap the next label
   const maxLabels = Math.max(3, Math.floor(W / 90));
   const every = Math.max(1, Math.ceil(years.length / maxLabels));
   years.filter((_, k) => k % every === 0).forEach((i) => {
@@ -175,7 +176,7 @@ function buildLineChart({ dates, series, band = null, markers = null, events = [
       d += `${pen ? "L" : "M"}${x(i).toFixed(1)},${y(v).toFixed(1)}`;
       pen = true;
     });
-    svg.append(s("path", { class: "line", d, style: `stroke:${sr.color}`, "stroke-dasharray": sr.dash }));
+    svg.append(s("path", { class: "line", d, style: `stroke:${sr.color}${sr.width ? `;stroke-width:${sr.width}` : ""}`, "stroke-dasharray": sr.dash }));
     // isolated points (gaps on both sides) are invisible as a path; draw a small dot
     sr.values.forEach((v, i) => {
       if (v === null) return;
