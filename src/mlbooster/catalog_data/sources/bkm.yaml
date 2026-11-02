@@ -6,7 +6,10 @@ base_url: https://bkm.com.tr
 access: file_download
 auth: {type: none}
 rate_limit: {rps: 1, backoff: exponential, notes: "Her rapor sayfası 2017'den bu yana bütün ayları tek yanıtta döndürür."}
-license: {commercial: false, redistribution: false, attribution: required, notes: "Raporlar sayfası: \"Raporlar BKM kaynak gösterilmeksizin yayınlanamaz.\" Sitenin genel yasal uyarısı (bkm.com.tr/bkm/yasal-uyari/) bilgilerin yalnızca bilgi edinmek amacıyla kullanılabileceğini; BKM'nin önceden yazılı izni olmadan kopyalanamayacağını, dağıtılamayacağını, ileride kullanılmak üzere saklanamayacağını ve ticari amaçla kullanılamayacağını belirtir. Kaynak göstermeden yayımlamayın; ticari kullanım, yeniden dağıtım ve kalıcı saklama için BKM'den (destek@bkm.com.tr) yazılı izin alın."}
+license: {commercial: false, redistribution: false, attribution: required, notes: "Raporlar sayfası: \"Raporlar BKM kaynak gösterilmeksizin yayınlanamaz.\" Sitenin genel yasal uyarısı (bkm.com.tr/bkm/yasal-uyari/) bilgilerin yalnızca bilgi edinmek amacıyla kullanılabileceğini; BKM'nin önceden yazılı izni olmadan kopyalanamayacağını, dağıtılamayacağını, ileride kullanılmak üzere saklanamayacağını ve ticari amaçla kullanılamayacağını belirtir. Bu nedenle BKM verileri yerel depoya yazılmaz; her istekte kaynaktan yeniden çekilir. Kaynak göstermeden yayımlamayın; ticari kullanım, yeniden dağıtım ve kalıcı saklama için BKM'den (destek@bkm.com.tr) yazılı izin alın."}
+# BKM's legal notice forbids storing its data for later use without written permission: no bronze copies and no
+# silver observation cache; every fetch and panel build reads the report pages again.
+storage: {raw: false, observations: false}
 frequency: [M]
 formats: [html]
 sectors: [bankacilik, perakende, turizm, eticaret]

@@ -10,10 +10,11 @@ import respx
 from mlbooster.application.dto import FetchRequest
 from mlbooster.application.errors import ProviderError, UnexpectedResponse
 from mlbooster.domain.errors import InvalidInput
-from mlbooster.domain.model import HealthStatus
+from mlbooster.domain.model import HealthStatus, StoragePolicy
 from mlbooster.infrastructure.http_client import SecureHttpClient
 from mlbooster.infrastructure.providers.bkm import BkmProvider, _grid, label_key, parse_remote, parse_report
-from mlbooster.infrastructure.providers.registry import PROVIDERS
+from mlbooster.infrastructure.providers.registry import PROVIDERS, ProviderRegistry
+from mlbooster.infrastructure.secret_store import EnvSecretProvider
 from mlbooster.infrastructure.storage.raw_store import RawStore
 
 # Pages recorded from bkm.com.tr on 2026-11-02 with scripts, styles and the 2018-2024 tables removed. BKM does not allow
@@ -97,8 +98,7 @@ def test_parse_remote_rejects_malformed(remote):
 
 
 @respx.mock
-def test_fetch_reads_whole_history_once_per_page(bkm, tmp_path):
-    bkm._raw_store = RawStore(tmp_path)
+def test_fetch_reads_whole_history_once_per_page(bkm):
     route = respx.get(f"{BASE}/kart-sayilari/").mock(return_value=_html("kart-sayilari.html"))
     df = bkm.fetch(FetchRequest.create("bkm", ["BKM.KART.KREDI", "BKM.KART.ONODEMELI"], date(2025, 3, 1), date(2025, 4, 30)))
 
@@ -111,6 +111,36 @@ def test_fetch_reads_whole_history_once_per_page(bkm, tmp_path):
     assert set(df["dataset_id"]) == {"kart-sayilari"} and set(df["unit"]) == {"count"}
     assert set(df["freq"]) == {"M"} and set(df["metric"]) == {"level"} and set(df["publication_lag_days"]) == {40}
     assert not df["is_proxy"].any()
+
+
+def test_catalog_forbids_storing_bkm_data(catalog):
+    storage = catalog.source("bkm").storage
+    assert not storage.raw and not storage.observations
+
+
+@respx.mock
+def test_nothing_is_written_to_the_raw_store(catalog, tmp_path):
+    """BKM's legal notice forbids storing its data: neither the registry nor the provider keeps raw pages."""
+    respx.get(f"{BASE}/kart-sayilari/").mock(return_value=_html("kart-sayilari.html"))
+    registry = ProviderRegistry(
+        EnvSecretProvider(), RawStore(tmp_path), http_factory=lambda _: SecureHttpClient(rps=None, max_retries=1)
+    )
+    direct = BkmProvider(catalog.source("bkm"), http=SecureHttpClient(rps=None), raw_store=RawStore(tmp_path))
+    for provider in (registry.create(catalog.source("bkm")), direct):
+        try:
+            assert not provider.fetch(FetchRequest.create("bkm", ["BKM.KART.KREDI"], date(2026, 1, 1))).empty
+        finally:
+            provider.close()
+    assert list(tmp_path.iterdir()) == []
+
+
+@respx.mock
+def test_raw_pages_are_kept_when_the_catalog_allows_it(catalog, tmp_path):
+    respx.get(f"{BASE}/kart-sayilari/").mock(return_value=_html("kart-sayilari.html"))
+    source = replace(catalog.source("bkm"), storage=StoragePolicy())
+    provider = ProviderRegistry(EnvSecretProvider(), RawStore(tmp_path), http_factory=lambda _: SecureHttpClient()).create(source)
+    provider.fetch(FetchRequest.create("bkm", ["BKM.KART.KREDI"], date(2026, 1, 1)))
+    provider.close()
     manifest = (tmp_path / "bkm" / "manifest.jsonl").read_text(encoding="utf-8").splitlines()
     assert len(manifest) == 1 and json.loads(manifest[0])["url"] == f"{BASE}/kart-sayilari/"
 

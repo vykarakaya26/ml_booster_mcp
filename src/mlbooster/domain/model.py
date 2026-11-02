@@ -143,6 +143,15 @@ class RateLimitSpec:
 
 
 @dataclass(frozen=True)
+class StoragePolicy:
+    """What may be kept on disk for a source (its terms of use may forbid storing data for later use).
+    raw: bronze copies of the responses; observations: the silver observation cache."""
+
+    raw: bool = True
+    observations: bool = True
+
+
+@dataclass(frozen=True)
 class LicenseSpec:
     commercial: bool | None
     redistribution: bool | None
@@ -184,6 +193,7 @@ class Source:
     provider: str | None = None  # None = no provider (adapter) exists for this source yet
     priority: int = 99
     series: tuple[SeedSeries, ...] = ()
+    storage: StoragePolicy = StoragePolicy()
 
     def seed(self, code: str) -> SeedSeries | None:
         return next((s for s in self.series if s.code == code), None)

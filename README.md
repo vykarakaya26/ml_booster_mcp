@@ -197,6 +197,7 @@ Bu araç veri dağıtmaz; her kullanıcı veriyi kendi API key'iyle kaynaklardan
 - **TCMB EVDS:** Veriler kaynak gösterilerek kullanılabilir ve yayımlanabilir. Ticari bir üründe kullanıldığında veri, kullanıcılara/abonelere **ek ücret olarak yansıtılamaz**.
 - **BDDK:** Kaynak gösterilerek kısmen alıntı yapılabilir; **ticari amaçlı kullanım BDDK'nın yazılı iznine tabidir**. Veriler bankaların raporladığı konsolide olmayan bilgilerdir.
 - **TSB, ODMD, BKM, TBB vb.:** Açık veri lisansı yayımlamıyorlar. Ticari kullanım ve yeniden dağıtım öncesinde ilgili kurumun site koşullarını kontrol edin.
+- **BKM:** Raporlar kaynak gösterilerek kullanılabilir; sitenin yasal uyarısı kopyalama, yeniden dağıtım, kalıcı saklama ve ticari kullanımı BKM'nin yazılı iznine bağlar. Bu nedenle BKM verileri yerel depoya yazılmaz, her istekte kaynaktan yeniden çekilir.
 - Proxy pazar payları (KAP gelirleri, Google Trends) gerçek pazar payı değildir ve `is_proxy` bayrağıyla ayrı tutulur.
 
 ## Geliştirme

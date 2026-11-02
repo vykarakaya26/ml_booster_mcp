@@ -31,6 +31,7 @@ from mlbooster.domain.model import (
     SeriesKind,
     ShareSource,
     Source,
+    StoragePolicy,
     Transform,
     Verification,
 )
@@ -68,6 +69,11 @@ class LicenseSchema(_Strict):
     redistribution: bool | None = None
     attribution: Literal["required", "recommended", "unknown"] = "unknown"
     notes: str
+
+
+class StorageSchema(_Strict):
+    raw: bool = True
+    observations: bool = True
 
 
 class SeedSchema(_Strict):
@@ -115,6 +121,7 @@ class SourceSchema(_Strict):
     known_breaks: list[str] = Field(default_factory=list)
     adapter: str | None = None
     priority: int = 99
+    storage: StorageSchema = Field(default_factory=StorageSchema)
     series: list[SeedSchema] = Field(default_factory=list)
 
     @field_validator("id")
@@ -161,6 +168,7 @@ class SourceSchema(_Strict):
             provider=self.adapter,
             priority=self.priority,
             series=tuple(SeedSeries(**s.model_dump()) for s in self.series),
+            storage=StoragePolicy(self.storage.raw, self.storage.observations),
         )
 
 

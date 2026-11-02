@@ -51,4 +51,5 @@ class ProviderRegistry:
         cls = PROVIDERS.get(source.provider or "")
         if cls is None:
             raise ProviderNotImplemented(f"{source.id} için provider henüz uygulanmadı")
-        return cls(source, http=self._http_factory(source), secrets=self._secrets, raw_store=self._raw_store)
+        raw_store = self._raw_store if source.storage.raw else None  # the source's terms forbid keeping copies
+        return cls(source, http=self._http_factory(source), secrets=self._secrets, raw_store=raw_store)

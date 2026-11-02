@@ -3,16 +3,18 @@
 Live findings 2026-11-02 (CLAUDE.md source rule 4):
 - bkm.com.tr/robots.txt allows everything except /wp-admin/. The reports page states "Raporlar BKM kaynak
   gösterilmeksizin yayınlanamaz" (attribution required); the site-wide legal notice (/bkm/yasal-uyari/) reserves
-  copying, redistribution, storage and any commercial use to BKM's written permission. Both are recorded in the
-  catalog licence note (`commercial: false`, `redistribution: false`).
+  copying, redistribution, storage for later use and any commercial use to BKM's written permission. Both are
+  recorded in the catalog licence note (`commercial: false`, `redistribution: false`), and the catalog sets
+  `storage: {raw: false, observations: false}`: pages are fetched on demand and parsed in memory, nothing is written
+  to the bronze or silver stores, and panels fetch BKM again on every build.
 - Each report is a server-rendered HTML page with one `<table>` per year ("2026 YILI" ... "2017 YILI"); a single GET
   returns the whole history since January 2017. Rows are Turkish month names plus quarter ("1. DÖNEM") and year
   total rows, which are skipped. Header cells use colspan/rowspan (up to three header rows); a column is addressed by
   the keys of its header cells from top to bottom, e.g. `ISLEM_TUTARI_MILYON_TL.TOPLAM`.
 - Numbers use Turkish formatting ("1.119.979.451", "2.450.608,36"). Amounts are in million TL, counts in units.
 - The "Excel" download (`?xls=1`) is the same HTML table served as application/vnd.ms-excel, so the HTML is parsed
-  directly (no spreadsheet library needed). Raw pages go to the bronze store, whose content hash serves as change
-  detection.
+  directly (no spreadsheet library needed). Pages would go to the bronze store (content hash as change detection)
+  only if the catalog allowed raw storage.
 - The sector report (/secilen-sektore-gore-aylik-gelisim/) takes the merchant group as `?filter_group=<n>`; its
   figures are shopping transactions of domestic and foreign cards in Türkiye (their sum over all groups equals the
   "Yerli ve Yabancı Kartların Yurt İçi Kullanımı / Alışveriş" total of the general report).
@@ -209,7 +211,7 @@ class BkmProvider:
             raise ProviderError(f"{source.id} provider'ı yalnızca https://{HOST} ile çalışır")
         self.source = source
         self._http = http
-        self._raw_store = raw_store
+        self._raw_store = raw_store if source.storage.raw else None  # the registry withholds it as well
 
     def _seed(self, code: str) -> SeedSeries:
         seed = self.source.seed(code)
