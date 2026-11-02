@@ -9,7 +9,7 @@ Vulnerabilities must not be reported as public issues. Report them through **Sec
 | Risk | Mitigation | Where |
 |---|---|---|
 | API key leakage | The key is sent only in an HTTP header. It is never written to URLs, logs or the raw data manifest. The `Secret` object is not exposed through repr/str/pickle. If the server echoes the key back in a response, it is masked in the error message. | `infrastructure/secret_store.py`, `providers/evds3.py` |
-| Key sent to another server through a modified catalog | Each provider pins its allowed host in code (EVDS3: `evds3.tcmb.gov.tr`). The catalog accepts only `https`. The client does not follow redirects and does not use environment proxy settings (`trust_env`). | `providers/evds3.py`, `http_client.py`, `catalog_yaml.py` |
+| Key sent to another server through a modified catalog | Each provider pins its allowed host in code (EVDS3: `evds3.tcmb.gov.tr`, TÜİK: `databrowser2.tuik.gov.tr`). The catalog accepts only `https`. The client does not follow redirects and does not use environment proxy settings (`trust_env`). | `providers/evds3.py`, `http_client.py`, `catalog_yaml.py` |
 | URL parameter injection (EVDS appends parameters to the path without encoding) | Series and data group codes pass an allow-list: `^[A-Za-z0-9][A-Za-z0-9_.]{0,63}$`. | `domain/validation.py` |
 | Path traversal | Source and sector identifiers must match `^[a-z0-9_]+$`. Raw file names are derived from the content hash. MCP tools take no file path parameter. | `domain/validation.py`, `storage/*` |
 | SQL injection | All values in DuckDB queries are bound as parameters. | `storage/observation_store.py` |
