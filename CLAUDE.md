@@ -173,7 +173,11 @@ Rules:
    broadband) and the mobile share sentence (charts are images, so mobile subscriber counts by operator are not
    available). Tables must add up (shares 100±0.5, operators = printed total) or they are rejected (2025-Q4 fixed
    broadband, 2021-Q1 unreadable text layer: known_breaks). Lag 99 days. Catalog `remote`: `<table>/<column>`.
-6. KAP: do NOT bulk-scrape kap.org.tr; use the MKK API Portal.
+6. KAP: do NOT bulk-scrape kap.org.tr (its copyright notice forbids storing content without MKK's written consent).
+   Research 2026-11-03: the only API is MKK's "KAP Veri Yayın Servisleri" (apiportal.mkk.com.tr; disclosures,
+   disclosureDetail with XBRL flatData, members); access needs a Borsa İstanbul data distribution agreement (fee
+   tariff), MKK IP whitelisting and an e-mailed API key, so it is a paid source and not integrated. Listed-company
+   revenues enter only through user-supplied tables (market-share input).
 7. Google Trends: manual CSV import adapter only.
 
 ## Observation (silver) schema (domain/observations.py; Parquet schema in storage/observation_store.py)
