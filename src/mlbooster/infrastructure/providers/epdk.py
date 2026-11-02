@@ -10,13 +10,15 @@ Live findings 2026-11-02 (CLAUDE.md source rule 5):
   Miktarları" and LPG table 3.5 "... LPG Satışlarının Dağıtıcılara ve Ürün Türüne Göre Dağılımı"; from 2026-01 a
   PDF report plus an Excel annex with the same figures (petroleum table 12, LPG table 12 in long format). 2025's
   Excel files hold only province tables, so Word comes first. Reports up to 2015 are binary .doc or PDF and are not
-  read (FIRST_MONTH).
+  read; the 2016 LPG tables name distributors by short brand ("AKPET", "GÜVENAL", "OMV POAŞ") that do not match
+  their titles from 2017 on, so LPG series start in 2017 (FIRST_MONTH).
 - Figures are tonnes, every licence holder of the month is listed and the table ends with a total row. A revised
   report replaces the file behind the list entry (new document id); the bronze store keeps every downloaded file
   under its content hash, which serves as change detection.
 
 Checks before anything is written: holders add up to the published total within ±0.5 % (shares sum to 100±0.5),
-published shares add up to 100±0.5, and a series total moves less than threefold from one month to the next.
+published shares add up to 100±0.5, and a series total moves less than threefold from one month to the next. A total
+row that contradicts both its rows and its published shares is replaced by the holders' sum (see `validate`).
 
 The catalog `remote` field is `<report>/<COLUMN>`: report `petrol` (columns BENZIN, MOTORIN, FUEL_OIL, HAVACILIK,
 DENIZCILIK, GAZYAGI, DIGER, TOPLAM) or `lpg` (TUPLU, DOKME, OTOGAZ, TOPLAM). The total row is written with an empty
@@ -26,6 +28,7 @@ DENIZCILIK, GAZYAGI, DIGER, TOPLAM) or `lpg` (TUPLU, DOKME, OTOGAZ, TOPLAM). The
 
 from __future__ import annotations
 
+import logging
 import re
 import time
 from datetime import UTC, date, datetime, timedelta
@@ -53,6 +56,8 @@ from mlbooster.infrastructure.providers.epdk_reports import (
 from mlbooster.infrastructure.secret_store import EnvSecretProvider
 from mlbooster.infrastructure.storage.raw_store import RawStore
 
+log = logging.getLogger(__name__)
+
 HOST = "www.epdk.gov.tr"
 LISTINGS = {
     "petrol": "/Detay/Icerik/3-0-104/petrolaylik-sektor-raporu",
@@ -63,7 +68,7 @@ COLUMNS = {
     "petrol": frozenset(v for v in PETROL_COLUMNS.values() if v != "PAY"),
     "lpg": frozenset(LPG_COLUMNS.values()),
 }
-FIRST_MONTH = date(2016, 1, 1)  # earlier reports are binary .doc or PDF
+FIRST_MONTH = {"petrol": date(2016, 1, 1), "lpg": date(2017, 1, 1)}
 SHARE_TOLERANCE = 0.5  # percentage points
 MAX_MONTHLY_RATIO = 3.0
 # Renamed licence holders (same company, new title); the switch months were checked for a continuous share.
@@ -87,8 +92,8 @@ def parse_remote(remote: str) -> tuple[str, str]:
     return m["report"], m["column"]
 
 
-def _months(start: date, end: date) -> list[tuple[int, int]]:
-    first = max(start, FIRST_MONTH)
+def _months(start: date, end: date, report: str) -> list[tuple[int, int]]:
+    first = max(start, FIRST_MONTH[report])
     y, m = first.year, first.month
     out = []
     while (y, m) <= (end.year, end.month):
@@ -102,22 +107,39 @@ def _month_end(year: int, month: int) -> date:
 
 
 def validate(table: MonthTable, columns: set[str], label: str) -> None:
-    """Holders must add up to the published total (shares sum to 100±0.5) for every column that is written."""
+    """Holders must add up to the published total (shares sum to 100±0.5) for every column that is written, and the
+    published shares of a column must add up to 100±0.5.
+
+    A total row that disagrees with its own table while the published shares agree with the holders' sum is a typo
+    in the total row (LPG 2023-10: otogaz 308.287 t printed, holders and shares 290.2 thousand t); the holders' sum
+    then replaces it and a warning is logged."""
     for column in sorted(columns):
         total = table.totals.get(column)
         if total is None:
             raise UnexpectedResponse(f"EPDK {label}: '{column}' kolonu için toplam yok")
+        pairs = table.shares.get(column, [])
+        if pairs and abs(sum(s for _, s in pairs) - 100) > SHARE_TOLERANCE:
+            raise UnexpectedResponse(f"EPDK {label}: '{column}' kolonunda yayımlanan payların toplamı %{sum(s for _, s in pairs):.2f}")
         parts = sum(values.get(column, 0.0) for _, values in table.entities.values())
         if total <= 0:
             if abs(parts) > 1e-6:
                 raise UnexpectedResponse(f"EPDK {label}: '{column}' toplamı sıfır, şirketlerin toplamı {parts:g}")
             continue
-        if abs(parts / total * 100 - 100) > SHARE_TOLERANCE:
-            raise UnexpectedResponse(
-                f"EPDK {label}: '{column}' kolonunda şirketlerin payları toplamı %{parts / total * 100:.2f} (100±0,5 bekleniyor)"
-            )
-    if table.shares and abs(sum(table.shares) - 100) > SHARE_TOLERANCE:
-        raise UnexpectedResponse(f"EPDK {label}: yayımlanan payların toplamı %{sum(table.shares):.2f}")
+        if abs(parts / total * 100 - 100) <= SHARE_TOLERANCE:
+            continue
+        if pairs and parts > 0 and _shares_fit(pairs, parts):
+            log.warning("EPDK %s: total row of %s (%.2f) disagrees with its table; using the holders' sum %.2f", label, column, total, parts)
+            table.totals[column] = parts
+            continue
+        raise UnexpectedResponse(
+            f"EPDK {label}: '{column}' kolonunda şirketlerin payları toplamı %{parts / total * 100:.2f} (100±0,5 bekleniyor)"
+        )
+
+
+def _shares_fit(pairs: list[tuple[float, float]], parts: float) -> bool:
+    """Published shares were computed on the holders' sum (checked on the largest holders, 2-decimal rounding)."""
+    largest = sorted(pairs, reverse=True)[:3]
+    return all(abs(value / parts * 100 - share) <= 0.05 for value, share in largest)
 
 
 class EpdkProvider:
@@ -197,7 +219,7 @@ class EpdkProvider:
         vintage, rows = datetime.now(UTC), []
         for report in sorted({r for _, (r, _) in seeds}):
             wanted = [(seed, column) for seed, (r, column) in seeds if r == report]
-            months = _months(request.period.start, request.period.end)
+            months = _months(request.period.start, request.period.end, report)
             listing = self._listing(report) if months else {}
             for year, month in months:
                 if (year, month) not in listing:  # not published yet (or never)

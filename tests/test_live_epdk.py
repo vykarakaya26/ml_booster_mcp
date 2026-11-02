@@ -59,9 +59,9 @@ def test_epdk_august_2026_excel_annex(epdk):
     [
         ("EPDK.PETROL.BENZIN", date(2025, 12, 1), 501114.47),  # Word report table 3.2 (and 1.1)
         ("EPDK.PETROL.TOPLAM", date(2016, 2, 1), None),  # 2016 headers "Şirket Ünvanı | Lisans Tipi"
-        ("EPDK.LPG.TOPLAM", date(2016, 1, 1), 295306.0),  # 2016 LPG table, first column "DAĞITICI"
         ("EPDK.LPG.TOPLAM", date(2017, 1, 1), 291891.948),  # total row "Genel Toplam"
         ("EPDK.LPG.TOPLAM", date(2018, 1, 1), 315029.257),  # "Tüplügaz" / "Dökmegaz" headers
+        ("EPDK.LPG.TOPLAM", date(2023, 10, 1), 350546.60),  # total row misprinted; holders' sum = table 3.7 total
     ],
 )
 def test_epdk_older_report_formats(epdk, code, month, total):

@@ -120,8 +120,8 @@ def lpg_docx() -> bytes:
         ("p", "Tablo 3.5: Aralık 2025 Döneminde LPG Satışlarının Dağıtıcılara ve Ürün Türüne Göre Dağılımı"),
         ("tbl", [
             LPG_HEAD, LPG_SUB,
-            ["AYGAZ A.Ş.", "19.409,19", "41,08", "3.348,19", "28,26", "63.509,54", "24,18", "86.266,91", "26,81"],
-            ["PETROL OFİSİ A.Ş.", "0,00", "0,00", "0,00", "0,00", "60.000,00", "22,85", "60.000,00", "18,65"],
+            ["AYGAZ A.Ş.", "19.409,19", "100,00", "3.348,19", "100,00", "63.509,54", "51,42", "86.266,91", "58,98"],
+            ["PETROL OFİSİ A.Ş.", "0,00", "0,00", "0,00", "0,00", "60.000,00", "48,58", "60.000,00", "41,02"],
             ["Toplam", "19.409,19", "100", "3.348,19", "100", "123.509,54", "100", "146.266,92", "100"],
         ]),
         sdt=True,
@@ -209,11 +209,16 @@ def test_parse_remote_rejects_malformed(remote):
         ("PETROL OFİSİ A.Ş.", "PETROL_OFISI", "PETROL OFİSİ"),
         ("PETROL OFİSİ ANONİM ŞİRKETİ", "PETROL_OFISI", "PETROL OFİSİ"),
         ("SHELL & TURCAS PETROL A.Ş.", "SHELL_TURCAS", "SHELL & TURCAS"),
+        ("SHELL&TURCAS PETROL A.Ş.", "SHELL_TURCAS", "SHELL & TURCAS"),
         ("AYTEMİZ AKARYAKIT DAĞ. A.Ş.", "AYTEMIZ_AKARYAKIT", "AYTEMİZ AKARYAKIT"),
         ("AYTEMİZ AKARYAKIT DAĞITIM ANONİM ŞİRKETİ", "AYTEMIZ_AKARYAKIT", "AYTEMİZ AKARYAKIT"),
         ("TECO PETROL. SANAYİ VE TİCARET A.Ş.", "TECO_PETROLCULUK", "TECO PETROLCÜLÜK"),
         ("SİYAM PETROLCÜLÜK SANAYİ VE TİCARET ANONİM ŞİRKETİ (S OIL)", "SIYAM_PETROLCULUK", "SİYAM PETROLCÜLÜK"),
         ("AYGAZ A.Ş.", "AYGAZ", "AYGAZ"),
+        ("AYTEMİZ AKAR. A.Ş.", "AYTEMIZ_AKARYAKIT", "AYTEMİZ AKARYAKIT"),
+        ("LİKİTGAZ DAĞ", "LIKITGAZ_DAGITIM", "LİKİTGAZ DAĞITIM"),  # cut title, dot lost
+        ("HÜRGAZ TİC. VE SAN. A.Ş.", "HURGAZ_TICARET", "HÜRGAZ TİCARET"),
+        ("PET GAZ A.Ş.", "PET_GAZ", "PET GAZ"),
         ("İPRAGAZ ANONİM ŞİRKETİ", "IPRAGAZ", "İPRAGAZ"),
         ("BALPET PETROL ÜRÜNLERİ TAŞIMACILIK SANAYİ VE TİC.A.Ş", "BALPET_PETROL", "BALPET PETROL"),
         ("ERDEM PETROL ÜRÜNLERİ SANAYİ PAZARLAMA LTD. ŞTİ.", "ERDEM_PETROL", "ERDEM PETROL"),
@@ -270,7 +275,7 @@ def test_petrol_table_from_word_report():
     assert table.entities["PETROL_OFISI"] == ("PETROL OFİSİ", pytest.approx(
         {"BENZIN": 122942.75, "MOTORIN": 617376.52, "FUEL_OIL": 2721.9, "HAVACILIK": 21056.65, "DENIZCILIK": 3072.41,
          "GAZYAGI": 51.18, "DIGER": 0.0, "TOPLAM": 767221.41}))  # fmt: skip
-    assert sum(table.shares) == pytest.approx(100.0)
+    assert [s for _, s in table.shares["TOPLAM"]] == [50.0, 37.81, 12.19]
     validate(table, {"BENZIN", "MOTORIN", "TOPLAM"}, "test")
 
 
@@ -312,6 +317,7 @@ def test_lpg_table_from_word_report_with_spanned_header():
     table = reports.lpg_sales(reports.read_docx(lpg_docx()), 2025, 12)
     assert table.totals == pytest.approx({"TUPLU": 19409.19, "DOKME": 3348.19, "OTOGAZ": 123509.54, "TOPLAM": 146266.92})
     assert table.entities["AYGAZ"] == ("AYGAZ", pytest.approx({"TUPLU": 19409.19, "DOKME": 3348.19, "OTOGAZ": 63509.54, "TOPLAM": 86266.91}))
+    assert table.shares["OTOGAZ"] == [(63509.54, 51.42), (60000.0, 48.58)]
     validate(table, {"TUPLU", "DOKME", "OTOGAZ", "TOPLAM"}, "test")
 
 
@@ -365,7 +371,7 @@ def test_validate_shares():
         validate(table, {"TOPLAM"}, "x")
     table.entities["B"] = ("B", {"TOPLAM": 39.6})
     validate(table, {"TOPLAM"}, "x")
-    table.shares = [60.0, 38.0]
+    table.shares = {"TOPLAM": [(60.0, 60.0), (39.6, 38.0)]}
     with pytest.raises(UnexpectedResponse, match="yayımlanan payların"):
         validate(table, {"TOPLAM"}, "x")
     with pytest.raises(UnexpectedResponse, match="toplam yok"):
@@ -374,6 +380,17 @@ def test_validate_shares():
     with pytest.raises(UnexpectedResponse, match="sıfır"):
         validate(zero, {"GAZYAGI"}, "x")
     validate(MonthTable({}, {"GAZYAGI": 0.0}), {"GAZYAGI"}, "x")
+
+
+def test_a_total_row_contradicting_its_table_and_shares_is_replaced(caplog):
+    """LPG 2023-10: the otogaz total row was ~6 % too high while every published share fits the holders' sum."""
+    shares = {"OTOGAZ": [(64828.92, 70.0), (27781.08, 30.0)]}
+    table = MonthTable({"A": ("A", {"OTOGAZ": 64828.92}), "B": ("B", {"OTOGAZ": 27781.08})}, {"OTOGAZ": 98000.0}, shares)
+    validate(table, {"OTOGAZ"}, "lpg 2023/10")
+    assert table.totals["OTOGAZ"] == pytest.approx(92610.0) and "disagrees" in caplog.text
+    table = MonthTable(table.entities, {"OTOGAZ": 98000.0}, {"OTOGAZ": [(64828.92, 66.15), (27781.08, 33.85)]})
+    with pytest.raises(UnexpectedResponse, match="100±0,5"):  # shares computed on the printed total: rows are missing
+        validate(table, {"OTOGAZ"}, "x")
 
 
 def test_continuity_check():
@@ -475,6 +492,13 @@ def test_old_names_map_to_the_current_holder(epdk):
     respx.get(url__startswith=DOWNLOAD).mock(return_value=_file(old))
     df = epdk.fetch(FetchRequest.create("epdk", ["EPDK.PETROL.TOPLAM"], date(2016, 1, 1), date(2016, 1, 31)))
     assert df.set_index("entity_id").loc["PETROL_OFISI", "entity_name"] == "PETROL OFİSİ"
+
+
+@respx.mock
+def test_lpg_starts_in_2017(epdk):
+    listing = respx.get(LPG_LIST).mock(return_value=_html(_listing({"2016 Ocak LPG Raporu": [("word", "lpg16")]})))
+    assert epdk.fetch(FetchRequest.create("epdk", ["EPDK.LPG.TOPLAM"], date(2016, 1, 1), date(2016, 12, 31))).empty
+    assert not listing.called
 
 
 @respx.mock

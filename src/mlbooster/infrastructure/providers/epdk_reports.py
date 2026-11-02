@@ -34,7 +34,12 @@ _LEGAL_FORMS = [
     (re.compile(r"(?<!\S)LTD\.?\s?ŞTİ\.?(?=\s|$)"), "LİMİTED ŞİRKETİ"),
 ]
 _LEGAL_SUFFIX = re.compile(r"\s+(?:ANONİM|LİMİTED) ŞİRKETİ$")
-_WORD_ABBREVIATIONS = {"PETROL.": "PETROLCÜLÜK", "PETROLC.": "PETROLCÜLÜK"}  # "TECO PETROL. SANAYİ" (2022)
+# Abbreviated second words of a title, e.g. "TECO PETROL. SANAYİ" (2022), "AYTEMİZ AKAR." and "LİKİTGAZ DAĞ." (LPG).
+_WORD_ABBREVIATIONS = {
+    "PETROL.": "PETROLCÜLÜK", "PETROLC.": "PETROLCÜLÜK", "AKAR.": "AKARYAKIT", "AKARY.": "AKARYAKIT", "DAĞ.": "DAĞITIM",
+    "SAN.": "SANAYİ", "TİC.": "TİCARET", "PET.": "PETROL", "DEP.": "DEPOLAMA",
+}  # fmt: skip
+_TRAILING_ABBREVIATION = {"AKAR", "AKARY", "DAĞ", "SAN", "TİC", "PET", "DEP"}  # dot lost at the end of a cut title
 HOLDER_WORDS = 2
 
 
@@ -50,7 +55,7 @@ def holder(raw: object) -> tuple[str, str]:
     The same company is written differently from month to month ("PETROL OFİSİ A.Ş.", "PETROL OFİSİ ANONİM ŞİRKETİ",
     "AYTEMİZ AKARYAKIT DAĞ. A.Ş." next to "AYTEMİZ AKARYAKIT DAĞITIM ANONİM ŞİRKETİ"); the leading words carry the
     brand and stay stable, the rest of the title does not. Holders sharing the first two words are summed."""
-    text = " ".join(str(raw).replace("\u0307", "").translate(_TR_UPPER).upper().split())
+    text = " ".join(str(raw).replace("\u0307", "").replace("&", " & ").translate(_TR_UPPER).upper().split())  # "SHELL&TURCAS" (2016-04)
     text = re.sub(r"\([^)]*\)", " ", re.sub(r"\.(?=[^\s.,)])", ". ", text))  # "TİC.A.Ş" -> "TİC. A. Ş"; drop "(S OIL)"
     for pattern, replacement in _LEGAL_FORMS:
         text = pattern.sub(replacement, text)
@@ -58,7 +63,9 @@ def holder(raw: object) -> tuple[str, str]:
     for word in _LEGAL_SUFFIX.sub("", " ".join(text.split())).split():
         if len([w for w in words if fold(w)]) == HOLDER_WORDS:
             break
-        words.append(_WORD_ABBREVIATIONS.get(word, word))
+        if words:  # only the second word: "PET GAZ" is a name, "ŞİRİNGAZ PET." an abbreviation
+            word = _WORD_ABBREVIATIONS.get(word if word.endswith(".") or word not in _TRAILING_ABBREVIATION else f"{word}.", word)
+        words.append(word)
     name = " ".join(words).strip(" .,;-")
     return fold(name).replace(" ", "_"), name
 
@@ -257,7 +264,8 @@ class MonthTable:
 
     entities: dict[str, tuple[str, dict[str, float]]] = field(default_factory=dict)
     totals: dict[str, float] = field(default_factory=dict)
-    shares: list[float] = field(default_factory=list)  # published "Pay (%)" of each row, if the table has them
+    # published "Pay (%)" next to a column, per row: {column: [(tonnes, share), ...]}
+    shares: dict[str, list[tuple[float, float]]] = field(default_factory=dict)
 
     def add(self, raw_name: object, values: dict[str, float | None]) -> None:
         key, name = holder(raw_name)
@@ -330,7 +338,7 @@ def petrol_sales(grids: list[Grid]) -> MonthTable | None:
             elif holder is None:  # a nameless row continues the holder above (second licence, merged name cell)
                 raise UnexpectedResponse("EPDK petrol satış tablosunda adı olmayan bir satır var")
             if share is not None:
-                table.shares.append(share)
+                table.shares.setdefault("TOPLAM", []).append((values.get("TOPLAM") or 0.0, share))
             table.add(holder, values)
         raise UnexpectedResponse("EPDK petrol satış tablosunda toplam satırı bulunamadı")
     return None
@@ -367,6 +375,7 @@ def _lpg_wide(grid: Grid) -> MonthTable | None:
     }  # fmt: skip
     if set(columns) != set(LPG_COLUMNS.values()):
         raise UnexpectedResponse("EPDK LPG satış tablosunun kolonları değişmiş")
+    pays = {key: i + 1 for key, i in columns.items() if i + 1 < len(sub) and sub[i + 1].startswith("PAY")}
     table = MonthTable()
     for row in grid.rows[h + 2 :]:
         label = fold(row[0] if row else "")
@@ -377,6 +386,9 @@ def _lpg_wide(grid: Grid) -> MonthTable | None:
             table.totals = {k: v or 0.0 for k, v in values.items()}
             return table
         if any(v is not None for v in values.values()):
+            for key, i in pays.items():
+                if i < len(row) and (share := number(row[i])) is not None:
+                    table.shares.setdefault(key, []).append((values[key] or 0.0, share))
             table.add(row[0], values)
     raise UnexpectedResponse("EPDK LPG satış tablosunda toplam satırı bulunamadı")
 
