@@ -1,5 +1,6 @@
 import io
 import json
+import re
 from pathlib import Path
 
 import pandas as pd
@@ -260,3 +261,10 @@ def test_market_share_requires_token_and_caps_body(client):
     chunks = (b"a" * 1024 * 1024 for _ in range(10))
     res = client.post("/api/market-share", content=chunks, headers={**AUTH, "content-type": "application/json"})
     assert res.status_code == 400 and "çok büyük" in res.json()["error"]
+
+
+def test_views_drop_optional_sections_instead_of_printing_null():
+    # DOM replaceChildren() renders null as the text "null"; views go through fill(), which drops it
+    app_js = (WEB_STATIC / "app.js").read_text(encoding="utf-8")
+    assert "function fill(el, ...children)" in app_js
+    assert not re.search(r"\b(root|out|detail)\.replaceChildren\(", app_js)

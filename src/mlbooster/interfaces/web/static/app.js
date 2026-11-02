@@ -24,6 +24,12 @@ function h(tag, attrs = {}, ...children) {
   return el;
 }
 
+// replaceChildren() turns null into the text "null"; optional sections (todo(), cards built with `cond ? … : null`)
+// are dropped here instead.
+function fill(el, ...children) {
+  el.replaceChildren(...children.flat().filter((c) => c !== null && c !== undefined && c !== false));
+}
+
 // --- formatting (Turkish) ---------------------------------------------------------------------------------
 
 const MONTHS = ["Ocak", "Şubat", "Mart", "Nisan", "Mayıs", "Haziran", "Temmuz", "Ağustos", "Eylül", "Ekim", "Kasım", "Aralık"];
@@ -91,12 +97,12 @@ async function busy(button, label, fn, out = null) {
   const original = button.textContent;
   button.disabled = true;
   button.replaceChildren(h("span", { class: "spinner", "aria-hidden": "true" }), label);
-  if (out) out.replaceChildren(h("p", { class: "empty" }, h("span", { class: "spinner", "aria-hidden": "true" }), WAIT_TEXT));
+  if (out) fill(out, h("p", { class: "empty" }, h("span", { class: "spinner", "aria-hidden": "true" }), WAIT_TEXT));
   notice(null);
   try {
     return await fn();
   } catch (err) {
-    if (out) out.replaceChildren();
+    if (out) fill(out);
     notice(err.message);
     return null;
   } finally {
@@ -241,7 +247,7 @@ const views = {};
 views.genel = async (root) => {
   const go = (id, view = "harita") => { $("#sector").value = id; savePrefs({ sector: id }); location.hash = `#${view}`; };
   const total = state.sectors.reduce((a, s) => a + s.ready, 0);
-  root.replaceChildren(
+  fill(root,
     h("section", { class: "hero" },
       h("span", { class: "eyebrow" }, "ML Booster Map"),
       h("h1", {}, "Türkiye'de bir sektör seçin; makine öğrenmesine hazır veri setini kaynağıyla birlikte oluşturun"),
@@ -295,7 +301,7 @@ views.harita = async (root) => {
       h("p", {}, f.status === "pending_discovery" ? `Seri kodu bekleniyor. İpucu: ${f.discover_hint}` : i.description));
   };
 
-  root.replaceChildren(
+  fill(root,
     viewHead("Adım 1", `${m.sector.name}: hangi veriler var?`, "Sektör için tanımlı ücretsiz kaynaklar ve modelde kullanılacak feature'lar. Hazır feature'lar bir sonraki adımda panele dönüştürülür."),
     summary(
       [h("strong", {}, `${m.sector.name} için ${m.macro_features.length} feature tanımlı; ${ready} tanesi kullanıma hazır.`),
@@ -384,7 +390,7 @@ views.panel = async (root) => {
     const skipped = Object.entries(p.skipped);
     const rows = p.dates.slice(-12).map((d, k, arr) => ({ date: d, idx: p.dates.length - arr.length + k }));
     const period = p.dates.length ? `${monthName(p.dates[0])} – ${monthName(p.dates.at(-1))}` : "—";
-    out.replaceChildren(
+    fill(out,
       summary(
         [h("strong", {}, `Panel ${period} dönemini kapsıyor: ${p.rows} dönem, ${p.features.length} feature.`), " Her değer, kaynağın yayımladığı döneme yazıldı; tablo doğrudan model eğitiminde kullanılabilir."],
         skipped.length ? `${skipped.length} feature panele eklenemedi; nedenleri ve yapılması gerekenler aşağıda.` : "Tanımlı tüm hazır feature'lar panele eklendi."),
@@ -413,7 +419,7 @@ views.panel = async (root) => {
     render(p);
   }, out));
 
-  root.replaceChildren(
+  fill(root,
     viewHead("Adım 2", `${m.sector.name}: feature paneli`, "Hazır feature'lar aynı takvimde hizalanır. Günlük ve haftalık veriler aylığa indirgenir, çeyreklik veriler sonraki aylara taşınır."),
     h("section", { class: "card" },
       h("div", { class: "controls" },
@@ -464,7 +470,7 @@ views.kalite = async (root) => {
       const s = q.series.find((x) => x.feature === f);
       const i = info[f];
       const list = (byFeature.get(f) || []);
-      detail.replaceChildren(
+      fill(detail,
         h("div", { class: "card-head" }, h("div", {}, h("h2", {}, i?.label || f), h("span", { class: "code" }, f)), status(worst(list), { crit: "Aksiyon", warn: "Takip", ok: "Sorun yok" }[worst(list)])),
         q.columns[f] ? lineChart({
           dates: q.dates, series: [{ name: i?.label || f, values: q.columns[f], color: "var(--series-1)" }],
@@ -520,7 +526,7 @@ views.kalite = async (root) => {
     }
 
     const pairs = [...q.correlated_pairs, ...q.notable_pairs];
-    out.replaceChildren(
+    fill(out,
       summary(
         [h("strong", {}, `Denetim ${q.series.length} feature'da ${q.issues.length} bulgu üretti: ${q.counts.high ?? 0} kritik, ${q.counts.medium ?? 0} uyarı, ${q.counts.info ?? 0} bilgi.`)],
         q.counts.high ? "Kritik bulgular modellemeden önce giderilmelidir." : "Modellemeyi engelleyen kritik bulgu yok.",
@@ -553,7 +559,7 @@ views.kalite = async (root) => {
     render(q);
   }, out));
 
-  root.replaceChildren(
+  fill(root,
     viewHead("Adım 3", `${m.sector.name}: veri kalitesi`, "Feature'lar modellemeden önce denetlenir: durmuş seriler, eksik dönemler, outlier'lar, structural break'ler ve birbirinin kopyası olan feature'lar."),
     h("section", { class: "card" }, h("div", { class: "button-row" }, run,
       h("span", { class: "caption" }, "Bulgular üç düzeydedir: Kritik (modellemeden önce giderilmeli), Uyarı (incelenmeli), Bilgi (model tercihlerini etkiler)."))),
@@ -571,7 +577,7 @@ views.model = async (root) => {
   const prefs = loadPrefs();
   const features = m.macro_features.filter((f) => f.status === "ready").map((f) => f.name);
   if (!features.length) {
-    root.replaceChildren(viewHead("Adım 4", "Tahmin çıtası"), emptyState("Bu sektörde hazır feature yok", "Önce 1. adımda eksik seri kodlarını tamamlayın."));
+    fill(root, viewHead("Adım 4", "Tahmin çıtası"), emptyState("Bu sektörde hazır feature yok", "Önce 1. adımda eksik seri kodlarını tamamlayın."));
     return;
   }
   const option = (f, sel) => h("option", { value: f, selected: f === sel }, `${labelOf(m, f)} · ${info[f]?.transform_label || ""}`);
@@ -634,7 +640,7 @@ views.model = async (root) => {
     });
     const winsAll = regimes.length && regimes.every((x) => x.gain === null || x.gain > 0);
 
-    out.replaceChildren(
+    fill(out,
       summary(verdict,
         `Sınama ${r.common_origins} başlangıç noktasında yapıldı; her noktada model yalnızca o güne kadar bilinen veriyle kuruldu.`,
         regimes.length ? (winsAll ? "Üstünlük üç ekonomik dönemin hepsinde korunuyor; sonuç tek bir döneme bağlı değil." : "Üstünlük her dönemde korunmuyor; sonuçlar dönem tablosuyla birlikte yorumlanmalı.") : null,
@@ -706,7 +712,7 @@ views.model = async (root) => {
     render(r);
   }, out));
 
-  root.replaceChildren(
+  fill(root,
     viewHead("Adım 4", `${m.sector.name}: tahmin çıtası`, "Basit tahmin yöntemleri geçmişte sınanır. Ortaya çıkan en düşük hata, geliştireceğiniz ML modelinin aşması gereken çıtadır."),
     h("section", { class: "card" },
       h("div", { class: "controls" },
@@ -732,7 +738,7 @@ views.saglik = async (root) => {
     const rows = await getJSON("/api/health");
     const kind = { ok: ["ok", "Çalışıyor"], fail: ["crit", "Hata"], skipped: ["none", "Atlandı"] };
     const ok = rows.filter((r) => r.status === "ok").length;
-    out.replaceChildren(
+    fill(out,
       summary([h("strong", {}, `${rows.length} kaynaktan ${ok} tanesi şu anda veri veriyor.`)], "Atlanan kaynaklar ya henüz otomatik çekim desteği olmayan ya da API anahtarı gerektiren kaynaklardır."),
       h("section", { class: "card" }, table([
         { label: "Kaynak", render: (r) => h("code", { class: "pill" }, r.source_id) },
@@ -741,7 +747,7 @@ views.saglik = async (root) => {
         { label: "Denetlenen seriler", render: (r) => r.checked.join(", ") || "—" },
       ], rows)));
   }, out));
-  root.replaceChildren(
+  fill(root,
     viewHead(null, "Kaynak durumu", "Her kaynağın kritik serilerinden son gözlemin çekilip çekilemediğini denetler. EVDS için API anahtarı .env dosyasında EVDS_API_KEY olarak tanımlanmalıdır."),
     h("section", { class: "card" }, h("div", { class: "button-row" }, run)),
     out,
@@ -941,7 +947,7 @@ views.pazar = async (root) => {
         : meta.focus ? h("p", { class: "muted" }, "Shift-share için en az bir yıllık segment verisi gerekir.")
           : h("p", { class: "caption" }, "Odak oyuncu seçildiğinde pay değişimi segment içi pay etkisi ve segment karması etkisine ayrıştırılır.")) : null;
 
-    out.replaceChildren(...[ // replaceChildren would print null; optional cards are dropped
+    fill(out,
       summary(
         [h("strong", {}, `${periodName(meta.last, ppy)} itibarıyla ilk üç oyuncunun toplam payı ${sharePct(conc.cr3)}; HHI ${num(conc.hhi, 0)} ile yoğunlaşma ${L.hhi_class[conc.class]} düzeyde.`),
           ` Paylar ${basisText} tabanında, ${meta.entities} oyuncu üzerinden hesaplandı.`],
@@ -1007,10 +1013,10 @@ views.pazar = async (root) => {
         generated: stampTime(r.generated_at), period,
         missing: r.issues.some((i) => i.check === "missing_periods") ? "eksik dönem var (Veri notları)" : "yok",
       }),
-    ].filter(Boolean));
+    );
   };
 
-  root.replaceChildren(
+  fill(root,
     viewHead("Pazar payı", "Pazar payı ve rakipler", "Kendi pazar payı tablonuzu yükleyin: paylar, yoğunlaşma (HHI, CR3/CR5), pay kazanan ve kaybeden oyuncular, rakip seti ve segment bazında shift-share ayrıştırması hesaplanır. Tablo yalnızca bu bilgisayarda işlenir, diske yazılmaz."),
     h("section", { class: "card" },
       h("div", { class: "drop" },
@@ -1046,14 +1052,14 @@ async function route() {
   document.querySelectorAll("nav a").forEach((a) => (a.dataset.view === view ? a.setAttribute("aria-current", "page") : a.removeAttribute("aria-current")));
   const root = $("#view");
   $("#tooltip").hidden = true; // no mouseleave fires when the chart is replaced
-  root.replaceChildren(h("p", { class: "muted" }, h("span", { class: "spinner", "aria-hidden": "true" }), "Yükleniyor"));
+  fill(root, h("p", { class: "muted" }, h("span", { class: "spinner", "aria-hidden": "true" }), "Yükleniyor"));
   notice(null);
   try {
     await views[view](root);
     if (view !== "genel") root.focus({ preventScroll: true });
     window.scrollTo(0, 0);
   } catch (err) {
-    root.replaceChildren();
+    fill(root);
     notice(err.message);
   }
 }
