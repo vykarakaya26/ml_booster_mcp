@@ -1,0 +1,89 @@
+{
+ "success": true,
+ "Json": {
+  "colNames": [
+   "",
+   "",
+   "",
+   "BasitFont",
+   "TP",
+   "YP",
+   "Toplam"
+  ],
+  "colModels": [
+   {
+    "name": "BankaAdi",
+    "index": "BankaAdi",
+    "align": "left",
+    "sortable": false
+   },
+   {
+    "name": "BasitSira",
+    "index": "BasitSira",
+    "align": "center",
+    "sortable": false,
+    "sorttype": "int",
+    "width": "30"
+   },
+   {
+    "name": "Ad",
+    "index": "Ad",
+    "align": "left",
+    "sortable": false,
+    "width": "318"
+   },
+   {
+    "name": "BasitFont",
+    "index": "BasitFont",
+    "align": "left",
+    "sortable": false,
+    "hidden": true
+   },
+   {
+    "name": "Tp",
+    "index": "Tp",
+    "align": "right",
+    "width": "60",
+    "formatter": "integer",
+    "formatoptions": {
+     "thousandsSeparator": ".",
+     "defaultValue": "0"
+    },
+    "sortable": false
+   },
+   {
+    "name": "Yp",
+    "index": "Yp",
+    "align": "right",
+    "width": "60",
+    "formatter": "integer",
+    "formatoptions": {
+     "thousandsSeparator": ".",
+     "defaultValue": "0"
+    },
+    "sortable": false
+   },
+   {
+    "name": "Toplam",
+    "index": "Toplam",
+    "align": "right",
+    "width": "60",
+    "formatter": "integer",
+    "formatoptions": {
+     "thousandsSeparator": ".",
+     "defaultValue": "0"
+    },
+    "sortable": false
+   }
+  ],
+  "data": {
+   "page": "1",
+   "total": "1",
+   "records": "0",
+   "rows": []
+  },
+  "caption": "Bilanço (milyon TL), Dönem:2026/9",
+  "uyari": "",
+  "duyurular": ""
+ }
+}

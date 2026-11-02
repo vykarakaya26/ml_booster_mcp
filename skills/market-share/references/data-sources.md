@@ -2,8 +2,8 @@
 
 Bu belge, kamuya açık pazar payı verisinin sektör bazında nereden alınacağını ve analiz tablosuna nasıl
 dönüştürüleceğini açıklar. Kaynak bilgileri katalogdaki (`src/mlbooster/catalog_data/sources/*.yaml`) kayıtlarla
-tutarlıdır. Bu kaynakların hiçbiri için henüz otomatik provider yoktur; veri kullanıcı tarafından indirilir ya da
-yayımlanan tablolardan aktarılır. Yayın adları, kapsam ve publication lag değişebilir; `[doğrula]` işaretli bilgiler
+tutarlıdır. Bankacılıktaki BDDK banka grubu verisi dışında bu kaynaklar için henüz otomatik provider yoktur; veri
+kullanıcı tarafından indirilir ya da yayımlanan tablolardan aktarılır. Yayın adları, kapsam ve publication lag değişebilir; `[doğrula]` işaretli bilgiler
 kullanılmadan önce birincil kaynaktan kontrol edilmelidir.
 
 ## Sektör bazında kaynaklar
@@ -14,6 +14,7 @@ kullanılmadan önce birincil kaynaktan kontrol edilmelidir.
 | Sigorta | TSB prim üretimi | Şirket × branş prim üretimi (TL) | Aylık | XLSX, PDF | Nominaldir; branş tanımları (trafik, kasko, sağlık, hayat) şirketler arasında tutarlıdır. Hayat ve hayat dışı ayrı pazarlar olarak ele alınmalıdır. |
 | Telekom | BTK Üç Aylık Pazar Verileri Raporu | Operatör bazında abone, gelir ve trafik payı | Çeyreklik | PDF | Abone sayısı stoktur (`--kind stock`); publication lag uzundur. Bazı paylar yalnızca yüzde olarak verilir (`--measure share`). |
 | Akaryakıt | EPDK petrol piyasası ve LPG sektör raporları | Dağıtıcı bazında satış (ton, m³) | Aylık, yıllık | PDF, XLSX | Her ürün (benzin, motorin, LPG) ayrı bir pazardır; segment kolonu olarak verilmelidir. |
+| Bankacılık | BDDK Aylık Bülten (otomatik: `market-share --source bddk --series BDDK.AKTIF`) | Banka grubu bazında aktif, kredi, mevduat, özkaynak (milyon TL); sektör toplamı dahil | Aylık (2002'den bu yana) | JSON (provider) | Stoktur. Gruplar: kamu, yerli özel ve yabancı mevduat bankaları, katılım, kalkınma ve yatırım; `*.SAHIPLIK` serileri kamu, yerli özel ve yabancı kırılımını verir. Ticari kullanım BDDK'nın yazılı iznine tabidir. Publication lag yaklaşık 30 gündür. |
 | Bankacılık | TBB Veri Sistemi | Banka bazında aktif, nakdi kredi, mevduat, şube | Çeyreklik, yıllık | XLSX | Stoktur; kur etkisi YP kalemlerde payı değiştirir. Katılım bankaları ayrı bir birlik tarafından raporlanır `[doğrula]`. |
 | Perakende | KAP finansal tabloları (halka açık şirketler) | Şirket hasılatı (TL) | Çeyreklik | PDF, XBRL | Pazar toplamı yoktur; paylar listelenen şirketler arasında geçerlidir. Kart harcaması (BKM, TCMB) firma payı değil, yalnızca talep göstergesidir. |
 | Turizm, restoran | BKM ve TCMB sektörel kart harcaması | Sektör toplamı | Aylık | XLSX, EVDS | Firma bazında pay yoktur; pazar büyüklüğü ve talep göstergesi olarak kullanılır. |

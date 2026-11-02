@@ -3,7 +3,7 @@ from mlbooster.application.use_cases.catalog import GetSectorMap, ListReadyProvi
 from mlbooster.application.use_cases.discovery import SearchSeries, SetFeatureSeries
 from mlbooster.application.use_cases.files import ExportTable, ReadPanelFile
 from mlbooster.application.use_cases.health import CheckForUpdates, RunHealthChecks
-from mlbooster.application.use_cases.market_share import AnalyzeMarketShare
+from mlbooster.application.use_cases.market_share import AnalyzeMarketShare, SourceShareTable
 from mlbooster.application.use_cases.modeling import EngineerFeatures, PreparePanel
 from mlbooster.application.use_cases.panel import BuildPanel
 from mlbooster.application.use_cases.series import DiscoverSeries, FetchSeries
@@ -27,4 +27,5 @@ __all__ = [
     "RunHealthChecks",
     "SearchSeries",
     "SetFeatureSeries",
+    "SourceShareTable",
 ]

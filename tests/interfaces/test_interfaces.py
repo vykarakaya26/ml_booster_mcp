@@ -22,7 +22,7 @@ def test_mcp_tools_registered_with_annotations():
     assert set(tools) == {
         "list_sectors", "list_sources", "show_map", "discover_series", "fetch_series", "build_panel", "health",
         "search_series", "set_feature_series", "audit_panel", "run_backtest", "check_updates",
-        "analyze_market_share", "prepare_panel", "engineer_features",
+        "analyze_market_share", "analyze_source_market_share", "prepare_panel", "engineer_features",
     }  # fmt: skip
     assert tools["show_map"].annotations.read_only_hint is True
     assert tools["fetch_series"].annotations.destructive_hint is False
@@ -88,6 +88,66 @@ def test_cli_market_share(tmp_path):
     assert "gaining" not in out.output and "losing" not in out.output
     bad = CliRunner().invoke(cli.app, ["market-share", "--input", str(tmp_path / "missing.xlsx")])
     assert bad.exit_code == 1 and "Desteklenen" in bad.output
+
+
+def _bddk_bulletin(monkeypatch):
+    """Mocks the BDDK report endpoint: the recorded Sep 2026 report for Jan–Sep 2026, 'latest month' message after."""
+    import json
+    from pathlib import Path
+    from urllib.parse import parse_qsl
+
+    import httpx
+
+    monkeypatch.setattr("mlbooster.infrastructure.http_client.RateLimiter.wait", lambda self: None)
+    report = json.loads((Path(__file__).parents[1] / "infrastructure/fixtures/bddk/grup_2026_09.json").read_text(encoding="utf-8"))
+
+    def handler(request):
+        form = dict(parse_qsl(request.content.decode("ascii")))
+        if form["yil"] == "2026" and int(form["ay"]) <= 9:
+            return httpx.Response(200, json=report)
+        return httpx.Response(200, json={"success": False, "error": f"{form['yil']} yılının en son 9 ayına ait veri bulunmaktadır!"})
+
+    return handler
+
+
+def test_cli_market_share_from_bddk_source(monkeypatch, tmp_path):
+    import respx
+
+    with respx.mock:
+        route = respx.post("https://www.bddk.org.tr/BultenAylik/tr/Home/BasitRaporGetir").mock(side_effect=_bddk_bulletin(monkeypatch))
+        args = ["market-share", "--source", "bddk", "--series", "BDDK.AKTIF", "--start", "2026-01", "--end", "2026-11"]
+        out = CliRunner().invoke(cli.app, [*args, "--json", str(tmp_path / "o.json")])
+        assert out.exit_code == 0, out.output
+        assert route.call_count == 10  # Jan–Oct; November is skipped after the 'latest month' message
+        again = CliRunner().invoke(cli.app, args)
+        assert again.exit_code == 0 and route.call_count == 10  # served from the local store
+    assert "Kaynak: BDDK" in out.output and "5 oyuncu" in out.output and "Mevduat-Kamu" in out.output
+    assert "%37,72" in out.output  # 21,491,757 / 56,982,049 million TL, Sep 2026
+    import json
+
+    meta = json.loads((tmp_path / "o.json").read_text(encoding="utf-8"))["meta"]
+    assert meta["kind"] == "stock" and meta["source"]["series"] == "BDDK.AKTIF" and meta["has_total"]
+
+
+def test_cli_market_share_needs_exactly_one_input(tmp_path):
+    for args in ([], ["--source", "bddk"], ["--series", "BDDK.AKTIF"], ["--input", "x.csv", "--source", "bddk", "--series", "BDDK.AKTIF"]):
+        out = CliRunner().invoke(cli.app, ["market-share", *args])
+        assert out.exit_code == 1 and "--input ya da --source" in out.output
+
+
+def test_mcp_source_market_share(monkeypatch):
+    import respx
+    from mcp.server.mcpserver.exceptions import ToolError
+
+    with respx.mock:
+        respx.post("https://www.bddk.org.tr/BultenAylik/tr/Home/BasitRaporGetir").mock(side_effect=_bddk_bulletin(monkeypatch))
+        out = mcp_server.analyze_source_market_share("bddk", "BDDK.AKTIF", focus="Katılım", start="2026-01-01", end="2026-09-30")
+    assert out["meta"]["entities"] == 5 and out["competitors"]["focus"] == "Katılım"
+    assert out["meta"]["source"]["attribution"] == "Kaynak: BDDK — BDDK Aylık Bülten"
+    with pytest.raises(ToolError, match="YYYY-AA-GG"):
+        mcp_server.analyze_source_market_share("bddk", "BDDK.AKTIF", start="dün")
+    with pytest.raises(ToolError, match="Geçersiz"):
+        mcp_server.analyze_source_market_share("../x", "BDDK.AKTIF")
 
 
 def test_cli_number_format_is_turkish():

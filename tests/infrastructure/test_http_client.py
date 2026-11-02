@@ -37,6 +37,17 @@ def test_post_json_sends_body_and_retries():
 
 
 @respx.mock
+def test_post_form_sends_repeated_fields_urlencoded():
+    route = respx.post(URL).mock(return_value=httpx.Response(200, json={"success": True}))
+    response = client().post_form(URL, [("tabloNo", "1"), ("taraf", "10001"), ("taraf", "10009"), ("ad", "Sektör")])
+    request = route.calls.last.request
+    assert response.status == 200 and request.headers["content-type"] == "application/x-www-form-urlencoded"
+    assert request.content == b"tabloNo=1&taraf=10001&taraf=10009&ad=Sekt%C3%B6r"
+    with pytest.raises(UnexpectedResponse, match="HTTPS"):
+        client().post_form("http://example.test/", [])
+
+
+@respx.mock
 def test_gives_up_after_retries():
     respx.get(URL).mock(return_value=httpx.Response(503))
     with pytest.raises(ProviderUnavailable, match="503"):

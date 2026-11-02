@@ -18,7 +18,7 @@ macro_features:
 sector_sources: [bddk, tbb]
 market_share_sources:
   - {source: tbb, metric: "aktif / nakdi kredi / mevduat / şube payı (banka bazlı)"}
-  - {source: bddk, metric: "banka grubu payları (aylık bülten)"}
+  - {source: bddk, metric: "banka grubu payları: aktif, kredi, mevduat, özkaynak (aylık bülten; BDDK.AKTIF, BDDK.KREDI, BDDK.MEVDUAT, *.SAHIPLIK)"}
 ml_use_cases: ["Kredi riski (PD)", "Mevduat ve kredi hacmi tahmini", "Churn"]
 feature_recipes:
   - {name: reel_faiz_ex_ante, op: spread, inputs: [aofm, pka_enflasyon_beklentisi], note: "Efektif fonlama maliyeti − 12 ay sonrası enflasyon beklentisi (ex-ante reel faiz)"}

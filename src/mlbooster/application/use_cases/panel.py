@@ -125,9 +125,11 @@ class BuildPanel:
 
 
 def _single_series(df: pd.DataFrame, metric: str, freq: str | None) -> pd.DataFrame:
+    """One metric at one frequency, aggregate rows only (series with entity rows, e.g. BDDK bank groups, keep their
+    total under an empty entity_id)."""
     if df.empty:
         return df
-    df = df[df["metric"] == metric]
+    df = df[(df["metric"] == metric) & (df["entity_id"].fillna("") == "")]
     if df.empty:
         return df
     return df[df["freq"] == (freq or df["freq"].iloc[0])]
