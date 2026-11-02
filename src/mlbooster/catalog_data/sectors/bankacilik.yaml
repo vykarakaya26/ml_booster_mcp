@@ -17,7 +17,9 @@ macro_features:
   - {name: kredi_gsyh, source: bis, series: BIS.KREDI.GSYH.TR, transform: level}
 sector_sources: [bddk, tbb]
 market_share_sources:
-  - {source: tbb, metric: "aktif / nakdi kredi / mevduat / şube payı (banka bazlı)"}
+  - source: tbb
+    metric: "banka bazında paylar: aktif, kredi, mevduat, özkaynak (çeyreklik solo mali tablolar, katılım bankaları hariç)"
+    series: [TBB.AKTIF, TBB.KREDI, TBB.MEVDUAT, TBB.OZKAYNAK, TBB.MEVDUAT.TP]
   - source: bddk
     metric: "banka grubu payları: aktif, kredi, mevduat, özkaynak (aylık bülten)"
     series: [BDDK.AKTIF, BDDK.KREDI, BDDK.MEVDUAT, BDDK.OZKAYNAK, BDDK.AKTIF.SAHIPLIK, BDDK.KREDI.SAHIPLIK, BDDK.MEVDUAT.SAHIPLIK, BDDK.KREDI.TP, BDDK.MEVDUAT.TP]

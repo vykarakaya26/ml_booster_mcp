@@ -3,14 +3,18 @@ rate limit, retries with exponential backoff. The return value is a value object
 
 from __future__ import annotations
 
+import functools
 import json
 import logging
+import ssl
 import threading
 import time
 from collections.abc import Callable
 from dataclasses import dataclass
+from pathlib import Path
 from urllib.parse import urlencode
 
+import certifi
 import httpx
 
 from mlbooster.application.errors import ProviderUnavailable, UnexpectedResponse
@@ -22,6 +26,17 @@ logging.getLogger("httpx").setLevel(logging.WARNING)
 RETRYABLE_STATUS = frozenset({429, 500, 502, 503, 504})
 DEFAULT_MAX_BYTES = 50 * 1024 * 1024
 MAX_RETRY_AFTER_SECONDS = 120
+INTERMEDIATES_PEM = Path(__file__).with_name("certs") / "intermediates.pem"
+
+
+@functools.cache
+def _tls_context() -> ssl.SSLContext:
+    """certifi roots plus the packaged intermediates of servers that send an incomplete chain (see certs/).
+    The intermediates are not trust anchors: partial chains are refused, so every chain has to end at a root."""
+    context = ssl.create_default_context(cafile=certifi.where())
+    context.load_verify_locations(cafile=str(INTERMEDIATES_PEM))
+    context.verify_flags &= ~ssl.VERIFY_X509_PARTIAL_CHAIN
+    return context
 
 
 @dataclass(frozen=True)
@@ -73,7 +88,7 @@ class SecureHttpClient:
             timeout=timeout,
             headers={"User-Agent": USER_AGENT},
             follow_redirects=False,  # prevent silent 302→HTML breakage and leaking to another host
-            verify=True,
+            verify=_tls_context(),
             trust_env=False,  # do not let proxy/netrc settings in the environment route requests (and headers) elsewhere
             transport=transport,
         )

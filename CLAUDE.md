@@ -118,6 +118,13 @@ Rules:
      data.rows[].cell}}`; one month per call, all requested bank groups at once, sorted by group code. The Excel
      download (BasitExceleAktar) carries the same values. Raw responses go to bronze (content hash).
    - Unpublished months → `success: false` with a message naming the available months (parsed to skip requests).
+   TBB (done — infrastructure/providers/tbb.py), live observation 2026-11-02: no robots.txt; terms allow republishing
+   with attribution, commercial use needs TBB's written permission. The Mali Tablolar page of verisistemi.tbb.org.tr
+   reads POST `/api/router` (JSON `route` body, `LANG` header, no login): `donemler`, `bankalar`, `bankaGruplari`,
+   `degerler` (TL). The server omits its intermediate certificate; it is shipped in infrastructure/certs (never a
+   trust anchor). Catalog `remote`: `5/<item key>[+<older key>...][.<column>]` (TFRS9-SOLO key first, then SOLO); the
+   system total gets an empty `entity_id`, banks are entities (entity_id = TBB bank code). Closed banks are not
+   listed; sub-group memberships are incomplete, so only group 5 is used.
    - Row labels change over time; rows are matched by `row_key()` (ASCII upper case, no stars or parentheses).
    - Catalog `remote`: `<table>[,<total group>+<group>...]/<ROW_KEY>[.<column>]`; the total gets an empty
      `entity_id`, the groups are entities (entity_id = group code). Panels use the total only; `market-share
