@@ -24,7 +24,8 @@ class DiscoverSeries:
 
 
 class FetchSeries:
-    """Fetches from the provider and writes to the observation store."""
+    """Fetches from the provider and writes to the observation store, unless the source's terms forbid storing data
+    (`storage.observations: false`); such sources are fetched again on every request."""
 
     def __init__(self, catalog: CatalogRepository, providers: ProviderFactory, store: ObservationStore):
         self._catalog = catalog
@@ -35,7 +36,7 @@ class FetchSeries:
         source = self._catalog.load().source(request.source_id)
         with open_provider(self._providers, source) as provider:
             observations = provider.fetch(request)
-        if not observations.empty:
+        if not observations.empty and source.storage.observations:
             self._store.write(observations)
             returned = sorted(set(observations["series_id"]))
             self._store.record_requested_start(source.id, returned, request.metric, request.period.start)
@@ -45,6 +46,8 @@ class FetchSeries:
         df = self(request)
         source = self._catalog.load().source(request.source_id)
         attribution = f"Kaynak: {source.owner} — {source.name}"
+        if not source.storage.observations:
+            attribution += " (kullanım koşulları gereği veriler yerel depoya yazılmadı)"
         if df.empty:
             return FetchSummary(0, [], [], attribution)
         by_series = df.groupby(["series_id", "metric", "freq"])["date"].agg(["count", "min", "max"]).reset_index()

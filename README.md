@@ -198,7 +198,8 @@ Bu araç veri dağıtmaz; her kullanıcı veriyi kendi API key'iyle kaynaklardan
 - **BDDK:** Kaynak gösterilerek kısmen alıntı yapılabilir; **ticari amaçlı kullanım BDDK'nın yazılı iznine tabidir**. Veriler bankaların raporladığı konsolide olmayan bilgilerdir.
 - **TBB:** Kaynak gösterilerek yeniden yayımlanabilir; **ticari kullanım TBB'nin yazılı iznine tabidir**.
 - **ODMD:** Açık kullanım koşulu yayımlamıyor ("Tüm Hakları Saklıdır"); analizde kaynak gösterilerek kullanın, ham dosyaları yeniden dağıtmayın, ticari kullanım için ODMD'nin yazılı iznini alın. Tesla rakamları ODMD tahminidir.
-- **TSB, BKM vb.:** Açık veri lisansı yayımlamıyorlar. Ticari kullanım ve yeniden dağıtım öncesinde ilgili kurumun site koşullarını kontrol edin.
+- **BKM:** Raporlar kaynak gösterilerek kullanılabilir; sitenin yasal uyarısı kopyalama, yeniden dağıtım, kalıcı saklama ve ticari kullanımı BKM'nin yazılı iznine bağlar. Bu nedenle BKM verileri yerel depoya yazılmaz, her istekte kaynaktan yeniden çekilir.
+- **TSB vb.:** Açık veri lisansı yayımlamıyorlar. Ticari kullanım ve yeniden dağıtım öncesinde ilgili kurumun site koşullarını kontrol edin.
 - Proxy pazar payları (KAP gelirleri, Google Trends) gerçek pazar payı değildir ve `is_proxy` bayrağıyla ayrı tutulur.
 
 ## Geliştirme

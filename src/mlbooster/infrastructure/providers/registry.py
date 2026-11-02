@@ -9,6 +9,7 @@ from mlbooster.application.ports import SeriesProvider
 from mlbooster.domain.model import Source
 from mlbooster.infrastructure.http_client import RateLimiter, SecureHttpClient
 from mlbooster.infrastructure.providers.bddk import BddkProvider
+from mlbooster.infrastructure.providers.bkm import BkmProvider
 from mlbooster.infrastructure.providers.epias import EpiasProvider
 from mlbooster.infrastructure.providers.evds3 import Evds3Provider
 from mlbooster.infrastructure.providers.odmd import OdmdProvider
@@ -20,6 +21,7 @@ from mlbooster.infrastructure.storage.raw_store import RawStore
 
 PROVIDERS: dict[str, type] = {
     "bddk": BddkProvider,
+    "bkm": BkmProvider,
     "epias": EpiasProvider,
     "evds3": Evds3Provider,
     "odmd": OdmdProvider,
@@ -53,4 +55,5 @@ class ProviderRegistry:
         cls = PROVIDERS.get(source.provider or "")
         if cls is None:
             raise ProviderNotImplemented(f"{source.id} için provider henüz uygulanmadı")
-        return cls(source, http=self._http_factory(source), secrets=self._secrets, raw_store=self._raw_store)
+        raw_store = self._raw_store if source.storage.raw else None  # the source's terms forbid keeping copies
+        return cls(source, http=self._http_factory(source), secrets=self._secrets, raw_store=raw_store)
