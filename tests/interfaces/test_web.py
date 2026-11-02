@@ -1,4 +1,6 @@
 import io
+import json
+from pathlib import Path
 
 import pandas as pd
 import pytest
@@ -169,3 +171,92 @@ def test_sector_map_and_list_include_readable_metadata(client):
     sectors = client.get("/api/sectors", headers=AUTH).json()
     bank = next(s for s in sectors if s["id"] == "bankacilik")
     assert bank["pending"] >= 1 and bank["ml_use_cases"]
+
+
+# --- market share screen -----------------------------------------------------------------------------------------
+
+REPO = Path(__file__).resolve().parents[2]
+SAMPLE = REPO / "skills" / "market-share" / "assets" / "sample_market_share.csv"
+WEB_STATIC = REPO / "src" / "mlbooster" / "interfaces" / "web" / "static"
+
+
+def test_sample_data_is_served_and_matches_skill_asset(client):
+    # the web panel ships its own copy (skills/ is not package data); both must stay identical
+    assert (WEB_STATIC / "sample_market_share.csv").read_bytes() == SAMPLE.read_bytes()
+    res = client.get("/static/sample_market_share.csv")
+    assert res.status_code == 200 and res.text.startswith("entity,date,value,segment")
+
+
+def test_market_share_on_sample_with_focus(client):
+    body = {"text": SAMPLE.read_text(encoding="utf-8"), "format": "csv", "focus": "marka c", "unit": "adet"}
+    res = client.post("/api/market-share", json=body, headers=AUTH)
+    assert res.status_code == 200, res.text
+    out = res.json()
+    meta = out["meta"]
+    assert meta["focus"] == "Marka C" and meta["basis"] == "ttm" and meta["has_total"] and meta["has_segments"]
+    assert meta["entities"] == 7 and meta["unit"] == "adet"
+    latest = out["concentration"]["latest"]
+    assert 0 < latest["hhi"] <= 10_000 and latest["cr3"] <= latest["cr5"] <= 100.0001
+    assert {p["trend"] for p in out["players"]} <= {"gaining", "losing", "flat", "insufficient_data"}
+    assert out["competitors"]["focus"] == "Marka C" and out["competitors"]["candidates"]
+    assert all(c["entity"] != "Marka C" and c["reasons"] for c in out["competitors"]["candidates"])
+    shift = out["segments"]["shift_share"]
+    assert shift["total_pp"] == pytest.approx(shift["share_effect_pp"] + shift["mix_effect_pp"], abs=1e-3)
+    assert "Marka C" in out["shares"]["series"] and len(out["shares"]["dates"]) == len(out["concentration"]["hhi"])
+    assert out["labels"]["trend"]["gaining"] == "pay kazanıyor" and out["labels"]["hhi_class"][latest["class"]]
+    assert out["generated_at"]
+
+
+def test_market_share_without_focus_has_no_competitor_set(client):
+    res = client.post("/api/market-share", json={"text": SAMPLE.read_text(encoding="utf-8")}, headers=AUTH)
+    assert res.status_code == 200
+    assert "competitors" not in res.json() and "shift_share" not in res.json()["segments"]
+
+
+def test_market_share_accepts_json_and_turkish_csv(client):
+    months = [f"2024-{m:02d}" for m in range(1, 13)]
+    rows = [{"entity": e, "date": d, "value": v + i} for i, d in enumerate(months) for e, v in (("A", 50), ("B", 30), ("TOTAL", 100))]
+    res = client.post("/api/market-share", json={"text": json.dumps({"rows": rows}), "format": "json", "focus": "A"}, headers=AUTH)
+    assert res.status_code == 200 and res.json()["meta"]["has_total"]
+    csv_tr = "oyuncu;dönem;değer\n" + "".join(f"{e};{d};{v},5\n" for d in months for e, v in (("A", 6), ("B", 4)))
+    res = client.post("/api/market-share", json={"text": csv_tr, "measure": "value", "kind": "stock"}, headers=AUTH)
+    assert res.status_code == 200
+    assert res.json()["players"][0]["share"] == pytest.approx(6.5 / 11 * 100, abs=1e-3)
+
+
+def test_market_share_entity_names_are_returned_as_data(client):
+    # names travel as JSON strings; the frontend writes them with textContent only
+    evil = "<img src=x onerror=alert(1)>"
+    text = "entity,date,value\n" + "".join(f"{e},2024-{m:02d},{v}\n" for m in range(1, 13) for e, v in ((evil, 5), ("B", 3)))
+    res = client.post("/api/market-share", json={"text": text}, headers=AUTH)
+    assert res.status_code == 200 and res.headers["content-type"].startswith("application/json")
+    assert res.json()["players"][0]["entity"] == evil
+    app_js = (WEB_STATIC / "app.js").read_text(encoding="utf-8")
+    assert ".innerHTML" not in app_js and "insertAdjacentHTML" not in app_js and "outerHTML" not in app_js
+
+
+@pytest.mark.parametrize(("body", "match"), [
+    ({}, "tablosu boş"),
+    ({"text": 42}, "tablosu boş"),
+    ({"text": "entity,date,value\nA,2024-01,1", "format": "xlsx"}, "csv ya da json"),
+    ({"text": "entity,date,value\nA,2024-01,1\nB,2024-01,2", "measure": "adet"}, "measure"),
+    ({"text": "entity,date,value\nA,2024-01,1\nB,2024-01,2", "trend_years": 99}, "trend_years"),
+    ({"text": "entity,date,value\nA,2024-01,1\nB,2024-01,2", "focus": "Z"}, "Odak oyuncu tabloda yok"),
+    ({"text": "firma,tutar\nA,1"}, "eksik kolon"),
+    ({"text": "entity,date,value\nA,dün,1\nB,dün,2"}, "Dönem biçimi"),
+    ({"text": "[1, 2]", "format": "json"}, "liste"),
+])  # fmt: skip
+def test_market_share_rejects_bad_input_with_safe_message(client, body, match):
+    res = client.post("/api/market-share", json=body, headers=AUTH)
+    assert res.status_code == 400 and match.casefold() in res.json()["error"].casefold()
+
+
+def test_market_share_requires_token_and_caps_body(client):
+    assert client.post("/api/market-share", json={"text": "x"}).status_code == 403
+    big = b'{"text": "' + b"a" * (8 * 1024 * 1024) + b'"}'
+    res = client.post("/api/market-share", content=big, headers={**AUTH, "content-type": "application/json"})
+    assert res.status_code == 400 and "8 MB" in res.json()["error"]
+    # without a Content-Length header the streamed body is still cut at the limit
+    chunks = (b"a" * 1024 * 1024 for _ in range(10))
+    res = client.post("/api/market-share", content=chunks, headers={**AUTH, "content-type": "application/json"})
+    assert res.status_code == 400 and "çok büyük" in res.json()["error"]

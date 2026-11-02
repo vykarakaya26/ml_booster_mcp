@@ -5,7 +5,9 @@ Security (local panel section in SECURITY.md):
 - Every `/api` request must carry the random session token embedded in the page in the `X-MLB-Token` header.
   The custom header stops other sites from sending requests through the browser via forms/images (CSRF).
 - No CORS; the CSP allows scripts and styles from the same origin only and forbids framing.
-- Inputs are validated against allow-lists at the use case gate; the API takes no file paths.
+- Inputs are validated against allow-lists at the use case gate; the API takes no file paths. A market share table
+  arrives as text in the JSON body (the browser reads the file the user picked); it is parsed in memory and never
+  written to disk. Request bodies are size-capped while they are being read.
 - Expected errors (DomainError) are shown to the user; anything else is logged without details for the client.
 """
 
@@ -38,8 +40,18 @@ from mlbooster.application.use_cases.panel import DEFAULT_START
 from mlbooster.bootstrap import Container, build_container
 from mlbooster.domain.errors import DomainError, InvalidInput
 from mlbooster.domain.services.backtest import MODELS, BacktestConfig
+from mlbooster.domain.services.market_share import ShareConfig
 from mlbooster.domain.validation import slug
-from mlbooster.interfaces.presenters import backtest_dict, health_dict, quality_dict, sector_map_dict
+from mlbooster.interfaces.presenters import (
+    BASIS_LABELS,
+    HHI_CLASS_LABELS,
+    SEVERITY_LABELS,
+    TREND_LABELS,
+    backtest_dict,
+    health_dict,
+    quality_dict,
+    sector_map_dict,
+)
 from mlbooster.interfaces.web.labels import sector_feature_info
 
 log = logging.getLogger(__name__)
@@ -48,6 +60,8 @@ STATIC_DIR = Path(__file__).parent / "static"
 LOOPBACK_HOSTS = frozenset({"127.0.0.1", "localhost", "::1"})
 TOKEN_HEADER = "x-mlb-token"
 MAX_BODY_BYTES = 64 * 1024
+MAX_TABLE_BODY_BYTES = 8 * 1024 * 1024  # market share table sent as text (the reader allows at most 200,000 rows)
+TABLE_FORMATS = ("csv", "json")
 MAX_PREDICTION_DATES = 120
 PANEL_FREQS = ("M", "W", "B")
 
@@ -121,10 +135,17 @@ def _plain(status: int, text: str) -> Response:
 # --- input helpers -------------------------------------------------------------------------------------
 
 
-async def _body(request: Request) -> dict[str, Any]:
-    raw = await request.body()
-    if len(raw) > MAX_BODY_BYTES:
-        raise InvalidInput("İstek gövdesi çok büyük.")
+async def _body(request: Request, limit: int = MAX_BODY_BYTES) -> dict[str, Any]:
+    size = f"{limit // 2**20} MB" if limit >= 2**20 else f"{limit // 2**10} KB"
+    too_big = InvalidInput(f"İstek gövdesi çok büyük (en fazla {size}).")
+    declared = request.headers.get("content-length", "")
+    if declared.isdigit() and int(declared) > limit:
+        raise too_big
+    raw = bytearray()
+    async for chunk in request.stream():  # stop reading as soon as the limit is exceeded
+        raw += chunk
+        if len(raw) > limit:
+            raise too_big
     if not raw:
         return {}
     if request.headers.get("content-type", "").split(";")[0].strip() != "application/json":
@@ -369,6 +390,31 @@ def create_app(container_factory: Callable[[], Container] = build_container, tok
 
         return await call(run)
 
+    async def market_share(request: Request) -> dict:
+        data = await _body(request, MAX_TABLE_BODY_BYTES)
+        text = data.get("text")
+        if not isinstance(text, str) or not text.strip():
+            raise InvalidInput("Pazar payı tablosu boş; bir dosya seçin, tabloyu yapıştırın ya da örnek veriyi yükleyin.")
+        fmt = _str(data, "format", "csv")
+        if fmt not in TABLE_FORMATS:
+            raise InvalidInput("Tablo biçimi csv ya da json olmalı.")
+        config = ShareConfig(  # enum values and ranges are validated by ShareConfig
+            focus=_str(data, "focus"),
+            measure=_str(data, "measure", "value"),
+            kind=_str(data, "kind", "flow"),
+            basis=_str(data, "basis", "auto"),
+            unit=(_str(data, "unit", "") or "")[:40],
+            trend_years=_int(data, "trend_years", 3, 1, 10),
+            top_n=_int(data, "top_n", 8, 3, 20),
+        )
+
+        def run():
+            result = container().market_share.from_text(text, fmt, config)
+            labels = {"trend": TREND_LABELS, "hhi_class": HHI_CLASS_LABELS, "basis": BASIS_LABELS, "severity": SEVERITY_LABELS}
+            return result | {"generated_at": _now(), "labels": labels}
+
+        return await call(run)
+
     async def health(request: Request) -> list[dict]:
         source = request.query_params.get("source") or None
         return await call(lambda: [health_dict(r) for r in container().health(source)])
@@ -382,6 +428,7 @@ def create_app(container_factory: Callable[[], Container] = build_container, tok
         Route("/api/panel/export", endpoint(panel_export), methods=["POST"]),
         Route("/api/audit", endpoint(audit), methods=["POST"]),
         Route("/api/backtest", endpoint(backtest), methods=["POST"]),
+        Route("/api/market-share", endpoint(market_share), methods=["POST"]),
         Route("/api/health", endpoint(health)),
         Mount("/static", StaticFiles(directory=STATIC_DIR), name="static"),
     ]

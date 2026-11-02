@@ -22,6 +22,10 @@ class AnalyzeMarketShare:
     def from_file(self, path: Path, config: ShareConfig, sector_id: str | None = None, start: date | None = None) -> dict:
         return self(self._reader.read(path), config, sector_id, start)
 
+    def from_text(self, text: str, fmt: str, config: ShareConfig, sector_id: str | None = None, start: date | None = None) -> dict:
+        """Table content held in memory (web panel upload/paste); the reader enforces format and size limits."""
+        return self(self._reader.parse(text, fmt), config, sector_id, start)
+
     def from_records(self, records: list[dict], config: ShareConfig, sector_id: str | None = None, start: date | None = None) -> dict:
         if not isinstance(records, list) or not all(isinstance(r, dict) for r in records):
             raise InvalidInput("records, {entity, date, value[, segment]} nesnelerinden oluşan bir liste olmalıdır")

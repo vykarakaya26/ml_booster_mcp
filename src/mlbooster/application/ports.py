@@ -106,6 +106,10 @@ class TableReader(Protocol):
         """Reads a local CSV/JSON table supplied by the user (CLI only; MCP does not accept file paths)."""
         ...
 
+    def parse(self, text: str, fmt: str) -> pd.DataFrame:
+        """Parses CSV/JSON table text held in memory (fmt: 'csv' | 'json'); writes nothing to disk."""
+        ...
+
     def read_panel(self, path: Path) -> pd.DataFrame:
         """Reads a wide panel CSV whose first column is a date (e.g. a feature matrix) with a date index."""
         ...
