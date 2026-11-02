@@ -22,7 +22,14 @@ from mlbooster.application.errors import (
 from mlbooster.domain.errors import InvalidInput
 from mlbooster.domain.model import HealthStatus
 from mlbooster.infrastructure.http_client import SecureHttpClient
-from mlbooster.infrastructure.providers.epias import TICKET_URL, EpiasProvider, TicketCache, parse_remote
+from mlbooster.infrastructure.providers.epias import (
+    TICKET_URL,
+    EpiasProvider,
+    TicketCache,
+    _iso,
+    month_chunks,
+    parse_remote,
+)
 from mlbooster.infrastructure.providers.registry import PROVIDERS, ProviderRegistry
 from mlbooster.infrastructure.secret_store import EnvSecretProvider
 from mlbooster.infrastructure.storage.raw_store import RawStore
@@ -310,6 +317,18 @@ def test_consumption_is_summed_and_23_hour_days_are_kept(respx_mock, epias, cred
 
 
 @respx.mock
+def test_day_completeness_follows_local_day_length(respx_mock, epias, creds):
+    """A day may miss one of its local hours: 22 of 23 on the 2016 spring-forward day, 23 of 24 otherwise."""
+    _ticket_route(respx_mock)
+    items = hours(date(2016, 3, 27), n=22, consumption=1.0)  # 23-hour day, kept
+    items += hours(date(2016, 3, 28), n=22, consumption=1.0)  # 24-hour day, dropped
+    items += hours(date(2016, 3, 29), n=23, consumption=1.0)  # kept
+    respx_mock.post(CONSUMPTION_URL).mock(return_value=_ok(items))
+    df = epias.fetch(_req("EPIAS.TUKETIM", date(2016, 3, 27), date(2016, 3, 29)))
+    assert df.set_index("date")["value"].to_dict() == {date(2016, 3, 27): 22.0, date(2016, 3, 29): 23.0}
+
+
+@respx.mock
 def test_smf_and_null_hours(respx_mock, epias, creds):
     _ticket_route(respx_mock)
     items = hours(date(2026, 10, 1), systemMarginalPrice=lambda h: None if h == 3 else 10.0)  # 23 values
@@ -328,22 +347,74 @@ def test_generation_by_source_writes_total_and_source_entities(respx_mock, epias
     respx_mock.post(GENERATION_URL).mock(return_value=_ok(items))
     df = epias.fetch(_req(["EPIAS.URETIM.KAYNAK", "EPIAS.URETIM.RUZGAR"], day, day))
     mix = df[df["series_id"] == "EPIAS.URETIM.KAYNAK"].set_index("entity_id")
-    assert mix["value"].to_dict() == {"": 2400.0, "naturalGas": 960.0, "nuclear": 240.0, "sun": 65.0, "wind": 840.0}
+    # The total is domestic generation (sum of the sources); `total` and `importExport` are not entities.
+    assert mix["value"].to_dict() == {"": 2105.0, "naturalGas": 960.0, "nuclear": 240.0, "sun": 65.0, "wind": 840.0}
     assert mix.loc["wind", "entity_name"] == "Rüzgâr" and mix.loc["nuclear", "entity_name"] == "Nükleer"
     assert pd.isna(mix.loc["", "entity_name"])
     assert df[df["series_id"] == "EPIAS.URETIM.RUZGAR"]["value"].tolist() == [840.0]
 
 
 @respx.mock
-def test_long_ranges_are_chunked(respx_mock, epias, creds):
+def test_generation_field_is_domestic_generation_and_total_stays_available(respx_mock, epias, creds, catalog):
     _ticket_route(respx_mock)
-    data = respx_mock.post(PTF_URL).mock(return_value=_ok([]))
-    df = epias.fetch(_req("EPIAS.PTF", date(2026, 1, 1), date(2026, 7, 19)))  # 200 days, 93 days per call
-    assert df.empty
+    day = date(2026, 10, 1)
+    items = hours(day, total=97.0, naturalGas=40.0, wind=60.0, importExport=-3.0)
+    respx_mock.post(GENERATION_URL).mock(return_value=_ok(items))
+    df = epias.fetch(_req(["EPIAS.URETIM", "EPIAS.ITHALAT_IHRACAT"], day, day)).set_index("series_id")["value"]
+    assert df.to_dict() == {"EPIAS.ITHALAT_IHRACAT": -72.0, "EPIAS.URETIM": 2400.0}
+    assert parse_remote("realtime-generation/total") == ("realtime-generation", "total")
+    with pytest.raises(InvalidInput):
+        parse_remote("dam-mcp/generation")
+
+
+@respx.mock
+def test_generation_without_source_fields(respx_mock, epias, creds):
+    _ticket_route(respx_mock)
+    respx_mock.post(GENERATION_URL).mock(return_value=_ok(hours(date(2026, 10, 1), total=1.0, importExport=0.0)))
+    with pytest.raises(UnexpectedResponse, match="kaynak alanı yok"):
+        epias.fetch(_req("EPIAS.URETIM", date(2026, 10, 1), date(2026, 10, 1)))
+
+
+@pytest.mark.parametrize(
+    ("code", "url", "start", "end", "expected"),
+    [
+        # one year per call for PTF, cut at calendar month ends
+        ("EPIAS.PTF", PTF_URL, date(2024, 3, 15), date(2026, 7, 19),
+         [("2024-03-15", "2025-02-28"), ("2025-03-01", "2026-02-28"), ("2026-03-01", "2026-07-19")]),
+        # three months per call for generation: the SEF1117 limit that 93-day chunks exceeded
+        ("EPIAS.URETIM.KAYNAK", GENERATION_URL, date(2025, 1, 1), date(2025, 12, 31),
+         [("2025-01-01", "2025-03-31"), ("2025-04-01", "2025-06-30"), ("2025-07-01", "2025-09-30"),
+          ("2025-10-01", "2025-12-31")]),
+        ("EPIAS.URETIM", GENERATION_URL, date(2025, 11, 30), date(2026, 3, 2),
+         [("2025-11-30", "2026-01-31"), ("2026-02-01", "2026-03-02")]),
+    ],
+)  # fmt: skip
+@respx.mock
+def test_long_ranges_are_chunked_by_calendar_months(respx_mock, epias, creds, code, url, start, end, expected):
+    _ticket_route(respx_mock)
+    data = respx_mock.post(url).mock(return_value=_ok([]))
+    assert epias.fetch(_req(code, start, end)).empty
     bodies = [json.loads(c.request.content) for c in data.calls]
-    assert [(b["startDate"][:10], b["endDate"][:10]) for b in bodies] == [
-        ("2026-01-01", "2026-04-03"), ("2026-04-04", "2026-07-05"), ("2026-07-06", "2026-07-19"),
-    ]  # fmt: skip
+    assert [(b["startDate"][:10], b["endDate"][:10]) for b in bodies] == expected
+
+
+@pytest.mark.parametrize("months", [1, 3, 12])
+def test_month_chunks_respect_the_limit(months):
+    start = date(2023, 1, 31)
+    chunks = month_chunks(start, date(2026, 12, 31), months)
+    assert chunks[0][0] == start and chunks[-1][1] == date(2026, 12, 31)
+    for (_, b), (c, _) in zip(chunks, chunks[1:], strict=False):
+        assert c == b + timedelta(days=1) and c.day == 1
+    for a, b in chunks:  # end <= start + N calendar months
+        years, month = divmod(a.month - 1 + months, 12)
+        assert b < date(a.year + years, month + 1, 1)
+
+
+def test_dates_carry_the_local_offset_of_that_day():
+    """Before September 2016 Turkey used +02:00 in winter; +03:00 there would ask for the previous day."""
+    assert _iso(date(2015, 1, 1)) == "2015-01-01T00:00:00+02:00"
+    assert _iso(date(2015, 7, 1)) == "2015-07-01T00:00:00+03:00"
+    assert _iso(date(2026, 1, 1)) == "2026-01-01T00:00:00+03:00"
 
 
 @respx.mock

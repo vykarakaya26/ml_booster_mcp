@@ -1,13 +1,14 @@
 """Live contract tests for EPİAŞ: pytest -m live -k epias (requires EPIAS_USERNAME and EPIAS_PASSWORD)."""
 
 import os
+from dataclasses import replace
 from datetime import date, timedelta
 
 import pytest
 from dotenv import dotenv_values, find_dotenv
 
 from mlbooster.application.dto import FetchRequest
-from mlbooster.domain.model import HealthStatus
+from mlbooster.domain.model import Frequency, HealthStatus, SeedSeries, SeriesKind
 from mlbooster.infrastructure.http_client import SecureHttpClient
 from mlbooster.infrastructure.providers.epias import EpiasProvider
 from mlbooster.infrastructure.secret_store import EnvSecretProvider
@@ -23,13 +24,27 @@ pytestmark = [
 ]
 
 
+# Raw generation `total` (domestic generation + importExport), only for checking the provider's arithmetic.
+RAW_TOTAL = SeedSeries("EPIAS.TEST.TOTAL", "test", Frequency.DAILY, SeriesKind.FLOW, remote="realtime-generation/total")
+
+
 @pytest.fixture
 def epias(catalog, monkeypatch):
     monkeypatch.setenv("EPIAS_USERNAME", USERNAME)
     monkeypatch.setenv("EPIAS_PASSWORD", PASSWORD)
-    provider = EpiasProvider(catalog.source("epias"), http=SecureHttpClient(rps=1), secrets=EnvSecretProvider())
+    source = catalog.source("epias")
+    source = replace(source, series=(*source.series, RAW_TOTAL))
+    provider = EpiasProvider(source, http=SecureHttpClient(rps=1), secrets=EnvSecretProvider())
     yield provider
     provider.close()
+
+
+def _days(df, code: str) -> list[date]:
+    return sorted(df[(df["series_id"] == code) & (df["entity_id"] == "")]["date"])
+
+
+def _calendar(start: date, end: date) -> list[date]:
+    return [start + timedelta(days=i) for i in range((end - start).days + 1)]
 
 
 def test_epias_healthcheck(epias):
@@ -49,10 +64,39 @@ def test_epias_seed_series_return_recent_days(epias, catalog):
 
 
 def test_epias_generation_mix_adds_up_to_total(epias):
+    """The mix total is the sum of the sources; the API's `total` also contains the net exchange (importExport)."""
     day = date.today() - timedelta(days=3)
-    df = epias.fetch(FetchRequest.create("epias", ["EPIAS.URETIM.KAYNAK"], day, day)).set_index("entity_id")["value"]
-    assert len(df) >= 8
-    assert abs(df.drop("").sum() - df[""]) <= 0.02 * df[""]
+    codes = ["EPIAS.URETIM.KAYNAK", "EPIAS.URETIM", "EPIAS.ITHALAT_IHRACAT", "EPIAS.TEST.TOTAL"]
+    df = epias.fetch(FetchRequest.create("epias", codes, day, day))
+    mix = df[df["series_id"] == "EPIAS.URETIM.KAYNAK"].set_index("entity_id")["value"]
+    value = df[df["entity_id"] == ""].set_index("series_id")["value"]
+    assert len(mix) >= 8 and abs(mix.drop("").sum() - mix[""]) <= 1e-6 * mix[""]
+    assert mix[""] == pytest.approx(value["EPIAS.URETIM"])
+    assert value["EPIAS.URETIM"] + value["EPIAS.ITHALAT_IHRACAT"] == pytest.approx(value["EPIAS.TEST.TOTAL"], abs=1.0)
+
+
+@pytest.mark.parametrize(
+    ("code", "start", "end"),
+    [
+        ("EPIAS.PTF", date(2024, 6, 15), date(2026, 1, 31)),  # beyond the 1-year limit: two calls
+        ("EPIAS.SMF", date(2025, 1, 1), date(2025, 12, 31)),
+        ("EPIAS.TUKETIM", date(2024, 11, 1), date(2025, 12, 31)),
+        ("EPIAS.URETIM.KAYNAK", date(2025, 1, 1), date(2025, 12, 31)),  # four 3-month calls
+        ("EPIAS.URETIM", date(2025, 11, 30), date(2026, 3, 2)),  # month-end start, crosses February
+    ],
+)
+def test_epias_ranges_beyond_the_per_call_limit_are_complete(epias, code, start, end):
+    """Every day of a range longer than one call's limit (SEF1117: 1 year, generation 3 months) comes back once."""
+    df = epias.fetch(FetchRequest.create("epias", [code], start, end))
+    assert _days(df, code) == _calendar(start, end)
+
+
+def test_epias_dates_before_2016_use_the_winter_offset(epias):
+    """Winter days before September 2016 are +02:00; the 23-hour spring-forward day (2016-03-27) is kept."""
+    df = epias.fetch(FetchRequest.create("epias", ["EPIAS.PTF", "EPIAS.URETIM"], date(2015, 1, 1), date(2015, 1, 2)))
+    assert _days(df, "EPIAS.PTF") == _days(df, "EPIAS.URETIM") == [date(2015, 1, 1), date(2015, 1, 2)]
+    df = epias.fetch(FetchRequest.create("epias", ["EPIAS.PTF", "EPIAS.URETIM"], date(2016, 3, 26), date(2016, 3, 28)))
+    assert _days(df, "EPIAS.PTF") == _days(df, "EPIAS.URETIM") == _calendar(date(2016, 3, 26), date(2016, 3, 28))
 
 
 def test_epias_ptf_is_plausible(epias):
