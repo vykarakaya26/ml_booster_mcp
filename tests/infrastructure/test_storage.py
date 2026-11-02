@@ -9,6 +9,7 @@ from mlbooster.domain.errors import InvalidInput
 from mlbooster.domain.observations import OBSERVATION_COLUMNS
 from mlbooster.infrastructure.storage.observation_store import ARROW_SCHEMA, ParquetObservationStore
 from mlbooster.infrastructure.storage.panel_store import ParquetPanelStore
+from mlbooster.infrastructure.storage.raw_store import RawStore
 
 
 def _obs(value, vintage):
@@ -95,3 +96,25 @@ def test_requested_start_validates_and_tolerates_corrupt_file(tmp_path):
     store.record_requested_start("evds3", ["TP.A"], "level", date(2020, 1, 1))
     (tmp_path / "silver" / "source_id=evds3" / "_requested_starts.json").write_text("{bozuk")
     assert store.requested_start("evds3", "TP.A", "level") is None  # corrupt record: only one extra fetch
+
+
+def test_raw_store_load_returns_the_latest_intact_copy(tmp_path):
+    store = RawStore(tmp_path)
+    url = "https://www.btk.gov.tr/s3/a.pdf"
+    assert store.load("btk", url) is None  # nothing saved yet
+    store.save("btk", url, b"%PDF-1 old", "application/pdf")
+    path = store.save("btk", url, b"%PDF-1 new", "application/pdf")
+    (tmp_path / "btk" / "manifest.jsonl").open("a").write("not json\n")
+    assert store.load("btk", url) == b"%PDF-1 new"
+    assert store.load("btk", "https://www.btk.gov.tr/s3/b.pdf") is None
+    path.write_bytes(b"tampered")
+    assert store.load("btk", url) is None  # the content hash no longer matches
+
+
+def test_raw_store_load_ignores_file_names_it_did_not_write(tmp_path):
+    store = RawStore(tmp_path)
+    store.save("btk", "https://x/a.pdf", b"x", "application/pdf")
+    (tmp_path / "secret.pdf").write_bytes(b"x")
+    manifest = tmp_path / "btk" / "manifest.jsonl"
+    manifest.write_text(manifest.read_text().replace('"file": "', '"file": "../secret.pdf#'))
+    assert store.load("btk", "https://x/a.pdf") is None
