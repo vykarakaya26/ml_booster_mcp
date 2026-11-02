@@ -26,7 +26,8 @@ src/mlbooster/
   application/       # ports.py (Protocols), dto.py (FetchRequest: input validation gate), errors.py,
                      # use_cases/ (catalog, series, discovery, panel, health, analysis, modeling, market_share,
                      # files: ExportTable/ReadPanelFile). Depends only on domain.
-  infrastructure/    # port implementations: providers/ (evds3, sdmx, registry), http_client.py (SecureHttpClient),
+  infrastructure/    # port implementations: providers/ (evds3, sdmx, tuik, bddk, tbb, bkm, tsb, odmd, epdk, btk, epias,
+                     # bigquery_trends + google_auth/bigquery_rest, registry), http_client.py (SecureHttpClient),
                      # catalog_yaml.py (pydantic → domain), secret_store.py, settings.py, storage/,
                      # update_check.py (GitHub tags), table_reader.py (user CSV/JSON input; CLI only)
   interfaces/        # cli.py (typer), mcp_server.py (MCPServer), presenters.py, web/ (Starlette JSON API + static
@@ -178,7 +179,16 @@ Rules:
    disclosureDetail with XBRL flatData, members); access needs a Borsa İstanbul data distribution agreement (fee
    tariff), MKK IP whitelisting and an e-mailed API key, so it is a paid source and not integrated. Listed-company
    revenues enter only through user-supplied tables (market-share input).
-7. Google Trends: manual CSV import adapter only.
+7. Google Trends (done — infrastructure/providers/bigquery_trends.py, adapter bq_trends): BigQuery public dataset
+   bigquery-public-data.google_trends (international_top_terms / international_top_rising_terms, country_code 'TR')
+   via jobs.query on bigquery.googleapis.com (pinned; tokens from oauth2.googleapis.com, ADC only: authorized_user or
+   service_account, no google-auth). Billing project BQ_PROJECT_ID; every query filters refresh_date (partition) and
+   country, selects named columns and carries maximumBytesBilled (BQ_MAX_BYTES_BILLED, default 5 GiB). Upstream keeps
+   30 daily partitions of Top 25 / Top 25 Rising terms (5-year weekly backfill per region); arbitrary terms cannot be
+   queried. Catalog `remote`: `<top|rising>,<count|interest>/<KEY>[+<KEY>...]`; count = daily keyword hits in the list
+   (history accumulates in silver), interest = weekly score of a listed term (total = mean over regions, regions are
+   entities); ad hoc `BQT.ILGI.<TERM>`. All values is_proxy=True (search interest). No CSV import, no pytrends/SerpAPI.
+   Not yet verified live (needs the user's GCP project).
 
 ## Observation (silver) schema (domain/observations.py; Parquet schema in storage/observation_store.py)
 source_id, dataset_id, series_id, entity_id, entity_name, metric, date (period end), freq, value, unit,
@@ -197,7 +207,8 @@ currency, is_proxy, vintage_ts, publication_lag_days. Key: source_id, series_id,
 
 ## Acceptance criteria (MVP)
 - 10 adapters (EVDS3 ✓, TÜİK ✓, BDDK ✓, TBB ✓, EPİAŞ ✓ code / healthcheck needs the user's account, EPDK ✓, BTK ✓, TSB ✓,
-  ODMD ✓, BKM ✓) pass the healthcheck.
+  ODMD ✓, BKM ✓) pass the healthcheck. Extra: Google Trends via BigQuery (bq_trends; code ✓, healthcheck needs
+  the user's GCP project).
 - Market share series for 5 sectors (banking, insurance, telecom, automotive, fuel retail; sector IDs bankacilik,
   sigorta, telekom, otomotiv, akaryakit) in the gold panel.
 - Every source YAML has license, auth, frequency, publication_lag and verification_status filled in (enforced by
