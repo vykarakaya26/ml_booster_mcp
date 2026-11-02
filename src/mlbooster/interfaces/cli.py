@@ -436,8 +436,9 @@ def market_share(
     for p in result["players"][:top_n]:
         d, share = p.get("d_year_pp"), "%" + tr_num(p["share"], ".2f")
         trend = TREND_LABELS.get(p["trend"], p["trend"])
-        typer.echo(f"{p['rank']:>3}. {p['entity']:<28} {share:>7}  yıllık {tr_num(d, '+.2f')} puan  {trend}" if d is not None
-                   else f"{p['rank']:>3}. {p['entity']:<28} {share:>7}  {trend}")  # fmt: skip
+        horizon = f"{trend_years} yıllık eğilim: {trend}"
+        typer.echo(f"{p['rank']:>3}. {p['entity']:<28} {share:>7}  son 1 yıl {tr_num(d, '+.2f')} puan · {horizon}" if d is not None
+                   else f"{p['rank']:>3}. {p['entity']:<28} {share:>7}  {horizon}")  # fmt: skip
     for i in result["issues"]:
         typer.secho(f"{SEVERITY_LABELS.get(i['severity'], i['severity']):<7} {i['message']}", fg=typer.colors.YELLOW if i["severity"] != "info" else typer.colors.BLUE)
 
