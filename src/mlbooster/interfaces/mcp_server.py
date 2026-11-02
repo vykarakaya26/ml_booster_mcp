@@ -136,7 +136,11 @@ def fetch_series(
 ) -> dict:
     """Serileri çeker ve yerel depoya yazar. Tarihler YYYY-AA-GG biçimindedir.
     freq: D,B,W,SM,M,Q,S,A; agg: avg,min,max,first,last,sum; formula: 0 düzey, 1 yüzde değişim,
-    3 yıllık yüzde değişim. Özeti ve son `max_rows` (≤500) satırı döner."""
+    3 yıllık yüzde değişim. Özeti ve son `max_rows` (≤500) satırı döner.
+    Google Trends (source=bq_trends): Türkiye'nin günlük Top 25 listeleri BigQuery'den çekilir; kaynak yalnızca son
+    30 günü tuttuğu için geçmiş yerel depoda birikir. BQT.ILGI.<TERIM> (ör. BQT.ILGI.TOGG) listeye girmiş bir terimin
+    5 yıllık haftalık arama ilgisini verir. BQ_PROJECT_ID ve Google ADC (`gcloud auth application-default login`)
+    gerekir; değerler arama ilgisi proxy'sidir, pazar payı değildir."""
     request = FetchRequest.create(
         source, series, _iso(start, "start"), _iso(end, "end") if end else None, freq, agg, formula
     )

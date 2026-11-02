@@ -9,6 +9,7 @@ from mlbooster.application.ports import SeriesProvider
 from mlbooster.domain.model import Source
 from mlbooster.infrastructure.http_client import RateLimiter, SecureHttpClient
 from mlbooster.infrastructure.providers.bddk import BddkProvider
+from mlbooster.infrastructure.providers.bigquery_trends import BigQueryTrendsProvider
 from mlbooster.infrastructure.providers.bkm import BkmProvider
 from mlbooster.infrastructure.providers.btk import BtkProvider
 from mlbooster.infrastructure.providers.epdk import EpdkProvider
@@ -25,6 +26,7 @@ from mlbooster.infrastructure.storage.raw_store import RawStore
 PROVIDERS: dict[str, type] = {
     "bddk": BddkProvider,
     "bkm": BkmProvider,
+    "bq_trends": BigQueryTrendsProvider,
     "btk": BtkProvider,
     "epdk": EpdkProvider,
     "epias": EpiasProvider,
