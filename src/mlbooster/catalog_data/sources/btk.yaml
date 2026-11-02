@@ -6,7 +6,7 @@ owner: BTK
 base_url: https://www.btk.gov.tr/elektronik-haberlesme-pazar-verileri
 access: pdf_report
 auth: {type: none}
-rate_limit: {rps: 1, backoff: exponential, notes: "Her çeyrek tek bir PDF rapordur (son raporlar 40-45 MB); indirilen raporlar yerel bronze katmanında saklanır ve yeniden indirilmez."}
+rate_limit: {rps: 1, backoff: exponential, notes: "Her çeyrek tek bir PDF rapordur (son raporlar 40-46 MB); indirilen raporlar yerel bronze katmanında saklanır ve yeniden indirilmez."}
 license: {commercial: false, redistribution: false, attribution: required, notes: "Sitede ayrı bir kullanım şartları sayfası yok; altbilgide 'Tüm Hakları Saklıdır' yazıyor. Rapor kamuya açık resmi istatistik yayınıdır ve kaynak gösterilerek alıntılanabilir; ticari kullanım ve yeniden dağıtım için BTK'nın izni alınmalıdır. Rakamlar işletmecilerin bildirimlerine dayanır ve sonraki raporlarda revize edilebilir."}
 frequency: [Q]
 formats: [pdf]
@@ -22,6 +22,7 @@ known_breaks:
   - "2025-Q4: Sabit genişbant pay çizelgesindeki paylar %98,35'e ulaşıyor (bir satır eksik); doğrulamadan geçmediği için bu çeyrek atlanır"
 adapter: btk
 priority: 7
+max_response_mb: 150  # reports are 40-46 MB and growing (2026-Q1: 45.6 MB); the default 50 MB would soon refuse them
 # remote: "<table>/<column>" of the report a series is read from; see infrastructure/providers/btk.py.
 # Entity rows: operators (entity_id = TURKCELL, VODAFONE, TT_MOBIL, TURK_TELEKOM, TTNET, ...); the total has an empty
 # entity_id (operator total for revenue, 100 for share series).

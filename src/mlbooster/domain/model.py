@@ -194,6 +194,7 @@ class Source:
     priority: int = 99
     series: tuple[SeedSeries, ...] = ()
     storage: StoragePolicy = StoragePolicy()
+    max_response_mb: int = 50  # largest HTTP response accepted from this source (catalog caps it at 200)
 
     def seed(self, code: str) -> SeedSeries | None:
         return next((s for s in self.series if s.code == code), None)

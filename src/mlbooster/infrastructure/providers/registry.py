@@ -50,7 +50,7 @@ class ProviderRegistry:
 
     def _default_http(self, source: Source) -> SecureHttpClient:
         limiter = self._limiters.setdefault(source.id, RateLimiter(source.rate_limit.rps))
-        return SecureHttpClient(rps=source.rate_limit.rps, limiter=limiter)
+        return SecureHttpClient(rps=source.rate_limit.rps, limiter=limiter, max_bytes=source.max_response_mb * 1024 * 1024)
 
     def available(self) -> set[str]:
         return set(PROVIDERS)

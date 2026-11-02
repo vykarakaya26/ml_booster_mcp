@@ -29,7 +29,8 @@ from mlbooster.infrastructure.providers.btk import (
     report_lines,
     select_reports,
 )
-from mlbooster.infrastructure.providers.registry import PROVIDERS
+from mlbooster.infrastructure.providers.registry import PROVIDERS, ProviderRegistry
+from mlbooster.infrastructure.secret_store import EnvSecretProvider
 from mlbooster.infrastructure.storage.raw_store import RawStore
 
 # Excerpts of the text layer of the 2026-Q2 and 2019-Q4 reports (www.btk.gov.tr, read 2026-11-02).
@@ -496,3 +497,21 @@ def test_large_share_moves_are_logged(caplog):
 def test_quarters_far_back_are_not_requested():
     reports = _reports((2026, 2))
     assert select_reports(reports, date(2026, 4, 1) - timedelta(days=1), date(2026, 6, 30), 1) == reports
+
+
+@respx.mock
+def test_registry_applies_the_source_response_limit(catalog):
+    """btk.yaml raises the limit to 150 MB for its 40-46 MB reports; other sources keep 50 MB, and a response
+    above the source's limit is still refused."""
+    registry = ProviderRegistry(EnvSecretProvider())
+    btk_provider, evds = registry.create(catalog.source("btk")), registry.create(catalog.source("evds3"))
+    assert btk_provider._http._max_bytes == 150 * 1024 * 1024
+    assert evds._http._max_bytes == 50 * 1024 * 1024
+    small = replace(catalog.source("btk"), max_response_mb=1)
+    provider = registry.create(small)
+    url = f"{S3}/10/big.pdf"
+    respx.get(url).mock(return_value=httpx.Response(200, content=b"%PDF-" + b"x" * (1024 * 1024)))
+    with pytest.raises(UnexpectedResponse, match="limit|büyük"):
+        provider._download(Report(date(2026, 6, 30), url))
+    for p in (btk_provider, evds, provider):
+        p.close()
