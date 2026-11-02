@@ -262,7 +262,7 @@ views.genel = async (root) => {
     h("section", { class: "hero" },
       h("span", { class: "eyebrow" }, "ML Booster Map"),
       h("h1", {}, "Türkiye'de bir sektör seçin; makine öğrenmesine hazır veri setini kaynağıyla birlikte oluşturun"),
-      h("p", {}, "Panel; TCMB EVDS, BIS ve OECD gibi ücretsiz kamu kaynaklarından sektörle ilgili makro feature'ları çeker, aynı aylık takvimde hizalar, verinin kalitesini denetler ve bir ML modelinin geçmesi gereken tahmin çıtasını hesaplar. Tüm işlem bu bilgisayarda yapılır."),
+      h("p", {}, "Panel; TCMB EVDS, TÜİK, BDDK, TBB, TSB, BTK, ODMD, EPDK, BKM, EPİAŞ, BIS ve OECD gibi ücretsiz kamu kaynaklarından sektörle ilgili feature'ları çeker, aynı aylık takvimde hizalar, verinin kalitesini denetler, bir ML modelinin geçmesi gereken tahmin çıtasını hesaplar ve beş sektörde (bankacılık, sigorta, telekom, otomotiv, akaryakıt) pazar payını doğrudan kaynaktan çıkarır. Tüm işlem bu bilgisayarda yapılır."),
       h("div", { class: "button-row" },
         h("button", { type: "button", onclick: () => go($("#sector").value) }, `${sectorName()} ile başla`),
         h("button", { type: "button", class: "ghost", onclick: () => openGlossary() }, "Terimler sözlüğü"))),
