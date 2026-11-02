@@ -11,27 +11,32 @@ auth:
   ticket_url: https://giris.epias.com.tr/cas/v1/tickets
   ttl_hours: 2  # documented TGT lifetime; the provider renews it 10 minutes early
 # The gateway announced 60 requests per 60 s for the PTF service and 3600 per hour for the others (2026-11-02);
-# rps 1 stays under both. max_obs_per_call = hourly values per request (93 days); no range limit is documented.
-rate_limit: {rps: 1, per_minute: 60, backoff: fixed, blocked_seconds_on_429: 30, max_obs_per_call: 2232, notes: "Her istek bir veri setinin 93 günlük saatlik verisini döndürür; 429 alındığında 30 saniye beklenir."}
+# rps 1 stays under both. Range per call (SEF1117, verified 2026-11-03): one year for PTF, SMF and consumption,
+# three months for generation; the provider cuts requests at calendar month ends (limits live in the provider).
+rate_limit: {rps: 1, per_minute: 60, backoff: fixed, blocked_seconds_on_429: 30, notes: "Bir istek PTF, SMF ve tüketim için en fazla 1 yıllık, üretim için en fazla 3 aylık saatlik veri döndürür; 429 alındığında 30 saniye beklenir."}
+# Hourly services answer at most 3 months (generation) or 1 year per call: without a start date the last 5 years are
+# fetched once, later calls only add the missing history and the last 7 days (real-time values may still be revised).
+history: {default_years: 5, revision_days: 7}
 license: {attribution: required, notes: "Veriler EPİAŞ Şeffaflık Platformu'ndan kaynak gösterilerek kullanılır. Web servis erişimi ücretsiz kullanıcı hesabı gerektirir (kayit.epias.com.tr). Ticari kullanım koşulları yayımlanmamıştır; doğrulanmadı."}
 frequency: [H, D]
 formats: [json]
 sectors: [enerji, akaryakit, makro_genel]
 publication_lag_days: 1
-verification_status: reported
-verification_notes: "2026-11-02: Teknik doküman (electricity-service, swagger.json) ve CAS REST kılavuzu incelendi. TGT, giris.epias.com.tr/cas/v1/tickets adresine form gövdesinde kullanıcı adı ve şifre gönderilerek alınır (201, 'TGT-...'); doküman TGT ömrünü 2 saat olarak verir. Kimlik bilgisi olmadan servisler 401 (AUTH002), geçersiz TGT ile 401 (AUTH009), üretim servisi 406 döndürüyor; bu davranış canlı doğrulandı. Hesap olmadığı için geçerli TGT ile dönen yanıt gözlenmedi; alan adları swagger.json'dan alındı. robots.txt tüm yollara izin veriyor."
-known_breaks: ["2023-10: Azami uzlaştırma fiyatı uygulaması kaldırıldı; PTF dağılımı değişti", "2016-09: Kalıcı yaz saatine geçiş; öncesinde yılda bir gün 23, bir gün 25 saattir"]
+verification_status: verified
+verification_notes: "2026-11-03: Geçerli TGT ile dört servis canlı test edildi. Tarih aralığı sınırı PTF, SMF ve tüketimde 1 yıl, üretimde 3 ay (aşılırsa HTTP 400 SEF1117); istekler takvim ayı sonlarında bölünüyor. Bitiş günü T00:00 ile gönderildiğinde o günün 24 saati de dönüyor; 8.784 satırlık yanıtlar bile sayfalanmıyor. Tarihler o günkü Türkiye saatiyle (2016 öncesi kışın +02:00) gönderilmelidir. Üretimde total, kaynakların toplamı ile ithalat-ihracat dengesinin toplamıdır; yurt içi üretim kaynakların toplamı olarak hesaplanır. Veri başlangıcı: SMF 2011-01, PTF 2011-11, üretim 2013-10, tüketim en geç 2016-01. 2026-11-02: Teknik doküman (swagger.json) ve CAS REST kılavuzu incelendi; TGT ömrü 2 saat; kimlik bilgisi olmadan 401 (AUTH002), geçersiz TGT ile 401 (AUTH009), üretim servisinde 406. robots.txt tüm yollara izin veriyor."
+known_breaks: ["2023-10: Azami uzlaştırma fiyatı uygulaması kaldırıldı; PTF dağılımı değişti", "2016-09: Kalıcı yaz saatine geçiş; öncesinde kış aylarında saat +02:00, yılda bir gün 23, bir gün 25 saattir"]
 adapter: epias
 priority: 5
 # remote: "<dataset>/<field>". Datasets: dam-mcp (PTF: price, priceUsd, priceEur), bpm-smp (SMF: systemMarginalPrice),
-# realtime-consumption (consumption), realtime-generation (total or a source field; by_source = total plus every
-# source as an entity). Hourly values become daily ones: kind level → daily mean, kind flow → daily sum (MWh).
+# realtime-consumption (consumption), realtime-generation (a source field; generation = sum of the sources, i.e.
+# domestic generation; total = generation + importExport; by_source = generation plus every source as an entity). Hourly values become daily ones: kind level → daily mean, kind flow → daily sum (MWh).
 series:
   - {code: EPIAS.PTF, name: "Piyasa takas fiyatı (PTF), günlük ortalama (TL/MWh)", freq: D, kind: level, unit: try_per_mwh, currency: TRY, remote: "dam-mcp/price", canary: true}
   - {code: EPIAS.PTF.USD, name: "Piyasa takas fiyatı (PTF), günlük ortalama (USD/MWh)", freq: D, kind: level, unit: usd_per_mwh, currency: USD, remote: "dam-mcp/priceUsd"}
   - {code: EPIAS.SMF, name: "Sistem marjinal fiyatı (SMF), günlük ortalama (TL/MWh)", freq: D, kind: level, unit: try_per_mwh, currency: TRY, remote: "bpm-smp/systemMarginalPrice"}
   - {code: EPIAS.TUKETIM, name: "Gerçek zamanlı elektrik tüketimi, günlük toplam (MWh)", freq: D, kind: flow, unit: mwh, remote: "realtime-consumption/consumption"}
-  - {code: EPIAS.URETIM, name: "Gerçek zamanlı elektrik üretimi, günlük toplam (MWh)", freq: D, kind: flow, unit: mwh, remote: "realtime-generation/total"}
+  - {code: EPIAS.URETIM, name: "Gerçek zamanlı elektrik üretimi (yurt içi, kaynakların toplamı), günlük toplam (MWh)", freq: D, kind: flow, unit: mwh, remote: "realtime-generation/generation"}
+  - {code: EPIAS.ITHALAT_IHRACAT, name: "Elektrik ithalat-ihracat dengesi (net ithalat, ihracatta negatif), günlük toplam (MWh)", freq: D, kind: flow, unit: mwh, remote: "realtime-generation/importExport"}
   - {code: EPIAS.URETIM.KAYNAK, name: "Gerçek zamanlı elektrik üretimi, kaynak türüne göre günlük toplam (MWh)", freq: D, kind: flow, unit: mwh, remote: "realtime-generation/by_source"}
   - {code: EPIAS.URETIM.DOGALGAZ, name: "Doğal gaz santrallerinin gerçek zamanlı üretimi, günlük toplam (MWh)", freq: D, kind: flow, unit: mwh, remote: "realtime-generation/naturalGas"}
   - {code: EPIAS.URETIM.RUZGAR, name: "Rüzgâr santrallerinin gerçek zamanlı üretimi, günlük toplam (MWh)", freq: D, kind: flow, unit: mwh, remote: "realtime-generation/wind"}

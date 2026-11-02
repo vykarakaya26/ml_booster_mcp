@@ -22,6 +22,7 @@ from mlbooster.domain.model import (
     Catalog,
     FeatureRecipe,
     Frequency,
+    HistoryPolicy,
     LicenseSpec,
     MacroFeature,
     RateLimitSpec,
@@ -76,6 +77,11 @@ class StorageSchema(_Strict):
     observations: bool = True
 
 
+class HistorySchema(_Strict):
+    default_years: int | None = Field(default=None, ge=1, le=30)
+    revision_days: int | None = Field(default=None, ge=0, le=400)
+
+
 class SeedSchema(_Strict):
     code: str
     name: str
@@ -122,6 +128,7 @@ class SourceSchema(_Strict):
     adapter: str | None = None
     priority: int = 99
     storage: StorageSchema = Field(default_factory=StorageSchema)
+    history: HistorySchema = Field(default_factory=HistorySchema)
     # Response size limit in MB; raise it only for sources that publish large files (hard cap 200 MB).
     max_response_mb: int = Field(default=50, ge=1, le=200)
     series: list[SeedSchema] = Field(default_factory=list)
@@ -171,6 +178,7 @@ class SourceSchema(_Strict):
             priority=self.priority,
             series=tuple(SeedSeries(**s.model_dump()) for s in self.series),
             storage=StoragePolicy(self.storage.raw, self.storage.observations),
+            history=HistoryPolicy(self.history.default_years, self.history.revision_days),
             max_response_mb=self.max_response_mb,
         )
 

@@ -126,26 +126,30 @@ def discover_series(datagroup: str | None = None, source: str = "evds3") -> list
 @safe_tool
 def fetch_series(
     series: list[str],
-    start: str = DEFAULT_START.isoformat(),
+    start: str | None = None,
     end: str | None = None,
     source: str = "evds3",
     freq: str | None = None,
     agg: str | None = None,
     formula: int = 0,
     max_rows: int = 50,
+    refresh: bool = False,
 ) -> dict:
-    """Serileri çeker ve yerel depoya yazar. Tarihler YYYY-AA-GG biçimindedir.
-    freq: D,B,W,SM,M,Q,S,A; agg: avg,min,max,first,last,sum; formula: 0 düzey, 1 yüzde değişim,
+    """Serileri çeker ve yerel depoya yazar. Tarihler YYYY-AA-GG biçimindedir; start verilmezse kaynağın varsayılan
+    geçmişi kullanılır (EPİAŞ: son 5 yıl, diğerleri 2010-01-01). Kullanıcı farklı bir geçmiş isterse (ör. 2 yıl)
+    start ile verin. EPİAŞ gibi artımlı kaynaklarda yerel depodaki dönemler yeniden çekilmez; yalnızca eksik
+    geçmiş ve son günler istenir (refresh=true bütün aralığı yeniden çeker), `fetched` kaynaktan istenen dönemleri
+    gösterir. freq: D,B,W,SM,M,Q,S,A; agg: avg,min,max,first,last,sum; formula: 0 düzey, 1 yüzde değişim,
     3 yıllık yüzde değişim. Özeti ve son `max_rows` (≤500) satırı döner.
     Google Trends (source=bq_trends): Türkiye'nin günlük Top 25 listeleri BigQuery'den çekilir; kaynak yalnızca son
     30 günü tuttuğu için geçmiş yerel depoda birikir. BQT.ILGI.<TERIM> (ör. BQT.ILGI.TOGG) listeye girmiş bir terimin
     5 yıllık haftalık arama ilgisini verir. BQ_PROJECT_ID ve Google ADC (`gcloud auth application-default login`)
     gerekir; değerler arama ilgisi proxy'sidir, pazar payı değildir."""
-    request = FetchRequest.create(
-        source, series, _iso(start, "start"), _iso(end, "end") if end else None, freq, agg, formula
-    )
-    s = container().fetch_series.summarize(request, max_rows)
-    return {"rows": s.rows, "summary": s.by_series, "tail": s.tail, "attribution": s.attribution}
+    fetcher = container().fetch_series
+    first = _iso(start, "start") if start else fetcher.default_start(source, DEFAULT_START)
+    request = FetchRequest.create(source, series, first, _iso(end, "end") if end else None, freq, agg, formula)
+    s = fetcher.summarize(request, max_rows, refresh=refresh)
+    return {"rows": s.rows, "summary": s.by_series, "tail": s.tail, "attribution": s.attribution, "fetched": s.fetched}
 
 
 @server.tool(annotations=WRITES_LOCAL)

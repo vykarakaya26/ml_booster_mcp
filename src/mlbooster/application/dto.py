@@ -69,6 +69,8 @@ class FetchSummary:
     by_series: list[dict]
     tail: list[dict]
     attribution: str
+    # Date ranges actually requested from the source; the rest came from the local store (incremental sources).
+    fetched: list[tuple[str, str]] = field(default_factory=list)
 
 
 @dataclass

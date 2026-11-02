@@ -503,7 +503,7 @@ def test_interest_uses_latest_list_and_one_partition(provider, creds):
     df = provider.fetch(_req("BQT.ILGI.TOGG"))
     p = params(route.calls[1])
     assert p["refresh"] == {"value": "2026-11-02"} and p["terms"] == {"arrayValues": [{"value": "togg"}]}
-    assert "refresh_date = @refresh" in body(route.calls[1])["query"]
+    assert "refresh_date = @refresh" in body(route.calls[1])["query"] and "start" not in p
     total = df[df["entity_id"] == ""]
     assert list(total["date"]) == [date(2026, 10, 24), date(2026, 10, 31)]  # week start + 6 days
     assert list(total["value"]) == [50.0, 100.0]  # mean over regions; a null score is skipped
@@ -641,3 +641,13 @@ def test_health_without_canaries(make, catalog):
     source = catalog.source("bq_trends")
     p = make(replace(source, series=tuple(replace(s, canary=False) for s in source.series)))
     assert p.healthcheck().status is HealthStatus.SKIPPED
+
+
+@respx.mock
+def test_interest_returns_whole_backfill_on_one_scale(provider, creds):
+    respx.post(TOKEN_URL).mock(return_value=token_ok())
+    rows = [["2022-01-02", "TR-34", "İstanbul", "100"], ["2026-10-25", "TR-34", "İstanbul", "20"]]
+    respx.post(QUERY_URL).mock(side_effect=[bq(LIST_COLUMNS, listing()), bq(INTEREST_COLUMNS, rows)])
+    df = provider.fetch(_req("BQT.ILGI.TOGG", start=date(2026, 10, 1)))
+    # weeks before the requested start come too: they were rescaled together with the recent ones
+    assert df[df["entity_id"] == ""]["date"].min() == date(2022, 1, 8)
