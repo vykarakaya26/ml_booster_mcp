@@ -203,7 +203,7 @@ function openGlossary(key) {
 
 // --- durum ------------------------------------------------------------------------------------------------
 
-const state = { meta: null, sectors: [], maps: new Map(), panels: new Map(), backtests: new Map(), audits: new Map(), share: null };
+const state = { meta: null, sectors: [], maps: new Map(), panels: new Map(), backtests: new Map(), audits: new Map(), share: null, shareSeries: null };
 
 const PREFS_KEY = "mlbooster-panel";
 function loadPrefs() { try { return JSON.parse(localStorage.getItem(PREFS_KEY)) || {}; } catch { return {}; } }
@@ -216,6 +216,17 @@ function scope() {
 }
 const scopeKey = (extra = {}) => JSON.stringify({ ...scope(), ...extra });
 const sectorName = () => state.sectors.find((s) => s.id === $("#sector").value)?.name || $("#sector").value;
+
+function shareText(m) {
+  if (!m.market_share.length) return null;
+  const ready = new Set(m.sources.filter((s) => s.provider_ready).map((s) => s.id));
+  const names = (list) => list.map((s) => s.source.toUpperCase()).join(", ");
+  const auto = m.market_share.filter((s) => ready.has(s.source));
+  const manual = m.market_share.filter((s) => !ready.has(s.source));
+  return `Pazar payı için ${m.market_share.length} kaynak tanımlı.` +
+    (auto.length ? ` ${names(auto)} verisi "Pazar payı" ekranında doğrudan çekilebilir.` : "") +
+    (manual.length ? ` ${names(manual)} için otomatik veri çekme yol haritasında; tablo yüklenerek kullanılabilir.` : "");
+}
 
 async function sectorMap(sector) {
   if (!state.maps.has(sector)) state.maps.set(sector, await getJSON(`/api/sectors/${encodeURIComponent(sector)}/map`));
@@ -307,7 +318,7 @@ views.harita = async (root) => {
       [h("strong", {}, `${m.sector.name} için ${m.macro_features.length} feature tanımlı; ${ready} tanesi kullanıma hazır.`),
         sourceNames.length ? ` Hazır feature'lar ${sourceNames.join(", ")} kaynaklı.` : ""],
       groups.pending_discovery.length ? `${groups.pending_discovery.length} feature'ın EVDS seri kodu henüz bağlanmadı; aşağıdaki "Sizden gerekenler" bölümü nasıl tamamlanacağını açıklar.` : "Seri kodu eksik feature yok.",
-      m.market_share.length ? `Pazar payı için ${m.market_share.length} kaynak tanımlı (${m.market_share.map((s) => s.source.toUpperCase()).join(", ")}); bu kaynaklardan otomatik veri çekme yol haritasında.` : null),
+      shareText(m)),
     h("div", { class: "tiles" },
       tile("Hazır feature", ready, `toplam ${m.macro_features.length} feature'dan`, "Ölçüm"),
       tile("Seri kodu bekleyen", groups.pending_discovery.length, groups.pending_discovery.length ? "EVDS'de aranıp bağlanmalı" : "eksik yok"),
@@ -786,6 +797,7 @@ views.pazar = async (root) => {
   const saved = state.share || {};
   const opts = { measure: "value", kind: "flow", basis: "auto", unit: "", trend_years: 3, ...saved.opts };
   let input = saved.input || null; // {text, name, kind: "file" | "paste" | "sample"}
+  let mode = saved.mode || "table"; // "table": user table · "source": catalog series with entity rows (e.g. BDDK)
 
   const select = (label, value, options) => h("select", { "aria-label": label }, options.map(([v, l]) => h("option", { value: v, selected: v === value }, l)));
   const measure = select("Değer türü", opts.measure, [["value", "Tutar ya da adet"], ["share", "Yüzde pay"]]);
@@ -801,6 +813,44 @@ views.pazar = async (root) => {
   const run = h("button", { type: "button" }, "Analiz et");
   const sample = h("button", { type: "button", class: "ghost" }, "Örnek veriyi yükle");
   const out = h("div", { class: "stack" });
+  const modeTable = h("button", { type: "button", class: "ghost small" }, "Kendi tablom");
+  const modeSource = h("button", { type: "button", class: "ghost small" }, "Kaynaktan çek (BDDK)");
+  const series = h("select", { "aria-label": "Kaynak serisi" }, h("option", { value: "" }, "Yükleniyor"));
+  series.disabled = true;
+  const refresh = h("input", { type: "checkbox" });
+  const sourceNote = h("p", { class: "caption" });
+  const tableOnly = [];
+  const field = (label, control, onlyTable = false) => {
+    const el = h("label", { class: "field" }, h("span", {}, label), control);
+    if (onlyTable) tableOnly.push(el);
+    return el;
+  };
+
+  const sourcePick = h("div", { class: "file-pick" },
+    h("div", { class: "controls" }, field("Kaynak serisi", series)),
+    h("label", { class: "inline-check" }, refresh, "Önbelleği yok say ve kaynaktan yeniden çek"),
+    sourceNote);
+  const describeSeries = () => {
+    const [source] = series.value.split("|");
+    const s = (state.shareSeries || []).find((x) => x.source === source);
+    sourceNote.replaceChildren(s
+      ? `${s.name}. Dönem üst çubuktaki başlangıç–bitiş aralığıdır; aylık bültende her ay ayrı istekle çekildiğinden ilk çekim birkaç dakika sürebilir, sonrasında yerel önbellek kullanılır. Kullanım koşulu: ${s.license}`
+      : "");
+  };
+  const loadShareSeries = async (chosen) => {
+    try {
+      state.shareSeries ??= await getJSON("/api/share-series");
+    } catch (err) { notice(err.message); return; }
+    const groups = state.shareSeries;
+    if (!groups.length) {
+      series.replaceChildren(h("option", { value: "" }, "Otomatik çekilebilen kaynak yok"));
+      return;
+    }
+    series.replaceChildren(...groups.map((g) => h("optgroup", { label: g.name },
+      g.series.map((s) => h("option", { value: `${g.source}|${s.code}`, selected: `${g.source}|${s.code}` === chosen }, s.name)))));
+    series.disabled = false;
+    describeSeries();
+  };
 
   const fillFocus = (players, chosen) => {
     focus.replaceChildren(h("option", { value: "" }, players.length ? "Seçilmedi" : "Önce analiz edin"),
@@ -836,7 +886,22 @@ views.pazar = async (root) => {
     showStatus();
   });
 
+  const analyzeSource = async () => {
+    const [source, code] = series.value.split("|");
+    if (!code) throw new Error("Önce bir kaynak serisi seçin.");
+    const { start, end } = scope();
+    const opts = { basis: basis.value, trend_years: Number(years.value) };
+    const body = { source, series: code, start, end, focus: focus.value || undefined, refresh: refresh.checked, ...opts };
+    const r = await postJSON("/api/market-share/source", body);
+    refresh.checked = false;
+    const src = { kind: "source", series: series.value, start, end };
+    state.share = { ...state.share, mode, sourceInput: src, opts: { ...state.share?.opts, ...opts }, result: r };
+    fillFocus(r.players, r.meta.focus);
+    render(r, src, opts);
+  };
+
   const analyze = (button) => busy(button, "Hesaplanıyor", async () => {
+    if (mode === "source") return analyzeSource();
     if (!input) throw new Error("Önce bir dosya seçin, tabloyu yapıştırın ya da örnek veriyi yükleyin.");
     if (byteSize(input.text) > MAX_TABLE_BYTES) throw new Error("Tablo 8 MB sınırını aşıyor.");
     const body = {
@@ -845,7 +910,7 @@ views.pazar = async (root) => {
     };
     const r = await postJSON("/api/market-share", body);
     const { text, format, focus: _f, ...rest } = body;
-    state.share = { input, opts: rest, result: r };
+    state.share = { ...state.share, mode, input, opts: rest, result: r };
     fillFocus(r.players, r.meta.focus);
     render(r, input, rest);
   }, out);
@@ -1007,9 +1072,10 @@ views.pazar = async (root) => {
           h("li", {}, h("strong", {}, "Taban: "), `${basisText}. ${meta.basis === "ttm" ? "Akım verisinde mevsimselliği gidermek için son 12 ayın toplamı kullanıldı." : "Her dönemin kendi değeri kullanıldı."}`),
           h("li", {}, h("strong", {}, "Yoğunlaşma: "), "HHI = payların karelerinin toplamı; CR3 ve CR5 = en büyük 3 ve 5 oyuncunun payı."),
           h("li", {}, h("strong", {}, "Eğilim: "), `Son ${o.trend_years} yılın dönemlik paylarına doğrusal trend; eğim puan/yıl, anlamlılık t istatistiğiyle.`),
-          h("li", {}, h("strong", {}, "Sınırlamalar: "), "Sonuçlar yalnızca yüklenen tabloyu yansıtır. Rakip adayları istatistiksel ipucudur; fiyat, kanal ve coğrafya gibi nitel ölçütlerle doğrulanmalıdır."))),
+          h("li", {}, h("strong", {}, "Sınırlamalar: "), src.kind === "source" ? `Sonuçlar yalnızca seçilen kaynak serisini yansıtır (${meta.source.name}). Rakip adayları` : "Sonuçlar yalnızca yüklenen tabloyu yansıtır. Rakip adayları istatistiksel ipucudur; fiyat, kanal ve coğrafya gibi nitel ölçütlerle doğrulanmalıdır."))),
       stampBar({
-        sources: src.kind === "sample" ? "Örnek veri (sentetik, otomotiv benzeri)" : src.kind === "file" ? `Kullanıcı tablosu (${src.name})` : "Kullanıcı tablosu (yapıştırıldı)",
+        sources: src.kind === "source" ? `${meta.source.attribution.replace(/^Kaynak:\s*/, "")} · ${meta.source.name} (${meta.source.series})`
+          : src.kind === "sample" ? "Örnek veri (sentetik, otomotiv benzeri)" : src.kind === "file" ? `Kullanıcı tablosu (${src.name})` : "Kullanıcı tablosu (yapıştırıldı)",
         generated: stampTime(r.generated_at), period,
         missing: r.issues.some((i) => i.check === "missing_periods") ? "eksik dönem var (Veri notları)" : "yok",
       }),
@@ -1017,8 +1083,10 @@ views.pazar = async (root) => {
   };
 
   fill(root,
-    viewHead("Pazar payı", "Pazar payı ve rakipler", "Kendi pazar payı tablonuzu yükleyin: paylar, yoğunlaşma (HHI, CR3/CR5), pay kazanan ve kaybeden oyuncular, rakip seti ve segment bazında shift-share ayrıştırması hesaplanır. Tablo yalnızca bu bilgisayarda işlenir, diske yazılmaz."),
+    viewHead("Pazar payı", "Pazar payı ve rakipler", "Kendi pazar payı tablonuzu yükleyin ya da kaynaktan çekin (bankacılıkta BDDK banka grubu verisi): paylar, yoğunlaşma (HHI, CR3/CR5), pay kazanan ve kaybeden oyuncular, rakip seti ve segment bazında shift-share ayrıştırması hesaplanır. Tablo yalnızca bu bilgisayarda işlenir, diske yazılmaz."),
     h("section", { class: "card" },
+      h("div", { class: "button-row", role: "group", "aria-label": "Veri girişi" }, modeTable, modeSource),
+      sourcePick,
       h("div", { class: "drop" },
         h("div", {},
           h("div", { class: "file-pick" },
@@ -1030,18 +1098,41 @@ views.pazar = async (root) => {
         h("div", {},
           h("label", { class: "field" }, h("span", {}, "ya da tabloyu yapıştırın"), paste))),
       h("div", { class: "controls" },
-        h("label", { class: "field" }, h("span", {}, "Değer türü"), measure),
-        h("label", { class: "field" }, h("span", {}, "Değerin niteliği"), kind),
-        h("label", { class: "field" }, h("span", {}, term("ttm", "Pay tabanı")), basis),
-        h("label", { class: "field" }, h("span", {}, "Birim"), unit),
-        h("label", { class: "field" }, h("span", {}, term("share_trend", "Eğilim penceresi (yıl)")), years),
-        h("label", { class: "field" }, h("span", {}, "Odak oyuncu"), focus)),
+        field("Değer türü", measure, true),
+        field("Değerin niteliği", kind, true),
+        field(term("ttm", "Pay tabanı"), basis),
+        field("Birim", unit, true),
+        field(term("share_trend", "Eğilim penceresi (yıl)"), years),
+        field("Odak oyuncu", focus)),
       h("div", { class: "button-row" }, run,
         h("span", { class: "caption" }, "Odak oyuncuyu değiştirdiğinizde analiz kendiliğinden yenilenir."))),
     out,
   );
-  if (saved.result) render(saved.result, saved.input, { ...opts });
-  else out.append(emptyState("Analiz henüz yapılmadı", "Bir tablo seçip \"Analiz et\" düğmesine basın ya da \"Örnek veriyi yükle\" ile sentetik otomotiv verisini deneyin."));
+  const drop = root.querySelector(".drop");
+  const setMode = (next, keepResult = false) => {
+    mode = next;
+    for (const [b, m] of [[modeTable, "table"], [modeSource, "source"]]) {
+      b.classList.toggle("active", m === mode);
+      b.setAttribute("aria-pressed", String(m === mode));
+    }
+    drop.hidden = mode === "source";
+    sourcePick.hidden = mode !== "source";
+    for (const el of tableOnly) el.hidden = mode === "source";
+    if (!keepResult) {
+      fillFocus([]);
+      fill(out, emptyState("Analiz henüz yapılmadı", mode === "source"
+        ? "Bir kaynak serisi seçip \"Analiz et\" düğmesine basın. Dönem, üst çubuktaki başlangıç ve bitiş aylarıdır."
+        : "Bir tablo seçip \"Analiz et\" düğmesine basın ya da \"Örnek veriyi yükle\" ile sentetik otomotiv verisini deneyin."));
+    }
+  };
+  modeTable.addEventListener("click", () => mode !== "table" && setMode("table"));
+  modeSource.addEventListener("click", () => mode !== "source" && setMode("source"));
+  series.addEventListener("change", () => { fillFocus([]); describeSeries(); });
+
+  const shown = saved.result && (saved.mode || "table") === mode;
+  setMode(mode, shown);
+  if (shown) render(saved.result, mode === "source" ? saved.sourceInput : saved.input, { ...opts });
+  loadShareSeries(saved.sourceInput?.series);
 };
 
 // --- routing and start-up -----------------------------------------------------------------------------

@@ -126,7 +126,7 @@ mlbooster web                                             # yerel web paneli: ht
 | 2. Feature paneli | Frekans seçimi (aylık, haftalık, iş günü), son değer ve önceki döneme göre farkı veren seri kartları, CSV/Parquet indirme |
 | 3. Veri kalitesi | Feature bazında durum, outlier ve structural break işaretli grafik, her bulgu için "Ne yapmalı?" |
 | 4. Tahmin çıtası | Hedef, çapa, ufuk ve model seçimi; naive'e göre iyileşme, dönemlere göre karşılaştırma, model kartı |
-| Pazar payı ve rakipler | CSV/JSON tablo yükleme ya da yapıştırma (örnek veri hazır), odak oyuncu seçimi; paylar, HHI ve CR3/CR5, pay kazanan ve kaybeden oyuncular, substitution correlation ile rakip seti, segment bazında shift-share |
+| Pazar payı ve rakipler | CSV/JSON tablo yükleme ya da yapıştırma (örnek veri hazır) veya "Kaynaktan çek" ile BDDK banka grubu serileri (aktif, kredi, mevduat, özkaynak; dönem üst çubuktan), odak oyuncu seçimi; paylar, HHI ve CR3/CR5, pay kazanan ve kaybeden oyuncular, substitution correlation ile rakip seti, segment bazında shift-share |
 | Kaynak durumu | Provider canary testleri |
 
 Her ekran bir "Kısaca" özetiyle başlar ve kaynak, veri çekim zamanı, kapsanan dönem ile eksik veriyi gösteren bir damgayla biter. Teknik terimler için aranabilir bir sözlük vardır.

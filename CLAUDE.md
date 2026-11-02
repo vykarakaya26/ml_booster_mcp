@@ -116,7 +116,8 @@ Rules:
    - Row labels change over time; rows are matched by `row_key()` (ASCII upper case, no stars or parentheses).
    - Catalog `remote`: `<table>[,<total group>+<group>...]/<ROW_KEY>[.<column>]`; the total gets an empty
      `entity_id`, the groups are entities (entity_id = group code). Panels use the total only; `market-share
-     --source bddk --series BDDK.AKTIF` turns the groups into shares (total → `TOPLAM`).
+     --source bddk --series BDDK.AKTIF` turns the groups into shares (total → `TOPLAM`). The sector's
+     `market_share_sources[].series` lists the series offered for this (web panel "Kaynaktan çek" mode).
 5. BTK / ODMD / EPDK / TSB: monitor the announcement page, download the new PDF/Excel, extract with a parser,
    validate (shares sum to 100±0.5, consistency with the previous period), write to silver.
 6. KAP: do NOT bulk-scrape kap.org.tr; use the MKK API Portal.

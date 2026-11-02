@@ -297,3 +297,9 @@ textarea { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-siz
   .hero h1 { font-size: 24px; }
 }
 @media (prefers-reduced-motion: reduce) { .spinner { animation: none; } }
+/* market share: data input mode (own table / catalog source) */
+.drop[hidden], .file-pick[hidden], .field[hidden] { display: none; }
+.inline-check { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--ink-2); cursor: pointer; }
+.inline-check input { width: 16px; height: 16px; min-height: 0; margin: 0; accent-color: var(--accent); }
+.file-pick .controls > .field { flex: 1 1 260px; min-width: 0; }
+.file-pick .controls select { width: 100%; }

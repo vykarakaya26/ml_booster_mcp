@@ -30,6 +30,7 @@ from mlbooster.application.use_cases import (
     GetSectorMap,
     ListReadyProviders,
     ListSectors,
+    ListShareSeries,
     ListSources,
     PreparePanel,
     ReadPanelFile,
@@ -129,6 +130,10 @@ class Container:
     @cached_property
     def read_panel_file(self) -> ReadPanelFile:
         return ReadPanelFile(self._tables)
+
+    @cached_property
+    def share_series(self) -> ListShareSeries:
+        return ListShareSeries(self.catalog, self.providers)
 
     @cached_property
     def market_share(self) -> AnalyzeMarketShare:
