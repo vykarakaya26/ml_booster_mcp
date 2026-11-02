@@ -124,18 +124,31 @@ def map_show(
 def fetch(
     series: Annotated[list[str], typer.Option(help="Seri kodu (birden fazla verilebilir)")],
     source: Annotated[str, typer.Option(help="Kaynak id")] = "evds3",
-    start: Annotated[str, typer.Option(help="YYYY-AA[-GG]")] = DEFAULT_START.isoformat(),
+    start: Annotated[
+        str | None,
+        typer.Option(help="YYYY-AA[-GG]; verilmezse kaynağın varsayılan geçmişi (EPİAŞ: son 5 yıl), diğerleri 2010-01"),
+    ] = None,
     end: Annotated[str | None, typer.Option(help="YYYY-AA[-GG], varsayılan bugün")] = None,
     freq: Annotated[str | None, typer.Option(help="D,B,W,SM,M,Q,S,A")] = None,
     agg: Annotated[str | None, typer.Option(help="avg,min,max,first,last,sum")] = None,
     formula: Annotated[int, typer.Option(help="0 düzey, 1 yüzde değişim, 3 yıllık yüzde değişim, ...")] = 0,
+    refresh: Annotated[bool, typer.Option(help="Yerel depoyu yok sayıp bütün aralığı kaynaktan yeniden çek")] = False,
 ):
-    """Serileri çeker, yerel depoya yazar ve özetini gösterir."""
+    """Serileri çeker, yerel depoya yazar ve özetini gösterir.
+
+    Artımlı kaynaklarda (EPİAŞ) yerel depoda bulunan dönemler yeniden çekilmez: yalnızca eksik geçmiş ve son
+    günler kaynaktan istenir, istekler kaynağın tarih aralığı sınırına göre bölünür."""
     try:
-        request = FetchRequest.create(source, series, _date(start), _date(end), freq, agg, formula)
-        summary = container().fetch_series.summarize(request, max_rows=0)
+        fetcher = container().fetch_series
+        first = _date(start) if start else fetcher.default_start(source, DEFAULT_START)
+        request = FetchRequest.create(source, series, first, _date(end), freq, agg, formula)
+        summary = fetcher.summarize(request, max_rows=0, refresh=refresh)
     except DomainError as exc:
         _fail(exc)
+    if summary.fetched:
+        typer.echo("Kaynaktan çekilen dönem: " + ", ".join(f"{a} → {b}" for a, b in summary.fetched))
+    else:
+        typer.echo("Yerel depo güncel; kaynağa istek gönderilmedi.")
     if not summary.rows:
         typer.echo("Gözlem dönmedi.")
         return
