@@ -119,6 +119,38 @@ def test_entity_named_like_the_total_is_rejected(catalog):
         tables("bddk", "BDDK.AKTIF", date(2024, 1, 1), date(2024, 12, 31))
 
 
+def test_renamed_entity_keeps_its_latest_name(setup):
+    tables, _, store = setup
+    tables("bddk", "BDDK.AKTIF", date(2024, 1, 1), date(2024, 12, 31))
+    old = store.frames[0]
+    store.frames[0] = old.assign(entity_name=old["entity_name"].where(old["date"] > date(2024, 6, 30), old["entity_name"] + " (eski)"))
+    table, _ = tables("bddk", "BDDK.AKTIF", date(2024, 1, 1), date(2024, 12, 31))
+    assert set(table["entity"]) == {"TOPLAM", "Mevduat-Kamu", "Mevduat-Yerli Özel", "Katılım"}
+
+
+def _tables_with(catalog, groups):
+    store = InMemoryObservationStore()
+    factory = EntityFactory(groups=groups)
+    return SourceShareTable(StaticCatalog(catalog), FetchSeries(StaticCatalog(catalog), factory, store), store)
+
+
+def test_small_negative_net_amounts_count_as_zero_and_large_ones_are_refused(catalog):
+    small = {"10009": ("Mevduat-Kamu", 100.0), "10008": ("Mevduat-Yerli Özel", 99.0), "10003": ("Katılım", -0.2)}
+    table, meta = _tables_with(catalog, small)("bddk", "BDDK.AKTIF", date(2024, 1, 1), date(2024, 12, 31))
+    assert meta["negative_rows"] == 12 and (table["value"] >= 0).all()
+    assert table.loc[table["entity"] == "Katılım", "value"].eq(0).all()
+    large = {**small, "10003": ("Katılım", -5.0)}
+    with pytest.raises(InvalidInput, match="negatif net tutarları"):
+        _tables_with(catalog, large)("bddk", "BDDK.AKTIF", date(2024, 1, 1), date(2024, 12, 31))
+
+
+def test_from_source_reports_zeroed_negative_amounts(catalog):
+    small = {"10009": ("Mevduat-Kamu", 100.0), "10008": ("Mevduat-Yerli Özel", 99.0), "10003": ("Katılım", -0.2)}
+    uc = AnalyzeMarketShare(StubPanel(), None, _tables_with(catalog, small))
+    out = uc.from_source("bddk", "BDDK.AKTIF", ShareConfig(), date(2023, 1, 1), date(2024, 12, 31))
+    assert any(i["check"] == "negative_values" and "24 satırda" in i["message"] for i in out["issues"])
+
+
 class StubPanel:
     def __call__(self, sector_id, start, end, save=True):
         raise AssertionError("no sector given")
