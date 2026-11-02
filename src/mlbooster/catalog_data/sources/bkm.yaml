@@ -1,13 +1,53 @@
 id: bkm
 name: BKM kartlı ödeme istatistikleri
 owner: Bankalararası Kart Merkezi
+# The provider pins this host and reads the "Dönemsel Bilgiler" report pages (one GET per report, full history).
 base_url: https://bkm.com.tr
 access: file_download
 auth: {type: none}
-license: {attribution: required, notes: "Kurumun kullanım koşulları kontrol edilmelidir."}
+rate_limit: {rps: 1, backoff: exponential, notes: "Her rapor sayfası 2017'den bu yana bütün ayları tek yanıtta döndürür."}
+license: {commercial: false, redistribution: false, attribution: required, notes: "Raporlar sayfası: \"Raporlar BKM kaynak gösterilmeksizin yayınlanamaz.\" Sitenin genel yasal uyarısı (bkm.com.tr/bkm/yasal-uyari/) bilgilerin yalnızca bilgi edinmek amacıyla kullanılabileceğini; BKM'nin önceden yazılı izni olmadan kopyalanamayacağını, dağıtılamayacağını, ileride kullanılmak üzere saklanamayacağını ve ticari amaçla kullanılamayacağını belirtir. Kaynak göstermeden yayımlamayın; ticari kullanım, yeniden dağıtım ve kalıcı saklama için BKM'den (destek@bkm.com.tr) yazılı izin alın."}
 frequency: [M]
-formats: [html, xlsx]
-sectors: [perakende, eticaret, turizm]
-publication_lag_days: 30  # estimated
-verification_status: reported
+formats: [html]
+sectors: [bankacilik, perakende, turizm, eticaret]
+publication_lag_days: 40  # Aug 2026 out and Sep 2026 not out on 2 Nov 2026; May 2026 out by 10 Jul 2026 (web archive)
+verification_status: verified
+verification_notes: "2026-11-02: Dönemsel Bilgiler rapor sayfaları anahtarsız olarak canlı test edildi (sunucu tarafında üretilen HTML, yıl başına bir tablo, Ocak 2017'den Ağustos 2026'ya kadar). Ağustos 2026 kart sayıları ve işlem tutarları 'Seçilen Aya Ait Genel İstatistik' raporuyla birebir aynı; sektör raporlarının toplamı genel rapordaki yerli ve yabancı kartların yurt içi alışveriş toplamına eşit. Excel indirmesi aynı HTML tablodur. robots.txt yalnızca /wp-admin/ yolunu kapatıyor. Banka bazında veri yayımlanmıyor."
+known_breaks: ["2017-01: Sitedeki aylık raporlar 2017'de başlıyor; daha eski yıllar yalnızca yıllık faaliyet raporlarında yer alır", "2025-03/04: Ön ödemeli kart sayısında tanım kaynaklı düşüş, banka kartı sayısında artış (Mart 2025 112,7 milyon → Nisan 2025 101,1 milyon)"]
+adapter: bkm
 priority: 10
+# remote: "<report slug>[,<filter_group>]/<COLUMN>[+<COLUMN>...]"; COLUMN joins the header keys from top to bottom and
+# several columns are summed. Merchant groups (filter_group of secilen-sektore-gore-aylik-gelisim): 2 araç
+# kiralama-satış/servis/yedek parça, 3 benzin ve yakıt istasyonları, 4 havayolları, 5 seyahat acenteleri/taşımacılık,
+# 6 konaklama, 10 yemek, 11 giyim ve aksesuar, 12 market ve alışveriş merkezleri, 14 elektrik-elektronik eşya,
+# bilgisayar, 15 telekomünikasyon, 17 sigorta (full list on the report page). Sector figures are shopping transactions
+# of domestic and foreign cards in Türkiye.
+series:
+  - {code: BKM.KART.KREDI, name: "Kredi kartı sayısı (adet, ay sonu)", freq: M, kind: level, unit: count, remote: "kart-sayilari/KART_SAYISI.TOPLAM_KREDI_KARTI", canary: true}
+  - {code: BKM.KART.BANKA, name: "Banka kartı sayısı (adet, ay sonu)", freq: M, kind: level, unit: count, remote: "kart-sayilari/KART_SAYISI.TOPLAM_BANKA_KARTI"}
+  - {code: BKM.KART.ONODEMELI, name: "Ön ödemeli kart sayısı (adet, ay sonu)", freq: M, kind: level, unit: count, remote: "kart-sayilari/KART_SAYISI.TOPLAM_ON_ODEMELI_KART"}
+  - {code: BKM.KK.YURTICI.TUTAR, name: "Yerli kredi kartlarının yurt içi kullanımı, alışveriş ve nakit çekme toplamı (milyon TL)", freq: M, kind: flow, unit: million_try, currency: TRY, remote: "yerli-kredi-kartlarinin-yurt-ici-kullanimi/ISLEM_TUTARI_MILYON_TL.TOPLAM"}
+  - {code: BKM.KK.YURTICI.ALISVERIS.TUTAR, name: "Yerli kredi kartlarıyla yurt içi alışveriş tutarı (milyon TL)", freq: M, kind: flow, unit: million_try, currency: TRY, remote: "yerli-kredi-kartlarinin-yurt-ici-kullanimi/ISLEM_TUTARI_MILYON_TL.ALISVERIS"}
+  - {code: BKM.KK.YURTICI.ALISVERIS.ADET, name: "Yerli kredi kartlarıyla yurt içi alışveriş işlem adedi", freq: M, kind: flow, unit: count, remote: "yerli-kredi-kartlarinin-yurt-ici-kullanimi/ISLEM_ADEDI.ALISVERIS"}
+  - {code: BKM.BK.YURTICI.TUTAR, name: "Yerli banka kartlarının yurt içi kullanımı, alışveriş ve nakit çekme toplamı (milyon TL)", freq: M, kind: flow, unit: million_try, currency: TRY, remote: "yerli-banka-kartlarinin-yurt-ici-kullanimi/ISLEM_TUTARI_MILYON_TL.TOPLAM"}
+  - {code: BKM.BK.YURTICI.ALISVERIS.TUTAR, name: "Yerli banka kartlarıyla yurt içi alışveriş tutarı (milyon TL)", freq: M, kind: flow, unit: million_try, currency: TRY, remote: "yerli-banka-kartlarinin-yurt-ici-kullanimi/ISLEM_TUTARI_MILYON_TL.ALISVERIS"}
+  - {code: BKM.BK.YURTICI.ALISVERIS.ADET, name: "Yerli banka kartlarıyla yurt içi alışveriş işlem adedi", freq: M, kind: flow, unit: count, remote: "yerli-banka-kartlarinin-yurt-ici-kullanimi/ISLEM_ADEDI.ALISVERIS"}
+  - {code: BKM.KK.YABANCI.TUTAR, name: "Yabancı kredi kartlarının yurt içi kullanımı, toplam (milyon TL)", freq: M, kind: flow, unit: million_try, currency: TRY, remote: "yabanci-kredi-kartlarinin-yurt-ici-kullanimi/ISLEM_TUTARI_MILYON_TL.TOPLAM"}
+  - {code: BKM.BK.YABANCI.TUTAR, name: "Yabancı banka kartlarının yurt içi kullanımı, toplam (milyon TL)", freq: M, kind: flow, unit: million_try, currency: TRY, remote: "yabanci-banka-kartlarinin-yurt-ici-kullanimi/ISLEM_TUTARI_MILYON_TL.TOPLAM"}
+  - {code: BKM.KK.YURTDISI.TUTAR, name: "Yerli kredi kartlarının yurt dışı kullanımı, toplam (milyon TL)", freq: M, kind: flow, unit: million_try, currency: TRY, remote: "yerli-kredi-kartlarinin-yurtdisi-kullanimi/ISLEM_TUTARI_MILYON_TL.TOPLAM"}
+  - {code: BKM.BK.YURTDISI.TUTAR, name: "Yerli banka kartlarının yurt dışı kullanımı, toplam (milyon TL)", freq: M, kind: flow, unit: million_try, currency: TRY, remote: "yerli-banka-kartlarinin-yurtdisi-kullanimi/ISLEM_TUTARI_MILYON_TL.TOPLAM"}
+  - {code: BKM.INTERNET.TUTAR, name: "İnternetten yapılan kartlı ödemeler, yerli ve yabancı kartların yurt içi kullanımı (milyon TL)", freq: M, kind: flow, unit: million_try, currency: TRY, remote: "internetten-yapilan-kartli-odeme-islemleri/ISLEM_TUTARI_MILYON_TL.YERLI_VE_YABANCI_KARTLARIN_YURT_ICI_KULLANIMI.TOPLAM"}
+  - {code: BKM.INTERNET.ADET, name: "İnternetten yapılan kartlı ödemeler, yerli ve yabancı kartların yurt içi kullanımı (işlem adedi)", freq: M, kind: flow, unit: count, remote: "internetten-yapilan-kartli-odeme-islemleri/ISLEM_ADEDI.YERLI_VE_YABANCI_KARTLARIN_YURT_ICI_KULLANIMI.TOPLAM"}
+  - {code: BKM.SEKTOR.MARKET.TUTAR, name: "Market ve alışveriş merkezlerinde kartlı alışveriş tutarı (milyon TL)", freq: M, kind: flow, unit: million_try, currency: TRY, remote: "secilen-sektore-gore-aylik-gelisim,12/ISLEM_TUTARI_MILYON_TL.ISLEM_TUTARI_BANKA_KARTI+ISLEM_TUTARI_MILYON_TL.ISLEM_TUTARI_KREDI_KARTI"}
+  - {code: BKM.SEKTOR.MARKET.ADET, name: "Market ve alışveriş merkezlerinde kartlı alışveriş işlem adedi", freq: M, kind: flow, unit: count, remote: "secilen-sektore-gore-aylik-gelisim,12/ISLEM_ADEDI.ISLEM_ADEDI_BANKA_KARTI+ISLEM_ADEDI.ISLEM_ADEDI_KREDI_KARTI"}
+  - {code: BKM.SEKTOR.GIYIM.TUTAR, name: "Giyim ve aksesuarda kartlı alışveriş tutarı (milyon TL)", freq: M, kind: flow, unit: million_try, currency: TRY, remote: "secilen-sektore-gore-aylik-gelisim,11/ISLEM_TUTARI_MILYON_TL.ISLEM_TUTARI_BANKA_KARTI+ISLEM_TUTARI_MILYON_TL.ISLEM_TUTARI_KREDI_KARTI"}
+  - {code: BKM.SEKTOR.ELEKTRONIK.TUTAR, name: "Elektrik-elektronik eşya ve bilgisayarda kartlı alışveriş tutarı (milyon TL)", freq: M, kind: flow, unit: million_try, currency: TRY, remote: "secilen-sektore-gore-aylik-gelisim,14/ISLEM_TUTARI_MILYON_TL.ISLEM_TUTARI_BANKA_KARTI+ISLEM_TUTARI_MILYON_TL.ISLEM_TUTARI_KREDI_KARTI"}
+  - {code: BKM.SEKTOR.YEMEK.TUTAR, name: "Yemek sektöründe kartlı alışveriş tutarı (milyon TL)", freq: M, kind: flow, unit: million_try, currency: TRY, remote: "secilen-sektore-gore-aylik-gelisim,10/ISLEM_TUTARI_MILYON_TL.ISLEM_TUTARI_BANKA_KARTI+ISLEM_TUTARI_MILYON_TL.ISLEM_TUTARI_KREDI_KARTI"}
+  - {code: BKM.SEKTOR.KONAKLAMA.TUTAR, name: "Konaklamada kartlı alışveriş tutarı (milyon TL)", freq: M, kind: flow, unit: million_try, currency: TRY, remote: "secilen-sektore-gore-aylik-gelisim,6/ISLEM_TUTARI_MILYON_TL.ISLEM_TUTARI_BANKA_KARTI+ISLEM_TUTARI_MILYON_TL.ISLEM_TUTARI_KREDI_KARTI"}
+  - {code: BKM.SEKTOR.KONAKLAMA.ADET, name: "Konaklamada kartlı alışveriş işlem adedi", freq: M, kind: flow, unit: count, remote: "secilen-sektore-gore-aylik-gelisim,6/ISLEM_ADEDI.ISLEM_ADEDI_BANKA_KARTI+ISLEM_ADEDI.ISLEM_ADEDI_KREDI_KARTI"}
+  - {code: BKM.SEKTOR.HAVAYOLU.TUTAR, name: "Havayollarında kartlı alışveriş tutarı (milyon TL)", freq: M, kind: flow, unit: million_try, currency: TRY, remote: "secilen-sektore-gore-aylik-gelisim,4/ISLEM_TUTARI_MILYON_TL.ISLEM_TUTARI_BANKA_KARTI+ISLEM_TUTARI_MILYON_TL.ISLEM_TUTARI_KREDI_KARTI"}
+  - {code: BKM.SEKTOR.SEYAHAT.TUTAR, name: "Seyahat acenteleri ve taşımacılıkta kartlı alışveriş tutarı (milyon TL)", freq: M, kind: flow, unit: million_try, currency: TRY, remote: "secilen-sektore-gore-aylik-gelisim,5/ISLEM_TUTARI_MILYON_TL.ISLEM_TUTARI_BANKA_KARTI+ISLEM_TUTARI_MILYON_TL.ISLEM_TUTARI_KREDI_KARTI"}
+  - {code: BKM.SEKTOR.AKARYAKIT.TUTAR, name: "Benzin ve yakıt istasyonlarında kartlı alışveriş tutarı (milyon TL)", freq: M, kind: flow, unit: million_try, currency: TRY, remote: "secilen-sektore-gore-aylik-gelisim,3/ISLEM_TUTARI_MILYON_TL.ISLEM_TUTARI_BANKA_KARTI+ISLEM_TUTARI_MILYON_TL.ISLEM_TUTARI_KREDI_KARTI"}
+  - {code: BKM.SEKTOR.OTOMOTIV.TUTAR, name: "Araç kiralama, satış, servis ve yedek parçada kartlı alışveriş tutarı (milyon TL)", freq: M, kind: flow, unit: million_try, currency: TRY, remote: "secilen-sektore-gore-aylik-gelisim,2/ISLEM_TUTARI_MILYON_TL.ISLEM_TUTARI_BANKA_KARTI+ISLEM_TUTARI_MILYON_TL.ISLEM_TUTARI_KREDI_KARTI"}
+  - {code: BKM.SEKTOR.TELEKOM.TUTAR, name: "Telekomünikasyonda kartlı alışveriş tutarı (milyon TL)", freq: M, kind: flow, unit: million_try, currency: TRY, remote: "secilen-sektore-gore-aylik-gelisim,15/ISLEM_TUTARI_MILYON_TL.ISLEM_TUTARI_BANKA_KARTI+ISLEM_TUTARI_MILYON_TL.ISLEM_TUTARI_KREDI_KARTI"}
+  - {code: BKM.SEKTOR.SIGORTA.TUTAR, name: "Sigortada kartlı ödeme tutarı (milyon TL)", freq: M, kind: flow, unit: million_try, currency: TRY, remote: "secilen-sektore-gore-aylik-gelisim,17/ISLEM_TUTARI_MILYON_TL.ISLEM_TUTARI_BANKA_KARTI+ISLEM_TUTARI_MILYON_TL.ISLEM_TUTARI_KREDI_KARTI"}

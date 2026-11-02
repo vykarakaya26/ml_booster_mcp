@@ -8,12 +8,15 @@ macro_features:
   - {name: kart_yemek_reel_yoy, source: evds3, series: TP.KKHARTUT.KT24, transform: yoy_pct, agg: avg, real: true}
   - {name: kart_internet_reel_yoy, source: evds3, series: TP.KKHARTUT.KT50, transform: yoy_pct, agg: avg, real: true}
   - {name: kartli_odeme_endeksi_reel, source: evds3, series: TP.KARTMETRE.D2, transform: yoy_pct}
+  - {name: market_kart_islem_adedi_yoy, source: bkm, series: BKM.SEKTOR.MARKET.ADET, transform: yoy_pct}  # transaction count: a volume proxy free of price effects
+  - {name: internet_kart_islem_adedi_yoy, source: bkm, series: BKM.INTERNET.ADET, transform: yoy_pct}
+  - {name: kart_elektronik_reel_yoy, source: bkm, series: BKM.SEKTOR.ELEKTRONIK.TUTAR, transform: yoy_pct, real: true}
   - {name: tuketici_guveni, source: evds3, series: TP.TG2.Y01, transform: level}
   - {name: usdtry_logdiff, source: evds3, series: TP.DK.USD.A, transform: log_diff, agg: avg}
   - {name: oecd_tuketici_guveni, source: oecd, series: OECD.CCI.TR, transform: level}
 sector_sources: [bkm, tuik]
 market_share_sources:
-  - {source: bkm, metric: "sektörel kart harcaması (talep proxy'si; firma payı değildir)", is_proxy: true}
+  - {source: bkm, metric: "sektörel kart harcaması (talep proxy'si; firma payı değildir; BKM.SEKTOR.*)", is_proxy: true}
 ml_use_cases: ["Satış tahmini", "Enflasyon geçişkenliği", "Sepet/kategori talebi"]
 feature_recipes:
   - {name: market_toplam_farki, op: spread, inputs: [kart_market_reel_yoy, kart_toplam_reel_yoy], note: "Temel tüketimin toplam harcamaya göre büyüme farkı"}

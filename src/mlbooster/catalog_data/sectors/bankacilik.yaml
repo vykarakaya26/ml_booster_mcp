@@ -9,6 +9,8 @@ macro_features:
   - {name: kredi_faizi, source: evds3, discover_hint: "Ticari ve tüketici kredi faizleri veri grubu: /serieList ya da EVDS-MCP list_series ile bulunabilir"}
   - {name: mevduat_faizi, source: evds3, discover_hint: "TL mevduat faizleri (vadeye göre) veri grubu"}
   - {name: pka_enflasyon_beklentisi, source: evds3, series: TP.ENFBEK.PKA12ENF, transform: level}
+  - {name: kredi_karti_sayisi_yoy, source: bkm, series: BKM.KART.KREDI, transform: yoy_pct}
+  - {name: kredi_karti_harcama_reel_yoy, source: bkm, series: BKM.KK.YURTICI.TUTAR, transform: yoy_pct, real: true}
   - {name: tlref, source: evds3, series: TP.BISTTLREF.ORAN, transform: level, agg: avg}
   - {name: m2_yoy, source: evds3, series: TP.HPBITABLO1.11, transform: yoy_pct, agg: last}
   - {name: rezerv_logdiff, source: evds3, series: TP.AB.TOPLAM, transform: log_diff, agg: last}

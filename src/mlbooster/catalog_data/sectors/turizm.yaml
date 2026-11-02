@@ -5,12 +5,16 @@ macro_features:
   - {name: kart_konaklama_reel_yoy, source: evds3, series: TP.KKHARTUT.KT12, transform: yoy_pct, agg: avg, real: true}
   - {name: kart_havayolu_reel_yoy, source: evds3, series: TP.KKHARTUT.KT10, transform: yoy_pct, agg: avg, real: true}
   - {name: kart_seyahat_reel_yoy, source: evds3, series: TP.KKHARTUT.KT20, transform: yoy_pct, agg: avg, real: true}
+  - {name: yabanci_kredi_karti_reel_yoy, source: bkm, series: BKM.KK.YABANCI.TUTAR, transform: yoy_pct, real: true}  # foreign cards in Türkiye: inbound tourism spending
+  - {name: yabanci_banka_karti_reel_yoy, source: bkm, series: BKM.BK.YABANCI.TUTAR, transform: yoy_pct, real: true}
+  - {name: yurtdisi_kart_harcama_reel_yoy, source: bkm, series: BKM.KK.YURTDISI.TUTAR, transform: yoy_pct, real: true}  # Turkish cards abroad: outbound travel
+  - {name: konaklama_kart_islem_adedi_yoy, source: bkm, series: BKM.SEKTOR.KONAKLAMA.ADET, transform: yoy_pct}
   - {name: tufe_yoy, source: evds3, series: TP.TUKFIY2025.GENEL, transform: yoy_pct}
   - {name: yabanci_ziyaretci, source: evds3, discover_hint: "Kültür ve Turizm Bakanlığı sınır istatistikleri EVDS'de bulunamadı; turizm gelirleri ödemeler dengesinde cari işlemlerin alt kalemi olarak yer alır"}
   - {name: reel_efektif_kur, source: bis, series: BIS.REER.TR, transform: level}
 sector_sources: [bkm]
 market_share_sources:
-  - {source: bkm, metric: "konaklama, havayolu ve seyahat kart harcaması (talep proxy'si)", is_proxy: true}
+  - {source: bkm, metric: "konaklama, havayolu ve seyahat kart harcaması (talep proxy'si; BKM.SEKTOR.KONAKLAMA.TUTAR, BKM.SEKTOR.HAVAYOLU.TUTAR, BKM.SEKTOR.SEYAHAT.TUTAR)", is_proxy: true}
 ml_use_cases: ["Talep tahmini", "Sezon planlama", "Kur duyarlılığı"]
 feature_recipes:
   - {name: reel_kur_sapma_12, op: gap, inputs: [reel_efektif_kur], window: 12, note: "Reel efektif kurun son 12 ay ortalamasından sapması (fiyat rekabetçiliği)"}
