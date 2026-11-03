@@ -115,6 +115,9 @@ Rules:
    inclusive (T00:00 returns all its hours) and responses are not paged. Dates carry the Europe/Istanbul offset of
    that day (+02:00 in winters before Sep 2016; +03:00 there returns the previous day). Generation `total` = sources
    + `importExport`; domestic generation (`generation`, the `by_source` total) is the sum of the sources.
+   History: catalog `history: {default_years: 5, revision_days: 7}` (opt-in per source; only EPİAŞ): `fetch` without
+   a start goes back 5 years; later fetches request only history before the earliest earlier request plus the tail
+   from (last cached day − revision_days); `--refresh` / `refresh=true` refetches everything.
 4. BDDK / TBB / BKM: HTML tables + Excel downloads; change detection by file hash.
    BDDK (done — infrastructure/providers/bddk.py), live observation 2026-11-02: no robots.txt (404); the terms of use
    allow quotation with attribution, commercial use needs BDDK's written permission.
@@ -188,7 +191,9 @@ Rules:
    queried. Catalog `remote`: `<top|rising>,<count|interest>/<KEY>[+<KEY>...]`; count = daily keyword hits in the list
    (history accumulates in silver), interest = weekly score of a listed term (total = mean over regions, regions are
    entities); ad hoc `BQT.ILGI.<TERM>`. All values is_proxy=True (search interest). No CSV import, no pytrends/SerpAPI.
-   Not yet verified live (needs the user's GCP project).
+   Live 2026-11-03 (verified): tables are not clustered (~0.25 GiB billed per listed day) → lists are read in 7-day
+   chunks; each term has 261 weeks × 81 provinces, no country-level row, null = low volume (0 in the total);
+   partitions appear 2 days late (publication_lag_days 2, history revision_days 3).
 
 ## Observation (silver) schema (domain/observations.py; Parquet schema in storage/observation_store.py)
 source_id, dataset_id, series_id, entity_id, entity_name, metric, date (period end), freq, value, unit,
@@ -207,8 +212,8 @@ currency, is_proxy, vintage_ts, publication_lag_days. Key: source_id, series_id,
 
 ## Acceptance criteria (MVP)
 - 10 adapters (EVDS3 ✓, TÜİK ✓, BDDK ✓, TBB ✓, EPİAŞ ✓ code / healthcheck needs the user's account, EPDK ✓, BTK ✓, TSB ✓,
-  ODMD ✓, BKM ✓) pass the healthcheck. Extra: Google Trends via BigQuery (bq_trends; code ✓, healthcheck needs
-  the user's GCP project).
+  ODMD ✓, BKM ✓) pass the healthcheck. Extra: Google Trends via BigQuery (bq_trends ✓; needs the user's GCP
+  project and ADC).
 - Market share series for 5 sectors (banking, insurance, telecom, automotive, fuel retail; sector IDs bankacilik,
   sigorta, telekom, otomotiv, akaryakit) in the gold panel.
 - Every source YAML has license, auth, frequency, publication_lag and verification_status filled in (enforced by

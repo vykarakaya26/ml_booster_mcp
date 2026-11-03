@@ -51,7 +51,7 @@ class SourceShareTable:
         if cached.empty or not (
             _covers_start(cached, period.start) or _asked_from(self._store.requested_start(source.id, code, "level"), period.start)
         ):
-            self._fetch(FetchRequest.create(source.id, [code], period.start, period.end))
+            self._fetch(FetchRequest.create(source.id, [code], period.start, period.end), refresh=refresh)
         elif _is_stale(cached):
             since = max(period.start, pd.Timestamp(cached["date"].max()).date() - timedelta(days=REVISION_DAYS))
             self._fetch(FetchRequest.create(source.id, [code], since, period.end))

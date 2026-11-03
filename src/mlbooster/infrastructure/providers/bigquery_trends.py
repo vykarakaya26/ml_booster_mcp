@@ -13,11 +13,12 @@ checked 2026-11-03, not yet queried live):
 So the provider offers two kinds of series (catalog `remote`: `<top|rising>,<count|interest>/<KEY>[+<KEY>...]`):
 - count: per refresh_date, how many terms of the Türkiye list match one of the keywords (ASCII-folded word prefix,
   `_` = space). Only the last ~30 days exist upstream; every fetch adds the new days to the local observation
-  store, where the history accumulates (the panel reads the store).
+  store, where the history accumulates (catalog `history.revision_days` makes FetchSeries read the store back).
 - interest: the weekly search interest of one term (the KEYs are alternative spellings, matched exactly after
-  folding) from the latest retained list that contains it: the mean over regions is the total (empty entity_id),
-  regions are entities. The 5-year backfill is rescaled by Google on every refresh (the maximum of the series is 100),
-  so older weeks are revised; vintages keep the revisions.
+  folding) from the latest retained list that contains it: the mean over the 81 provinces (null = too little volume
+  = 0) is the total (empty entity_id), provinces with a published score are entities. The 5-year backfill is rescaled by Google on every refresh (the maximum of the series is 100),
+  so older weeks are revised: the provider always returns the whole backfill up to the requested end, keeping every
+  stored week on the scale of one refresh; vintages keep the revisions.
 Both are search-interest proxies (is_proxy=True), not market shares; scores of different terms are not comparable.
 
 A code without a catalog seed is read from its name: `BQT.ILGI.<KEY>` = `top,interest/<key>` lets a user track any
@@ -58,6 +59,13 @@ DEFAULT_MAX_BYTES = 5 * 1024**3
 MIN_MAX_BYTES = 10 * 1024**2  # BigQuery bills at least 10 MiB per query and refuses a lower cap
 MAX_MAX_BYTES = 100 * 1024**3
 RETENTION_DAYS = 35  # partitions expire after 30 days; a small margin for late refreshes
+# The tables are partitioned by refresh_date but not clustered: a list query bills its columns for every country,
+# about 0.25 GiB per day (live 2026-11-03: 7.8 GiB for 35 days). Lists are therefore read in 7-day chunks
+# (~1.75 GiB, under the default cap) and only for the days asked; finished chunks are shared within the process.
+LIST_CHUNK_DAYS = 7
+SETTLED_DAYS = 3  # a partition older than this no longer changes (new days appear about two days late)
+_MAX_SHARED_CHUNKS = 64
+_SHARED_CHUNKS: dict[tuple[str, date, date], pd.DataFrame] = {}
 MAX_KEYS = 20
 _HEALTH_MAX_AGE_DAYS = 4
 
@@ -80,7 +88,7 @@ FROM `{dataset}.{table}`
 WHERE refresh_date = @refresh
   AND country_code = @country
   AND term IN UNNEST(@terms)
-  AND week BETWEEN @start AND @end
+  AND week <= @end
 """
 
 
@@ -111,6 +119,19 @@ def max_bytes_billed(value: str | None) -> int:
             f"{MAX_BYTES_ENV} {MIN_MAX_BYTES} ile {MAX_MAX_BYTES} arasında bir bayt sayısı olmalıdır (ör. 5368709120 = 5 GiB)"
         )
     return int(value)
+
+
+def _chunks(since: date, until: date) -> list[tuple[date, date]]:
+    out, start = [], since
+    while start <= until:
+        end = min(until, start + timedelta(days=LIST_CHUNK_DAYS - 1))
+        out.append((start, end))
+        start = end + timedelta(days=1)
+    return out
+
+
+def _empty_list() -> pd.DataFrame:
+    return pd.DataFrame(columns=["refresh_date", "term", "rank", "folded"])
 
 
 def _matches_keyword(term: str, keyword: str) -> bool:
@@ -184,7 +205,14 @@ class BigQueryTrendsProvider:
 
     def _list(self, table: str, since: date, until: date) -> pd.DataFrame:
         """The Türkiye list (refresh_date, term, folded, rank) of every retained refresh in [since, until]."""
+        frames = [self._chunk(table, start, end) for start, end in _chunks(since, until)]
+        return pd.concat(frames, ignore_index=True) if frames else _empty_list()
+
+    def _chunk(self, table: str, since: date, until: date) -> pd.DataFrame:
         key = (table, since, until)
+        settled = until <= self._now() - timedelta(days=SETTLED_DAYS)
+        if settled and key in _SHARED_CHUNKS:
+            return _SHARED_CHUNKS[key]
         if key not in self._lists:
             result = self._bq().query(
                 _LIST_SQL.format(dataset=DATASET, table=TABLES[table]),
@@ -201,6 +229,10 @@ class BigQueryTrendsProvider:
             frame = frame[frame["term"].notna()]
             frame["folded"] = frame["term"].astype(str).map(fold)
             self._lists[key] = frame
+            if settled:
+                if len(_SHARED_CHUNKS) >= _MAX_SHARED_CHUNKS:
+                    _SHARED_CHUNKS.pop(next(iter(_SHARED_CHUNKS)))
+                _SHARED_CHUNKS[key] = frame
         return self._lists[key]
 
     def _window(self, request: FetchRequest) -> tuple[date, date] | None:
@@ -224,8 +256,13 @@ class BigQueryTrendsProvider:
     def _interest(self, seed: SeedSeries, table: str, keys: tuple[str, ...], request: FetchRequest) -> pd.DataFrame:
         columns = ["series_id", "entity_id", "entity_name", "date", "value"]
         today = self._now()
-        listing = self._list(table, today - timedelta(days=RETENTION_DAYS), today)
-        found = listing[listing["folded"].isin(keys)]
+        found = pd.DataFrame()
+        # Most recent chunk first: a term that trends now is found after one chunk.
+        for start, end in reversed(_chunks(today - timedelta(days=RETENTION_DAYS), today)):
+            listing = self._chunk(table, start, end)
+            found = listing[listing["folded"].isin(keys)]
+            if not found.empty:
+                break
         if found.empty:  # the term is not in any retained list: nothing new upstream
             return pd.DataFrame(columns=columns)
         latest = max(found["refresh_date"])
@@ -234,36 +271,42 @@ class BigQueryTrendsProvider:
             _INTEREST_SQL.format(dataset=DATASET, table=TABLES[table]),
             [
                 Param("refresh", "DATE", latest), Param("country", "STRING", COUNTRY), Param("terms", "STRING", terms),
-                Param("start", "DATE", request.period.start - timedelta(days=6)), Param("end", "DATE", request.period.end),
+                Param("end", "DATE", request.period.end),
             ],
         )  # fmt: skip
         if result.columns != ["week", "region_code", "region_name", "score"]:
             raise UnexpectedResponse("BigQuery Google Trends ilgi sorgusu beklenen kolonları döndürmedi")
         frame = pd.DataFrame(result.rows, columns=result.columns)
-        frame = frame[frame["score"].notna()]
-        if frame.empty:
+        if frame.empty or frame["score"].isna().all():
             return pd.DataFrame(columns=columns)
         try:
             week_start = pd.to_datetime(frame["week"], format="%Y-%m-%d")
             frame["score"] = pd.to_numeric(frame["score"]).astype(float)
         except (ValueError, TypeError):
             raise UnexpectedResponse("BigQuery Google Trends ilgi sorgusunda tanınmayan değer var") from None
-        if not frame["score"].between(0, 100).all():
+        if not frame["score"].dropna().between(0, 100).all():
             raise UnexpectedResponse("Google Trends skoru 0–100 aralığının dışında")
         frame["date"] = (week_start + pd.Timedelta(days=6)).dt.date  # observation date = end of the week
         frame["region_code"] = frame["region_code"].fillna("").astype(str)
-        # Several spellings of the same term in one list: the mean per region and week.
+        # Live 2026-11-03: every term has 261 weeks × 81 provinces and no country-level row; Google leaves the score
+        # null when the search volume is too low (most cells for niche terms). Null counts as 0 in the total, the mean
+        # over all provinces, so every week has a value; province rows keep only the published scores. Several
+        # spellings of the same term in one list: the mean per province and week.
+        frame["filled"] = frame["score"].fillna(0.0)
         by_region = frame.groupby(["date", "region_code"], as_index=False).agg(
-            value=("score", "mean"), region_name=("region_name", "first")
+            value=("score", "mean"), filled=("filled", "mean"), region_name=("region_name", "first")
         )
         national = by_region[by_region["region_code"].isin(["", COUNTRY])]
         regions = by_region[~by_region["region_code"].isin(["", COUNTRY])]
-        # A country-level row (if the table has one) is the total; otherwise the mean over regions.
-        total = national.groupby("date")["value"].mean() if not national.empty else regions.groupby("date")["value"].mean()
+        # A country-level row (if the table ever has one) is the total; otherwise the mean over provinces.
+        total = national.groupby("date")["filled"].mean() if not national.empty else regions.groupby("date")["filled"].mean()
+        published = regions[regions["value"].notna()]
         rows = [(seed.code, "", None, d, float(v)) for d, v in total.items()]
-        rows += [(seed.code, r.region_code, r.region_name, r.date, float(r.value)) for r in regions.itertuples()]
+        rows += [(seed.code, r.region_code, r.region_name, r.date, float(r.value)) for r in published.itertuples()]
         out = pd.DataFrame(rows, columns=columns)
-        return out[(out["date"] >= request.period.start) & (out["date"] <= request.period.end)]
+        # The whole backfill is returned even if the request starts later: Google rescales the series on every
+        # refresh, so all weeks in the store must come from the same refresh (one vintage, one scale).
+        return out[out["date"] <= request.period.end]
 
     # --- Data ----------------------------------------------------------------------------
 

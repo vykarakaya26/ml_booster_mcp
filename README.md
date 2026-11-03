@@ -32,6 +32,8 @@ Key yalnızca HTTP header'ında ve yalnızca `evds3.tcmb.gov.tr` adresine gönde
 
 **EPİAŞ (isteğe bağlı):** Elektrik piyasası verileri (PTF, SMF, tüketim, üretim) için [kayit.epias.com.tr](https://kayit.epias.com.tr) adresinden ücretsiz bir Şeffaflık Platformu hesabı açın ve aynı `.env` dosyasına `EPIAS_USERNAME` (kayıt e-postası) ile `EPIAS_PASSWORD` değerlerini yazın. Kimlik bilgileri yalnızca `giris.epias.com.tr` adresine gönderilir; alınan TGT yalnızca bellekte tutulur. Bu değerler yoksa EPİAŞ healthcheck'i atlanır.
 
+EPİAŞ servisleri tek istekte en fazla 3 ay (üretim) ya da 1 yıl (PTF, SMF, tüketim) veri verir. `mlbooster fetch --source epias --series EPIAS.PTF` başlangıç tarihi verilmezse son 5 yılı bu sınırlara göre bölerek bir kez çeker ve yerel depoya yazar; sonraki çağrılar yalnızca eksik dönemi ve son 7 günü ister. Farklı bir geçmiş için `--start` verin (ör. son 2 yıl için `--start 2024-11-01`), bütün aralığı yeniden çekmek için `--refresh` kullanın.
+
 **Google Trends (isteğe bağlı, BigQuery):** Türkiye'nin günlük Google Trends listeleri (Top 25 ve yükselen 25 terim) Google'ın BigQuery'deki ücretsiz public dataset'inden çekilir (`--source bq_trends`). Kaynak yalnızca son 30 günün listelerini tutar; mlbooster her çekimde yeni günleri yerel depoya yazar, geçmiş orada birikir. `BQT.ILGI.<TERIM>` (ör. `BQT.ILGI.TOGG`) listeye girmiş bir terimin 5 yıllık haftalık arama ilgisini il kırılımıyla verir. İstenen herhangi bir terim sorgulanamaz. Değerler arama ilgisi proxy'sidir, pazar payı değildir.
 
 1. Bir Google Cloud projesi açın ya da seçin (BigQuery sandbox kart bilgisi istemez).
