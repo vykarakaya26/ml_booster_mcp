@@ -18,7 +18,7 @@ from mlbooster.application.errors import AuthenticationFailed, CredentialsMissin
 from mlbooster.domain.errors import InvalidInput
 from mlbooster.domain.model import HealthStatus
 from mlbooster.infrastructure.http_client import SecureHttpClient
-from mlbooster.infrastructure.providers import google_auth
+from mlbooster.infrastructure.providers import bigquery_trends, google_auth
 from mlbooster.infrastructure.providers.bigquery_rest import BigQueryClient, Param, project_id
 from mlbooster.infrastructure.providers.bigquery_trends import (
     DEFAULT_MAX_BYTES,
@@ -49,6 +49,13 @@ ACCESS2 = "ya29.second-token-ZYXWVU9876543210"
 def adc(**extra) -> dict:
     return {"type": "authorized_user", "client_id": "123.apps.googleusercontent.com", "client_secret": CLIENT_SECRET,
             "refresh_token": REFRESH_TOKEN, **extra}  # fmt: skip
+
+
+@pytest.fixture(autouse=True)
+def _fresh_shared_chunks():
+    bigquery_trends._SHARED_CHUNKS.clear()
+    yield
+    bigquery_trends._SHARED_CHUNKS.clear()
 
 
 @pytest.fixture
@@ -464,7 +471,7 @@ def test_count_series_per_refresh_date(provider, creds):
     respx.post(TOKEN_URL).mock(return_value=token_ok())
     route = respx.post(QUERY_URL).mock(return_value=bq(LIST_COLUMNS, listing()))
     df = provider.fetch(_req(["BQT.TOP.EKONOMI.SAYI", "BQT.TOP.TELEKOM.SAYI"]))
-    assert route.call_count == 1  # one list query serves every count series of the same table and window
+    assert route.call_count == 5  # 7-day chunks, shared by every count series of the same table
     eco = df[df["series_id"] == "BQT.TOP.EKONOMI.SAYI"]
     assert list(eco["date"]) == [date(2026, 11, 1), date(2026, 11, 2)]
     assert list(eco["value"]) == [2.0, 2.0]  # "Dolar kuru", "Asgari ücret 2027"
@@ -475,7 +482,9 @@ def test_count_series_per_refresh_date(provider, creds):
     assert "refresh_date BETWEEN @since AND @until" in sql and "country_code = @country" in sql
     assert "SELECT *" not in sql
     p = params(route.calls[0])
-    assert p["country"] == {"value": "TR"} and p["since"] == {"value": "2026-10-01"} and p["until"] == {"value": "2026-11-03"}
+    assert p["country"] == {"value": "TR"} and p["since"] == {"value": "2026-10-01"} and p["until"] == {"value": "2026-10-07"}
+    last = params(route.calls[-1])
+    assert last["since"] == {"value": "2026-10-29"} and last["until"] == {"value": "2026-11-03"}
 
 
 @respx.mock
@@ -506,7 +515,8 @@ def test_interest_uses_latest_list_and_one_partition(provider, creds):
     assert "refresh_date = @refresh" in body(route.calls[1])["query"] and "start" not in p
     total = df[df["entity_id"] == ""]
     assert list(total["date"]) == [date(2026, 10, 24), date(2026, 10, 31)]  # week start + 6 days
-    assert list(total["value"]) == [50.0, 100.0]  # mean over regions; a null score is skipped
+    assert list(total["value"]) == [50.0, 50.0]  # mean over provinces; a null score (too little volume) counts as 0
+    assert len(df[(df["entity_id"] == "TR-06")]) == 1  # province rows keep only published scores
     regions = df[df["entity_id"] != ""]
     assert set(regions["entity_id"]) == {"TR-34", "TR-06"} and "İstanbul" in set(regions["entity_name"])
     assert set(df["freq"]) == {"W"} and set(df["unit"]) == {"index_0_100"} and set(df["publication_lag_days"]) == {2}
@@ -526,7 +536,7 @@ def test_interest_for_term_not_in_lists_is_empty(provider, creds):
     respx.post(TOKEN_URL).mock(return_value=token_ok())
     route = respx.post(QUERY_URL).mock(return_value=bq(LIST_COLUMNS, listing()))
     assert provider.fetch(_req("BQT.ILGI.TURKCELL")).empty
-    assert route.call_count == 1
+    assert route.call_count == 6  # every retained chunk was searched, most recent first
 
 
 @respx.mock
@@ -588,7 +598,7 @@ def test_project_falls_back_to_quota_project(make, creds):
         return_value=bq(LIST_COLUMNS, [])
     )
     make().fetch(_req("BQT.TOP.EKONOMI.SAYI"))
-    assert route.call_count == 1
+    assert route.call_count >= 1
 
 
 def test_list_series(provider):
@@ -651,3 +661,26 @@ def test_interest_returns_whole_backfill_on_one_scale(provider, creds):
     df = provider.fetch(_req("BQT.ILGI.TOGG", start=date(2026, 10, 1)))
     # weeks before the requested start come too: they were rescaled together with the recent ones
     assert df[df["entity_id"] == ""]["date"].min() == date(2022, 1, 8)
+
+
+@respx.mock
+def test_settled_chunks_are_shared_between_providers(make, creds):
+    respx.post(TOKEN_URL).mock(return_value=token_ok())
+    route = respx.post(QUERY_URL).mock(return_value=bq(LIST_COLUMNS, listing((date(2026, 10, 20),))))
+    request = _req("BQT.TOP.EKONOMI.SAYI", start=date(2026, 10, 20), end=date(2026, 10, 26))
+    make().fetch(request)
+    make().fetch(request)  # a new provider instance (the registry opens one per call): settled days are not re-billed
+    assert route.call_count == 1
+    recent = _req("BQT.TOP.EKONOMI.SAYI", start=date(2026, 11, 1), end=TODAY)
+    make().fetch(recent)
+    make().fetch(recent)  # recent days may still change upstream: asked again
+    assert route.call_count == 3
+
+
+@respx.mock
+def test_shared_chunk_cache_is_bounded(make, creds, monkeypatch):
+    monkeypatch.setattr(bigquery_trends, "_MAX_SHARED_CHUNKS", 1)
+    respx.post(TOKEN_URL).mock(return_value=token_ok())
+    respx.post(QUERY_URL).mock(return_value=bq(LIST_COLUMNS, []))
+    make().fetch(_req("BQT.TOP.EKONOMI.SAYI", start=date(2026, 10, 6), end=date(2026, 10, 19)))
+    assert len(bigquery_trends._SHARED_CHUNKS) == 1
