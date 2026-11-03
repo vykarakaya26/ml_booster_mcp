@@ -191,7 +191,9 @@ Rules:
    queried. Catalog `remote`: `<top|rising>,<count|interest>/<KEY>[+<KEY>...]`; count = daily keyword hits in the list
    (history accumulates in silver), interest = weekly score of a listed term (total = mean over regions, regions are
    entities); ad hoc `BQT.ILGI.<TERM>`. All values is_proxy=True (search interest). No CSV import, no pytrends/SerpAPI.
-   Not yet verified live (needs the user's GCP project).
+   Live 2026-11-03 (verified): tables are not clustered (~0.25 GiB billed per listed day) → lists are read in 7-day
+   chunks; each term has 261 weeks × 81 provinces, no country-level row, null = low volume (0 in the total);
+   partitions appear 2 days late (publication_lag_days 2, history revision_days 3).
 
 ## Observation (silver) schema (domain/observations.py; Parquet schema in storage/observation_store.py)
 source_id, dataset_id, series_id, entity_id, entity_name, metric, date (period end), freq, value, unit,
@@ -210,8 +212,8 @@ currency, is_proxy, vintage_ts, publication_lag_days. Key: source_id, series_id,
 
 ## Acceptance criteria (MVP)
 - 10 adapters (EVDS3 ✓, TÜİK ✓, BDDK ✓, TBB ✓, EPİAŞ ✓ code / healthcheck needs the user's account, EPDK ✓, BTK ✓, TSB ✓,
-  ODMD ✓, BKM ✓) pass the healthcheck. Extra: Google Trends via BigQuery (bq_trends; code ✓, healthcheck needs
-  the user's GCP project).
+  ODMD ✓, BKM ✓) pass the healthcheck. Extra: Google Trends via BigQuery (bq_trends ✓; needs the user's GCP
+  project and ADC).
 - Market share series for 5 sectors (banking, insurance, telecom, automotive, fuel retail; sector IDs bankacilik,
   sigorta, telekom, otomotiv, akaryakit) in the gold panel.
 - Every source YAML has license, auth, frequency, publication_lag and verification_status filled in (enforced by
