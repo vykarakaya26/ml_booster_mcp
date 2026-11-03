@@ -74,7 +74,7 @@ def test_audit_report(artifacts):
     html = out.read_text(encoding="utf-8")
     _assert_safe(html)
     assert "Veri kalitesi denetimi — telekom" in html and "data-chart=" in html
-    assert "Dağılım ve durağanlık" in html and "Girdiler ve varsayımlar" in html and 'lang="tr"' in html
+    assert "Dağılım ve stationarity" in html and "Girdiler ve varsayımlar" in html and 'lang="tr"' in html
     assert 'id="findings"' in html and 'href="#series-summary"' in html
 
 

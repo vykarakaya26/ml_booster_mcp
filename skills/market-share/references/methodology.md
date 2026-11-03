@@ -6,7 +6,7 @@ Hesaplamalar `mlbooster.domain.services.market_share` modülündedir ve testlerl
 ## 1. Pay tabanı
 | Durum | Taban | Gerekçe |
 |---|---|---|
-| En az iki yıllık aylık ya da çeyreklik **akım** verisi (satış, prim) | Son 12 ay toplamı (`ttm`) | Mevsimsellik ve kampanyadan kaynaklanan oynaklık giderilir; yıllık değişim doğrudan okunur. |
+| En az iki yıllık aylık ya da çeyreklik **akım** verisi (satış, prim) | Son 12 ay toplamı (`ttm`) | Mevsimsellik ve kampanyadan kaynaklanan volatilite giderilir; yıllık değişim doğrudan okunur. |
 | **Stok** verisi (abone, mevduat, kredi) | Dönemlik (`period`) | Stok zaten birikimlidir; toplanmaz. |
 | Yalnızca yüzde pay yayımlanıyorsa | Dönemlik | Tutar olmadığı için pazar büyümesi ve shift-share ayrıştırması hesaplanmaz. |
 
@@ -28,9 +28,9 @@ oyuncular içindeki pay" anlamına gelir ve rapor bunu belirtir.
 
 ## 3. Oyuncu dinamikleri
 - **Yıllık değişim (puan)**: bir yıl önceki aynı döneme göre pay farkı.
-- **Eğilim**: son `trend_years` yılın dönemlik paylarına doğrusal regresyon. Eğim yüzde puan/yıl olarak verilir.
+- **Trend**: son `trend_years` yılın dönemlik paylarına doğrusal regresyon. Eğim yüzde puan/yıl olarak verilir.
   "Kazanıyor" ya da "kaybediyor" sınıflandırması için **iki koşul birlikte** aranır: |t| ≥ 2 (istatistiksel
-  anlamlılık) ve |eğim| ≥ 0,2 puan/yıl (ekonomik önem). Diğer durumlar "yatay" sayılır. Eğilim son 12 ay paylarıyla
+  anlamlılık) ve |eğim| ≥ 0,2 puan/yıl (ekonomik önem). Diğer durumlar "yatay" sayılır. Trend son 12 ay paylarıyla
   değil dönemlik paylarla tahmin edilir; üst üste binen toplamlar t istatistiğini olduğundan yüksek gösterir.
 - **Göreli pay**: oyuncunun payı ÷ en büyük rakibinin payı. 1'in üstü liderliği, 0,5'in altı belirgin bir ölçek
   farkını gösterir.
@@ -73,4 +73,4 @@ ilişki, model kurulmadan önce aday feature olarak not edilir.
   oranındaki ani değişim bu duruma işaret eder.
 - **Nominal tutar**: tutar verisinde pazar büyümesi enflasyonu da içerir. Oyuncular arası pay karşılaştırması
   bundan etkilenmez, ancak pazar büyümesi reel büyüme gibi yorumlanmaz.
-- **Kısa örneklem**: 12 gözlemden kısa serilerde eğilim ve substitution ölçütleri hesaplanmaz ya da anlamsız sayılır.
+- **Kısa örneklem**: 12 gözlemden kısa serilerde trend ve substitution ölçütleri hesaplanmaz ya da anlamsız sayılır.

@@ -32,7 +32,7 @@ KINDS = {
 }
 CONTEXT_LABELS = [
     ("purpose", "Amaç"), ("decision", "Desteklenen karar"), ("audience", "Okur"),
-    ("target", "Hedef değişken"), ("horizon", "Ufuk"), ("units", "Birim (nominal/reel)"), ("period", "Dönem"),
+    ("target", "Hedef değişken"), ("horizon", "Horizon"), ("units", "Birim (nominal/reel)"), ("period", "Dönem"),
 ]  # fmt: skip
 _ID = re.compile(r"^[A-Z]\d{1,3}$")
 STALE_DAYS = 92  # ~3 months: older sector/regulatory information is flagged as out of date

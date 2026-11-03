@@ -100,7 +100,7 @@ def build(m: dict, dates: list[date], columns: dict, audit: dict, backtests: lis
             best, naive = bt["best_model"], by.get("naive")
             gain = (1 - by[best]["mae"] / naive["mae"]) * 100 if naive and best != "naive" and naive["mae"] else None
             rows.append((bt["config"]["target"], bt["config"]["horizon"], best, _fmt(by[best]["mae"]), "—" if gain is None else f"%{H.num(gain, 1, sign=True)}", bt["common_origins"]))
-        body = H.table(["Hedef", "Ufuk (ay)", "En iyi model", "MAE", "Naive'e göre", "n"], rows, numeric=[1, 3, 4, 5])
+        body = H.table(["Hedef", "Horizon (ay)", "En iyi model", "MAE", "Naive'e göre", "n"], rows, numeric=[1, 3, 4, 5])
         for bt in backtests:
             reg = [r for r in bt.get("regime_metrics") or [] if r["model"] == bt["best_model"]]
             if reg:

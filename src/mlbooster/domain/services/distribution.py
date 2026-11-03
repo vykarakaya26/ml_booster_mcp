@@ -139,17 +139,17 @@ def _recommend(d: dict, transform: str | None) -> list[str]:
     already_changed = transform in {"log_diff", "diff", "yoy_pct"}
     if d["stationarity"] == "unit_root" and not already_changed:
         if d["min"] > 0:
-            recs.append("Birim kök var: düzey yerine log farkı (log_diff) ya da yıllık % değişimi kullanın.")
+            recs.append("Unit root var: düzey yerine log farkı (log_diff) ya da yıllık % değişimi kullanın.")
         else:
-            recs.append("Birim kök var: düzey yerine farkı (diff) kullanın; ağaç tabanlı modellerde düzey kalabilir.")
+            recs.append("Unit root var: düzey yerine farkı (diff) kullanın; ağaç tabanlı modellerde düzey kalabilir.")
     if d["stationarity"] == "break_suspected":
         recs.append("ADF ve KPSS ikisi de reddediyor: structural break olasılığı yüksek. Rejim dummy'si ekleyin ya da örneklemi bölün.")
     if d["excess_kurtosis"] > 3:
-        recs.append("Kalın kuyruk: doğrusal modellerde robust scaling (medyan/IQR) ya da %1–%99 winsorize uygulayın; şok aylarını silmeyin, dummy ile işaretleyin.")
+        recs.append("Heavy tail: doğrusal modellerde robust scaling (medyan/IQR) ya da %1–%99 winsorizing uygulayın; şok aylarını silmeyin, dummy ile işaretleyin.")
     if abs(d["skew"]) > 1 and d["min"] > 0 and not already_changed:
-        recs.append("Belirgin çarpıklık ve pozitif değerler: log dönüşümü dağılımı daha simetrik hale getirir.")
+        recs.append("Belirgin skewness ve pozitif değerler: log dönüşümü dağılımı daha simetrik hale getirir.")
     if d["volatility_ratio"] is not None and (d["volatility_ratio"] > 2 or d["volatility_ratio"] < 0.5):
-        recs.append(f"Oynaklık rejimi değişmiş (değişimlerin std'si, son 36 ay / tüm dönem = {tr_num(d['volatility_ratio'], '.2f')}): ağırlıklı ya da rolling window ile eğitimi veya bir rejim değişkenini değerlendirin.")
+        recs.append(f"Volatilite rejimi değişmiş (değişimlerin std'si, son 36 ay / tüm dönem = {tr_num(d['volatility_ratio'], '.2f')}): ağırlıklı ya da rolling window ile eğitimi veya bir rejim değişkenini değerlendirin.")
     if d["acf12"] is not None and d["acf12"] > 0.4 and transform not in {"yoy_pct"} and d["stationarity"] == "stationary":
         recs.append("12. lag'de güçlü otokorelasyon var; bu mevsimselliğe işaret eder. Ay dummy'leri ya da yıllık değişim kullanın.")
     return recs
@@ -197,9 +197,9 @@ def diagnose(series: pd.Series, name: str, transform: str | None = None) -> Diag
         volatility_ratio=round(vol, 3) if vol is not None else None,
         acf12=round(acf12, 3) if acf12 is not None and not math.isnan(acf12) else None,
         recommendations=tuple(_recommend(facts, transform) + (
-            ["Kontrollü patika: son 12 ayda değişim pozitif ve istikrarlı, oynaklık düşük (ör. yönetilen kur). "
-             "Benchmark olarak son dönemin ortalama değişimini (naive/drift_recent) kullanın; kuyruk riski (ani kırılma) "
-             "için quantile aralığını ve geçmiş kırılma dönemlerini (2018-08, 2021-12, 2023-06, 2025-03) dikkate alın."]
+            ["Kontrollü seyir: son 12 ayda değişim pozitif ve istikrarlı, volatilite düşük (ör. yönetilen kur). "
+             "Benchmark olarak son dönemin ortalama değişimini (naive/drift_recent) kullanın; kuyruk riski (ani sıçrama) "
+             "için quantile aralığını ve geçmiş structural break dönemlerini (2018-08, 2021-12, 2023-06, 2025-03) dikkate alın."]
             if _managed_path(y, transform, vol) else []
         )),
         managed_path=_managed_path(y, transform, vol),

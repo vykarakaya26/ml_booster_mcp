@@ -254,7 +254,7 @@ def prepare_panel(
     start: str = DEFAULT_START.isoformat(),
 ) -> dict:
     """Dağılıma dayalı ön işleme planı. Her feature için eğitim penceresindeki profili (ortalama/std, medyan/MAD/IQR,
-    çarpıklık, basıklık, outlier oranı, durağanlık) ve seçilen adımları (imputation, fark alma, outlier winsorize/
+    skewness, excess kurtosis, outlier oranı, stationarity) ve seçilen adımları (imputation, fark alma, outlier winsorize/
     işaretleme, log/Yeo–Johnson, standard/robust scaling) gerekçeleriyle döner. train_end: YYYY-AA-GG; parametreler
     yalnızca bu tarihe kadarki veriden tahmin edilir. Hedef kolonun dağılımı değiştirilmez."""
     config = PrepConfig(target=target, train_end=_iso(train_end, "train_end") if train_end else None, model_family=model_family)
@@ -297,7 +297,7 @@ def analyze_market_share(
     """Pazar payı analizi. records: [{entity, date, value, segment?}] (date: YYYY-AA, YYYY-Qn, YYYY ya da YYYY-AA-GG).
     measure: value (tutar/adet) | share (yüzde pay); kind: flow | stock. Pazar toplamı `total_entity` adlı satırlarla
     (varsayılan TOPLAM; TOTAL da kabul edilir) verilirse coverage oranı hesaplanır. Çıktı: paylar, HHI/CR-k, oyuncu
-    bazında yıllık değişim ve eğilim, odak oyuncu için rakip adayları ve gerekçeleri, segment bazında shift-share
+    bazında yıllık değişim ve trend, odak oyuncu için rakip adayları ve gerekçeleri, segment bazında shift-share
     ayrıştırması; sector verilirse pazar büyümesinin makro feature'larla lag'li korelasyonu."""
     config = ShareConfig(focus=focus, measure=measure, kind=kind, unit=unit[:40], total_entity=total_entity, basis=basis)
     return container().market_share.from_records(records, config, sector)

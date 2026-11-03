@@ -12,7 +12,7 @@ filtre kullanılmaz (FES §6.1; HUYEN böl. 5).
 | Aile (`family`, kolon son eki) | Tanım (aylık) | Gerekçe ve kaynak |
 |---|---|---|
 | Lag (`lag`, `__l{k}`) | x(t−k), k ∈ {1, 2, 3, 6, 12} | Dağıtılmış lag'ler (FPP §7.4) |
-| Rolling mean (`rolling_mean`, `__mean{w}`) | son 3, 6, 12 dönemin ortalaması | Gürültüyü azaltır, eğilimi yakalar |
+| Rolling mean (`rolling_mean`, `__mean{w}`) | son 3, 6, 12 dönemin ortalaması | Gürültüyü azaltır, trendi yakalar |
 | Rolling std (`rolling_std`, `__std{w}`) | son 3, 6, 12 dönemin standart sapması | Belirsizlik ve rejim sinyali |
 | Momentum (`momentum`, `__chg{k}`) | x(t) − x(t−3), x(t) − x(t−12) | Kısa vadeli ve yıllık değişim |
 | Acceleration (`acceleration`, `__accel`) | Δx(t) − Δx(t−1) | Dönüm noktaları |
@@ -28,13 +28,13 @@ kullanılabilir.
 
 ## 2. Etiket
 - Hedefin 1. lag otokorelasyonu ≥ 0,9 ise etiket **h dönemlik değişimdir**: y(t+h) − y(t). Kalıcı serilerde
-  düzeyler arası korelasyon ortak trendden kaynaklanır ve sahte ilişki üretir (FES §10.4; durağanlık için FPP §9.1).
+  düzeyler arası korelasyon ortak trendden kaynaklanır ve sahte ilişki üretir (FES §10.4; stationarity için FPP §9.1).
 - Aksi halde etiket h dönem sonraki düzeydir. `--label level|change` ile zorlanabilir.
 
 ## 3. Seçim adımları
 1. **Pencere:** yalnızca etiketi eğitim penceresi sonuna kadar gözlenmiş dönemler kullanılır (t ≤ eğitim sonu − h).
    Seçimi tam örneklemde yapmak hatayı olduğundan iyimser gösterir (FES §10.4).
-2. **İlişki:** Spearman sıra korelasyonu. Kalın kuyruklu değişkenlerde Pearson'dan daha dayanıklıdır.
+2. **İlişki:** Spearman sıra korelasyonu. Heavy tail'li değişkenlerde Pearson'dan daha robust'tır.
 3. **Effective sample size:** n_eff = n · (1 − ρx·ρy) / (1 + ρx·ρy); ρ, 1. lag otokorelasyonudur. Otokorelasyonlu
    serilerde bağımsız gözlem sayısı ay sayısından azdır (BRETHERTON).
 4. **Anlamlılık ve çoklu karşılaştırma:** n_eff ile t istatistiği, normal yaklaşımla p değeri ve Benjamini–Hochberg

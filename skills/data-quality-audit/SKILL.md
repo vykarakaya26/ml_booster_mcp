@@ -34,9 +34,9 @@ python3 "${CLAUDE_SKILL_DIR}/scripts/render_audit_report.py" \
 ### 1. Girdileri ve varsayımları topla → `$OUT/assumptions.json`
 Yorum içeren her çıktı varsayımlara bağlanır; okur bir ifadenin neye dayandığını görebilmelidir. Bunun için
 `${CLAUDE_SKILL_DIR}/../_shared/references/assumptions-guide.md` dosyasını oku.
-- İstekten çıkarılabilenleri (sektör, hedef, ufuk…) kendin doldur.
+- İstekten çıkarılabilenleri (sektör, hedef, horizon…) kendin doldur.
 - Sonucu değiştirecek eksik girdileri kullanıcıya **tek seferde, en fazla 3–4 kısa soruyla** sor.
-  AskUserQuestion aracı varsa onu kullan. Sorulacaklar: amaç ve karar, hedef değişken, ufuk, nominal/reel.
+  AskUserQuestion aracı varsa onu kullan. Sorulacaklar: amaç ve karar, hedef değişken, horizon, nominal/reel.
   Sektör varsayımlarını `${CLAUDE_SKILL_DIR}/../_shared/references/sector-assumptions.md` dosyasındaki
   seçeneklerle sun.
 - Yanıt gelmezse ya da kullanıcı "sen karar ver" derse sektör varsayılanlarıyla devam et. Bunları
@@ -56,7 +56,7 @@ işaretiyle ekle ("outlier'lar", "structural break'ler", "winsorize etmek"); ter
 Rakamları Türkçe biçimde yaz (0,92; %12,5), yüzde ile yüzde puanı ayır.
 `notable_pairs` alanındaki 0,8–0,95 arası korelasyonları (ör. USD ile EUR kuru ≈ 0,9) ve aynı seriden türeyen
 çiftleri (aofm/aofm_son) öneriye çevir. TÜFE'nin publication lag nedeniyle panelde bir ay sonraki satırda
-durduğunu da belirt; bu kasıtlıdır ve hedefle hizalarken yeniden kaydırılmamalıdır.
+durduğunu da belirt; bu kasıtlıdır ve hedefle birleştirilirken yeniden kaydırılmamalıdır.
 Öncelik sırası:
 1. **high / stale**: seri stale, yani yayımı durmuş. Kod büyük olasılıkla arşive taşınmıştır
    (TP.FG.J0 → TP.TUKFIY2025.GENEL gibi). Güncel kodu `evds-series-discovery` skill'iyle bul.

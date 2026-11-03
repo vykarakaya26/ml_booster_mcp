@@ -24,7 +24,7 @@ kaydedilir.
    - "Goldman Sachs Türkiye enflasyon tahmini yıl sonu"
    - "Reuters poll Turkish lira forecast"
    - "Piyasa Katılımcıları Anketi yıl sonu dolar beklentisi"
-4. **Her kayıt için alanlar:** kurum, değişken, ufuk (YYYY-AA), değer, birim, yayın tarihi, URL,
+4. **Her kayıt için alanlar:** kurum, değişken, horizon (YYYY-AA), değer, birim, yayın tarihi, URL,
    birincil mi, not. Şema `../mlb_report/external.py` içinde, örnek dosya
    `../assets/external_forecasts.example.json`.
 5. **Yalnızca kaynağı doğrulanmış değerler.** Bulunamayan kurum için satır ekleme; "bulunamadı" olarak
@@ -37,7 +37,7 @@ derlemesi. Değerler ikincil kaynaklıdır; yalnızca Garanti BBVA Yatırım not
 
 Konsensüs çıktısı:
 
-| Değişken | Ufuk | Konsensüs | Hesap yöntemi |
+| Değişken | Horizon | Konsensüs | Hesap yöntemi |
 |---|---|---|---|
 | TÜFE | 2026 yıl sonu | %29,3 | ortalama |
 | TÜFE | 2027 yıl sonu | %23,6 | medyan: TCMB'nin %15'i outlier, ortalama %21,8'e iner |
@@ -50,12 +50,12 @@ Bilinen sorunlar:
 - Haziran 2026 tarihli bazı Bloomberg derlemelerinde, aynı gün spot kurun altında kalan yıl sonu
   tahminleri var (ör. 43–45). Bunlar eski girişlerdir; kullanma.
 - PKA'da yıl sonu 2027 TÜFE ve kur sorusu yoktur, yalnızca 12 ve 24 ay sonrası vardır. Yaklaşık 2 aylık
-  ufuk farkını not et.
+  horizon farkını not et.
 - Repo ihaleleri durdurulduğundan beri efektif fonlama (AOFM) politika faizinin üstündedir. Hangi
   faizi tahmin ettiğini açıkça yaz.
 
 ## Raporda nasıl özetlenir
-- Değişken ve ufuk başına kurum sayısı, medyan, ortalama, en düşük ve en yüksek.
+- Değişken ve horizon başına kurum sayısı, medyan, ortalama, en düşük ve en yüksek.
 - **Konsensüs kuralı:** çeyrekler arası açıklık medyanın %10'unu aşıyorsa ya da 3'ten az tahmin
   varsa konsensüs = **medyan**; aksi halde ortalama. Ortalama, tek bir outlier kurum tahminine çok duyarlıdır.
 - **Güncellik:** 92 günden eski tahminler "güncel değil" olarak işaretlenir. Türkiye'de kurum görüşleri
@@ -67,6 +67,6 @@ Bilinen sorunlar:
 - Kurum tahminleri rejim varsayımı içerir; bu genellikle "kontrollü değer kaybı sürer" varsayımıdır.
   Bu varsayımı açıkça yaz: `assumptions.json` içinde `kind: external`, `confirmed: false`.
 - Tahminler arasındaki dağılım bir belirsizlik göstergesidir ama gerçek belirsizliği eksik gösterir:
-  kurum tahminleri birbirine yakınsama (sürü davranışı) eğilimi gösterebilir. Quantile aralığıyla birlikte sun.
+  kurum tahminleri birbirine yakınsayabilir (sürü davranışı). Quantile aralığıyla birlikte sun.
 - Kurumların geçmiş isabeti bilinmeden "en iyi kurum" seçme.
 - Kullanıcı açıkça istemedikçe kendi nokta tahminini kurum tahminlerinin yerine koyma.

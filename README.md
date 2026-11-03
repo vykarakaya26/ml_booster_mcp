@@ -66,7 +66,7 @@ Ek olarak:
 | `evds-series-discovery` | EVDS'de güncel seri kodunu bulur, canlı doğrular ve feature'a bağlar | "Bankacılıkta kredi faizi feature'ı eksik, EVDS'den bul" |
 | `data-quality-audit` | Stale seri, eksik gözlem, outlier, structural break ve collinearity denetimi yapar (HTML) | "Sigorta panelindeki verilerin kalitesini denetle" |
 | `forecast-baseline` | Look-ahead korumalı backtest yapar. Karşılaştırılan modeller:<br>• anchor/naive, drift ve son dönem eğimi<br>• son 12 ay ortalaması ve medyanı<br>• ridge<br>• quantile regression (%10–%90 aralık)<br>• ortalama/medyan kombinasyonları (sapma yüksekse medyana geçen otomatik kural dahil)<br>Ölçütler: interval coverage ve pinball loss. Kurumların yıl sonu tahminlerinin konsensüsünü karşılaştırma için yanına koyar (fan chart'lı HTML) | "USD/TRY için geçilmesi gereken baseline nedir; kurumların yıl sonu tahminleri ne düzeyde?" |
-| `market-share` | Pazar payı ve rekabet analizi: paylar (aylık akımda son 12 ay tabanı), yoğunlaşma (HHI aralığı, CR3/CR5, istikrarsızlık endeksi), oyuncu bazında eğilim, veriye dayalı rakip seti (ikame korelasyonu, segment örtüşmesi) ve nitel rakip değerlendirmesi, shift-share ayrıştırması, pazar büyümesinin makro sürücüleri (HTML). Girdi kolonları `entity, date, value[, segment]`; pazar toplamı `TOPLAM` satırlarıyla verilir (`TOTAL` da kabul edilir) | "Elimdeki ODMD verisiyle Marka X'in pazar payını ve rakiplerini analiz et" |
+| `market-share` | Pazar payı ve rekabet analizi: paylar (aylık akımda son 12 ay tabanı), yoğunlaşma (HHI aralığı, CR3/CR5, istikrarsızlık endeksi), oyuncu bazında trend, veriye dayalı rakip seti (substitution correlation, segment örtüşmesi) ve nitel rakip değerlendirmesi, shift-share ayrıştırması, pazar büyümesinin makro sürücüleri (HTML). Girdi kolonları `entity, date, value[, segment]`; pazar toplamı `TOPLAM` satırlarıyla verilir (`TOTAL` da kabul edilir) | "Elimdeki ODMD verisiyle Marka X'in pazar payını ve rakiplerini analiz et" |
 | `data-prep` | Dağılıma dayalı ön işleme: her feature için eğitim penceresinde ortalama/standart sapma ile medyan/MAD/IQR arasında seçim, nedensel Hampel filtresiyle outlier'ları winsorize etme ya da işaretleme, log/Yeo–Johnson, unit root varsa fark alma, standard/robust scaling; bütün parametreler yalnızca eğitim penceresinden tahmin edilir (HTML) | "Telekom panelini ridge modeline hazırla; medyan mı ortalama mı karar ver" |
 | `feature-engineering` | Sektöre özgü otomatik feature üretimi (lag, rolling istatistik, momentum, z-score, reel faiz ve faiz farkı tarifleri, iş günü ve bayram takvimi, ÖTV/eşel mobil/deprem gibi olaylar) ve etkin örneklem + Benjamini–Hochberg ile leakage'sız seçim; katkısı seçim sonrası dönemde backtest ile ölçülür (HTML) | "Enflasyonu 1 ay ileri tahmin etmek için feature üret ve seç" |
 
@@ -76,7 +76,7 @@ Raporlar çalışma dizininde `mlbooster-reports/<sektör>-<tarih>/` altına yaz
 Analiz yapan skill'ler işe başlamadan önce kullanıcıdan şu girdileri alır:
 - amaç ve desteklenen karar
 - hedef değişken
-- ufuk
+- horizon
 - nominal ya da reel çalışılacağı
 - sektör varsayımları
 
@@ -88,7 +88,7 @@ Skill'ler tek bir analiz zincirinin halkalarıdır; aynı çalışma klasörün�
 
 | Belge | İçerik |
 |---|---|
-| `analysis-playbook.md` | Dağılım teşhisi (ADF ve KPSS birlikte, kalın kuyruk, volatilite rejimi, mevsimsellik); yüksek enflasyona özgü kurallar (log-fark, YoY baz etkisi, reel faiz, efektif politika duruşu, olay takvimi); leakage kontrol listesi; rolling-origin değerlendirme ve baseline'lar |
+| `analysis-playbook.md` | Dağılım teşhisi (ADF ve KPSS birlikte, heavy tail, volatilite rejimi, mevsimsellik); yüksek enflasyona özgü kurallar (log-fark, YoY baz etkisi, reel faiz, efektif politika duruşu, olay takvimi); leakage kontrol listesi; rolling-origin değerlendirme ve baseline'lar |
 | `assumptions-guide.md` | Analiz öncesinde sorulacak sorular, varsayım kaydı, veri/varsayım/model/yorum etiketleri, senaryo ve duyarlılık analizi, ölçülü olasılık dili, abartıya karşı kontrol listesi |
 | `sector-assumptions.md` | Bankacılık, sigorta, telekom, otomotiv ve akaryakıt için belirleyiciler, açıkça yazılması gereken varsayımlar ve birincil kontrol kaynakları. Regülasyon rakamları sabit olarak gömülmez |
 
@@ -133,14 +133,14 @@ mlbooster web                                             # yerel web paneli: ht
 | Ekran | İçerik |
 |---|---|
 | Genel bakış | Adım akışı ve sektör kartları (her sektörde kaç feature'ın hazır olduğu) |
-| 1. Sektör ve kaynaklar | Okunur feature adları, dönüşüm, birim, kaynak ve yayın gecikmesi; eksik seri kodları için "Sizden gerekenler" |
+| 1. Sektör ve kaynaklar | Okunur feature adları, dönüşüm, birim, kaynak ve yayın gecikmesi; eksik seri kodları için "Yapılması gerekenler" |
 | 2. Feature paneli | Frekans seçimi (aylık, haftalık, iş günü), son değer ve önceki döneme göre farkı veren seri kartları, CSV/Parquet indirme |
-| 3. Veri kalitesi | Feature bazında durum, outlier ve structural break işaretli grafik, her bulgu için "Ne yapmalı?" |
-| 4. Tahmin çıtası | Hedef, çapa, ufuk ve model seçimi; naive'e göre iyileşme, dönemlere göre karşılaştırma, model kartı |
-| Pazar payı ve rakipler | CSV/JSON tablo yükleme ya da yapıştırma (örnek veri hazır) veya "Kaynaktan çek" ile BDDK banka grubu serileri (aktif, kredi, mevduat, özkaynak; dönem üst çubuktan), odak oyuncu seçimi; paylar, HHI ve CR3/CR5, pay kazanan ve kaybeden oyuncular, substitution correlation ile rakip seti, segment bazında shift-share |
+| 3. Veri kalitesi | Feature bazında durum, outlier ve structural break işaretli grafik, her bulgu için "Öneri" |
+| 4. Baseline karşılaştırması | Hedef, anchor, horizon ve model seçimi; naive'e göre iyileşme, rejimlere göre karşılaştırma, model kartı |
+| Pazar payı ve rakipler | CSV/JSON tablo yükleme ya da yapıştırma (örnek veri hazır) veya "Kaynaktan çek" ile oyuncu kırılımlı katalog serileri (BDDK, TBB, TSB, BTK, ODMD, EPDK; dönem üst çubuktan), odak oyuncu seçimi; paylar, HHI ve CR3/CR5, pay kazanan ve kaybeden oyuncular, substitution correlation ile rakip seti, segment bazında shift-share |
 | Kaynak durumu | Provider canary testleri |
 
-Her ekran bir "Kısaca" özetiyle başlar ve kaynak, veri çekim zamanı, kapsanan dönem ile eksik veriyi gösteren bir damgayla biter. Teknik terimler için aranabilir bir sözlük vardır.
+Her ekran bir "Özet" bölümüyle başlar ve kaynak, veri çekim zamanı, kapsanan dönem ile eksik veriyi gösteren bir damgayla biter. Teknik terimler için aranabilir bir sözlük vardır.
 
 Panel aynı use case'leri CLI ve MCP ile ortak kullanır. Sunucu yalnızca `127.0.0.1` adresine bağlanır. Port `--port` ile değiştirilir; port doluysa sıradaki boş port kullanılır. Tarayıcının otomatik açılmasını `--no-open` kapatır.
 
@@ -150,15 +150,15 @@ Veriler varsayılan olarak `~/.mlbooster/data` altında tutulur. Bu dizin `MLBOO
 |---|---|
 | `bronze/<kaynak>/` | Ham yanıtlar (sha256 adlı) + `manifest.jsonl` (çekim zamanı, URL) |
 | `silver/source_id=<kaynak>/` | Uzun format; her çekim ayrı bir vintage. Okumada her anahtar için en son vintage seçilir; store `as_of` ile geçmiş bir andaki vintage'ı da okuyabilir, ancak CLI ve MCP panel üretimi şu an her zaman en son vintage'ı kullanır |
-| `gold/<sektör>.parquet` | Aylık dönem sonuna hizalanmış feature paneli |
+| `gold/<sektör>.parquet` | Aylık dönem sonu takvimindeki point-in-time feature paneli |
 
 ## Panel kuralları
 
-- **Point-in-time hizalama:** Paneldeki tarih, verinin referans ayını değil **kullanılabilir hale geldiği ayı** gösterir. Böylece look-ahead leakage oluşmaz. Örneğin Eylül TÜFE'si (3 Ekim'de yayımlanır) Ekim satırındadır. Hedef değişkeni panelle birleştirirken bu kuralı dikkate alın.
+- **Point-in-time:** Paneldeki tarih, verinin referans ayını değil **kullanılabilir hale geldiği ayı** gösterir. Böylece look-ahead bias oluşmaz. Örneğin Eylül TÜFE'si (3 Ekim'de yayımlanır) Ekim satırındadır. Hedef değişkeni panelle birleştirirken bu kuralı dikkate alın.
   - Günlük ve haftalık serilerde publication lag, aylığa toplamadan önce her gözleme ayrı ayrı uygulanır; yani t satırı, t ayı içinde yayımlanan gözlemlerin ortalamasıdır.
   - Aylık ve çeyreklik serilerde sabit bir ay kayması uygulanır; hiçbir ay kaybolmaz ve çakışmaz.
 - **Frekans dönüşümü:** Günlükten aylığa geçerken seviye serilerinde `avg` (veya `last`), akım serilerinde `sum` kullanılır; tamamlanmamış son ay atılır. Çeyreklik ve yıllık seriler yalnızca forward-fill ile doldurulur.
-- **Reel dönüşüm:** Deflator, TÜFE'nin aylık yüzde değişimlerinden chain-link ile kurulur. Bu nedenle 2003=100 → 2025=100 baz değişikliği seviyede kırılma yaratmaz.
+- **Reel dönüşüm:** Deflator, TÜFE'nin aylık yüzde değişimlerinden chain-link ile kurulur. Bu nedenle 2003=100 → 2025=100 baz değişikliği düzeyde structural break yaratmaz.
 
 ## Yeni sektör veya seri eklemek
 
@@ -185,7 +185,7 @@ flowchart LR
 
 | Halka | Paket | Sorumluluk | Bağımlı olabileceği |
 |---|---|---|---|
-| Domain | `mlbooster.domain` | `Source`, `Sector`, `Frequency`, `DateRange`; frekans hizalama, chain-link deflator, feature dönüşümleri, girdi doğrulama | yalnızca stdlib + pandas/numpy |
+| Domain | `mlbooster.domain` | `Source`, `Sector`, `Frequency`, `DateRange`; frekans dönüşümü, chain-link deflator, feature dönüşümleri, girdi doğrulama | yalnızca stdlib + pandas/numpy |
 | Application | `mlbooster.application` | Use case'ler (`BuildPanel`, `FetchSeries`, `GetSectorMap`, ...) ve port'lar (`SeriesProvider`, `ObservationStore`, `CatalogRepository`, ...) | domain |
 | Infrastructure | `mlbooster.infrastructure` | Port uygulamaları: `Evds3Provider`, `SecureHttpClient`, `YamlCatalogRepository`, `ParquetObservationStore` | application, domain |
 | Interfaces | `mlbooster.interfaces` | typer CLI, MCP sunucusu, yerel web paneli (Starlette), presenter'lar | application, domain, bootstrap |

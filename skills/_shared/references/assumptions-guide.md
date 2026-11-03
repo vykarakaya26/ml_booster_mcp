@@ -11,7 +11,7 @@ biçimde sunmak ise analizi güçlendirir.
    seçimi)? Fazla ya da eksik tahminin maliyeti simetrik mi? Asimetrikse quantile loss (pinball loss) kullanılır.
 2. **Hedef.** Tam olarak hangi seri? Seviye mi değişim mi? Ay ortalaması mı dönem sonu mu? Nominal mi
    reel mi (deflatör ne)?
-3. **Ufuk ve yenileme.** Kaç ay ileri? Ne sıklıkla güncellenecek?
+3. **Horizon ve yenileme.** Kaç ay ileri? Ne sıklıkla güncellenecek?
 4. **Senaryo girdileri** (kullanıcının sahip olduğu patikalar): politika faizi/AOFM, USD/TRY ve EUR/TRY,
    enflasyon beklentisi (kullanıcının kendisi ya da PKA), Brent ve ürün fiyatları, asgari ücret ve idari
    fiyatlar, vergi (ÖTV, KDV, ÖİV), makroihtiyati ayarlar.
@@ -51,7 +51,7 @@ onaylamasını iste.
 Bölüm sırası (merkez bankası pratiğine yakın):
 1. Veri ve kalite notları
 2. Varsayımlar
-3. Ufuk başına sonuçlar ve benchmark'lar
+3. Horizon başına sonuçlar ve benchmark'lar
 4. Senaryolar ve duyarlılık
 5. Riskler ve sonucu çürütebilecek gelişmeler
 6. Sınırlar
@@ -63,7 +63,7 @@ Bölüm sırası (merkez bankası pratiğine yakın):
   yaz ([FPP3 §7.6](https://otexts.com/fpp3/forecasting-regression.html)).
 - **Duyarlılık.** Varsayımları tek tek makul aralıkta oynat. Çıktıya etkisine göre sırala ve bu sırayı
   kayda `impact` olarak yaz.
-- **Belirsizlik gösterimi.** Varsayılan, ufuk başına backtest hata bandıdır. Rejim değiştiyse bandı
+- **Belirsizlik gösterimi.** Varsayılan, horizon başına backtest hata bandıdır. Rejim değiştiyse bandı
   genişlet ve bunu belirt (BoE fan chart, IMF WEO 50/70/90 bantları, Fed RMSE bantları).
 
 ## 5. Ölçülü dil
@@ -88,12 +88,12 @@ ancak bu ilkeyi mekanik biçimde uygulama.
 ## 6. Abartıya karşı kontrol listesi
 - **Nedensellik yok.** Korelasyondan ya da Granger testinden sonra "etkiler" ifadesini kullanma;
   "ilişkili" ya da "örneklem içinde k ay öncü" gibi ifadeler kullan.
-- **Sahte regresyon.** Durağan olmayan seviyelerle regresyonu eşbütünleşme testi olmadan yorumlama.
+- **Spurious regression.** Non-stationary düzeylerle kurulan regresyonu cointegration testi olmadan yorumlama.
 - **Çoklu deneme.** Denenen tüm spesifikasyonların sayısını raporla; final testi bir kez yap.
 - **Dönem seçimi.** Başlangıç tarihini sonuçlara bakarak seçme. Tam dönemi ve rejim alt dönemlerini göster.
 - **Nominal yanılsama.** Nominal TL büyümesine reel karşılığı olmadan "büyüme" ifadesini kullanma.
 - **Baz etkisi.** Mekanik YoY düşüşünü politikaya bağlama.
 - **Küçük rejim örneklemi.** Bir rejimde 36 aydan az gözleme dayanan sonucu "gösterge niteliğinde" diye
   etiketle `[sezgisel]`.
-- **İyileşme iddiası.** Yalnızca benchmark'a karşı, ufuk başına ve mümkünse DM testiyle yap.
+- **İyileşme iddiası.** Yalnızca benchmark'a karşı, horizon başına ve mümkünse DM testiyle yap.
 - **Gelecek değer.** Kullanıcı açıkça senaryo istemedikçe nokta tahmin ya da yatırım tavsiyesi verme.

@@ -98,7 +98,7 @@ python3 "${CLAUDE_SKILL_DIR}/scripts/render_share_report.py" --analysis "$OUT/sh
   --competitors "$OUT/competitors.json" --narrative "$OUT/narrative.md" \
   --assumptions "$OUT/assumptions.json" --source "<kaynak kurum ve yayın>" --out "$OUT/report.html"
 ```
-Kullanıcıya rapor yolunu, üç ila beş satırlık özeti (konum, eğilim, ana rakip, yoğunlaşma, veri coverage'ı) ve
+Kullanıcıya rapor yolunu, üç ila beş satırlık özeti (konum, trend, ana rakip, yoğunlaşma, veri coverage'ı) ve
 somut sonraki adımları ver. Örneğin eksik dönemleri tamamlamak, segment verisi eklemek ya da `forecast-baseline`
 ile pay forecast'ı yapmak sonraki adımlar arasında olabilir.
 
@@ -106,8 +106,8 @@ ile pay forecast'ı yapmak sonraki adımlar arasında olabilir.
 - **Önce tanım ve kapsam.** Pazar tanımı, ölçü birimi ve coverage oranı rapor özetinde açıkça yer alır. Coverage
   %80'in altındaysa ya da pazar toplamı bilinmiyorsa paylar "listelenen oyuncular içinde" diye nitelenir.
 - **Rakamlar yalnızca `share.json` dosyasından gelir.** Raporda hesaplanmamış bir oran ya da değişim yazılmaz.
-- **Pay değişimi ile eğilim ayrı tutulur.** Tek dönemlik değişim gürültü olabilir. "Pay kazanıyor" ifadesi
-  yalnızca eğilim hem istatistiksel hem ekonomik olarak anlamlıysa kullanılır (`trend` alanı).
+- **Pay değişimi ile trend ayrı tutulur.** Tek dönemlik değişim gürültü olabilir. "Pay kazanıyor" ifadesi
+  yalnızca trend hem istatistiksel hem ekonomik olarak anlamlıysa kullanılır (`trend` alanı).
 - **İkame bir kanıttır, ispat değildir.** Ters yönlü pay korelasyonu "doğrudan rekabetle tutarlı" diye yazılır.
   "Pay X'ten alındı" gibi kesin ifadeler ancak shift-share ayrıştırması ve nitel kanıt da destekliyorsa kullanılır.
 - **Nominal ve reel ayrı tutulur.** Tutar verisinde pazar büyümesi enflasyonu da içerir; adet verisiyle
