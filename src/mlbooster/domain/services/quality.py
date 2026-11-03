@@ -193,18 +193,18 @@ def audit_panel(
                     notable.append((a, b, round(float(value), 3), "yüksek korelasyon; birlikte kullanılmadan önce değerlendirilmelidir"))
                 if abs(value) >= t.collinearity:
                     pairs.append((a, b, round(float(value), 3)))
-                    issues.append(Issue(Severity.MEDIUM, f"{a} ~ {b}", "collinearity", f"Korelasyon {tr_num(value, '+.2f')}; değişkenlerden biri aynı bilgiyi tekrar ediyor olabilir."))
+                    issues.append(Issue(Severity.MEDIUM, f"{a} ~ {b}", "collinearity", f"Korelasyon {tr_num(value, '+.2f')}; feature'lardan biri aynı bilgiyi tekrar ediyor olabilir."))
 
     diagnostics = diagnose_panel(panel, transforms)
     for d in diagnostics:
         if d.stationarity == "unit_root":
-            issues.append(Issue(Severity.INFO, d.feature, "nonstationary", f"ADF t={tr_num(d.adf_t, 'g')}, KPSS={tr_num(d.kpss_stat, 'g')}: birim kök var (düzey durağan değil)."))
+            issues.append(Issue(Severity.INFO, d.feature, "nonstationary", f"ADF t={tr_num(d.adf_t, 'g')}, KPSS={tr_num(d.kpss_stat, 'g')}: unit root var, düzey non-stationary."))
         elif d.stationarity == "break_suspected":
             issues.append(Issue(Severity.INFO, d.feature, "nonstationary", f"ADF ve KPSS ikisi de reddediyor (t={tr_num(d.adf_t, 'g')}, KPSS={tr_num(d.kpss_stat, 'g')}): structural break ya da rejim değişikliği şüphesi."))
         if d.managed_path:
-            issues.append(Issue(Severity.INFO, d.feature, "managed_path", "Kontrollü patika: son 12 ayda değişim pozitif ve istikrarlı, oynaklık düşük. Seri random walk gibi davranmıyor; ani kırılma riski dağılımın kuyruğunda yoğunlaşıyor."))
+            issues.append(Issue(Severity.INFO, d.feature, "managed_path", "Kontrollü seyir: son 12 ayda değişim pozitif ve istikrarlı, volatilite düşük. Seri random walk gibi davranmıyor; ani sıçrama riski dağılımın kuyruğunda yoğunlaşıyor."))
         if d.excess_kurtosis is not None and d.excess_kurtosis > 3:
-            issues.append(Issue(Severity.INFO, d.feature, "heavy_tails", f"Fazla basıklık {tr_num(d.excess_kurtosis, '.1f')}: kalın kuyruk (şoklar)."))
+            issues.append(Issue(Severity.INFO, d.feature, "heavy_tails", f"Excess kurtosis {tr_num(d.excess_kurtosis, '.1f')}: heavy tail (şok dönemleri)."))
 
     order = {Severity.HIGH: 0, Severity.MEDIUM: 1, Severity.INFO: 2}
     issues.sort(key=lambda i: (order[i.severity], i.feature))

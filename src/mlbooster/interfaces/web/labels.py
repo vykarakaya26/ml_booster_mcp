@@ -68,17 +68,27 @@ def _monthly_note(feature: MacroFeature, seed: SeedSeries | None) -> str | None:
         return None
     if seed.freq in HIGH_FREQ:
         agg = feature.agg.value if feature.agg else ("sum" if seed.kind is SeriesKind.FLOW else "avg")
-        return f"{_cap(FREQUENCIES[seed.freq.value])} veri aylığa {AGGREGATIONS[agg]} olarak indirgenir."
+        freq = "iş günü frekanslı" if seed.freq is Frequency.BUSINESS else FREQUENCIES[seed.freq.value]
+        return f"{_cap(freq)} veri aylık frekansa {AGGREGATIONS[agg]} olarak indirgenir."
     if seed.freq in LOW_FREQ:
         return f"{_cap(FREQUENCIES[seed.freq.value])} veri, yeni değer yayımlanana kadar sonraki aylara taşınır."
     return None
+
+
+def _fallback_name(feature: MacroFeature) -> str:
+    """Name of a feature without a series: a short discover hint reads better than the ASCII catalog name
+    ('Taşıt kredisi faiz oranı' instead of 'Tasit kredisi faizi'); long hints are search notes, not names."""
+    hint = (feature.discover_hint or "").strip()
+    if hint and len(hint) <= 32 and ":" not in hint:
+        return _cap(hint)
+    return _cap(feature.name.replace("_", " "))
 
 
 def feature_info(feature: MacroFeature, source: Source | None) -> dict:
     """Display name, unit, source and plain-language description of one feature."""
     seed = source.seed(feature.series) if source and feature.series else None
     transform_label, transform_text = TRANSFORMS[feature.transform]
-    name = seed.name if seed else _cap(feature.name.replace("_", " "))
+    name = seed.name if seed else _fallback_name(feature)
     label = name
     if feature.agg and seed and seed.freq in HIGH_FREQ:
         label = f"{name} ({AGG_SHORT[feature.agg.value]})"  # tells the average and month-end versions apart
@@ -87,10 +97,10 @@ def feature_info(feature: MacroFeature, source: Source | None) -> dict:
     if (note := _monthly_note(feature, seed)) is not None:
         notes.append(note)
     if feature.real:
-        notes.append("TÜFE ile reelleştirilmiştir (enflasyon etkisi arındırılmış).")
+        notes.append("TÜFE ile enflasyondan arındırılmıştır (reel değer).")
     if lag:
         notes.append(
-            f"Kaynak veriyi dönem sonundan yaklaşık {lag} gün sonra yayımlar; panel bu gecikmeyi dikkate alır."
+            f"Kaynak veriyi dönem sonundan yaklaşık {lag} gün sonra yayımlar; panel bu gecikmeyi uygular (point-in-time)."
         )
     return {
         "name": feature.name,

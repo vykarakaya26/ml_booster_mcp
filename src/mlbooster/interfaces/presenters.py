@@ -13,12 +13,15 @@ from mlbooster.domain.services.quality import QualityReport
 from mlbooster.domain.services.sector_map import SectorMap
 
 # Turkish labels for the sector map status codes (domain.services.sector_map).
-STATUS_LABELS = {"ready": "hazır", "pending_discovery": "seri kodu bekleniyor", "no_provider": "provider yok"}
+STATUS_LABELS = {"ready": "hazır", "pending_discovery": "seri kodu eksik", "no_provider": "otomatik çekim yok"}
+# Turkish labels for catalog enums shown in the map (domain.model.Access / Verification).
+ACCESS_LABELS = {"rest_api": "REST API", "file_download": "dosya indirme", "pdf_report": "PDF rapor", "scrape": "HTML sayfası"}
+VERIFICATION_LABELS = {"verified": "canlı doğrulandı", "reported": "yalnızca araştırmada geçiyor", "unverified": "doğrulanmadı"}
 # Turkish labels for audit/market share severities and market share enums (domain.services.market_share).
-SEVERITY_LABELS = {"high": "yüksek", "medium": "orta", "info": "bilgi"}
+SEVERITY_LABELS = {"high": "kritik", "medium": "uyarı", "info": "bilgi"}
 TREND_LABELS = {"gaining": "pay kazanıyor", "losing": "pay kaybediyor", "flat": "yatay", "insufficient_data": "yetersiz gözlem"}
 HHI_CLASS_LABELS = {"low": "düşük", "moderate": "orta", "high": "yüksek"}
-BASIS_LABELS = {"period": "dönemlik", "ttm": "son 12 ay toplamı"}
+BASIS_LABELS = {"period": "dönemlik", "ttm": "TTM (son 12 ay toplamı)"}
 
 
 def _auth_label(source: Source) -> str:
@@ -71,14 +74,15 @@ def sector_map_markdown(m: SectorMap) -> str:
     lines += [
         "## Kaynaklar",
         "",
-        "| Kaynak | Rol | Erişim | Auth | Frekans | Publication lag (gün) | Doğrulama | Provider |",
+        "| Kaynak | Rol | Erişim | Auth | Frekans | Yayın gecikmesi (gün) | Doğrulama | Otomatik çekim |",
         "|---|---|---|---|---|---|---|---|",
     ]
     for e in m.sources:
         s = e.source
         lines.append(
-            f"| {s.name} (`{s.id}`) | {', '.join(e.roles)} | {s.access.value} | {_auth_label(s)} | "
-            f"{', '.join(s.frequencies)} | {s.publication_lag_days} | {s.verification.value} | "
+            f"| {s.name} (`{s.id}`) | {', '.join(e.roles)} | {ACCESS_LABELS.get(s.access.value, s.access.value)} | "
+            f"{_auth_label(s)} | {', '.join(s.frequencies)} | {s.publication_lag_days} | "
+            f"{VERIFICATION_LABELS.get(s.verification.value, s.verification.value)} | "
             f"{'✓' if e.provider_ready else '—'} |"
         )
     lines += ["", "## Makro feature'lar", "", "| Feature | Kaynak | Seri | Dönüşüm | Durum |", "|---|---|---|---|---|"]

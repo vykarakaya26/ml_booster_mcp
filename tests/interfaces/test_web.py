@@ -163,7 +163,9 @@ def test_feature_labels_are_readable_and_distinct(catalog):
     assert "≈" in usd["unit"] and "İş günü" in usd["description"]  # Turkish capital İ
     assert info["tufe_yoy"]["unit"] == "yüzde" and info["tufe_yoy"]["publication_lag_days"] == 3
     pending = info["kredi_faizi"]
-    assert pending["series"] is None and pending["label"] == "Kredi faizi"
+    assert pending["series"] is None and pending["label"] == "Kredi faizi"  # long hint: name-derived label
+    auto = sector_feature_info(build_sector_map(catalog, "otomotiv", {"evds3", "odmd"}))
+    assert auto["tuketici_guveni"]["label"] == "Tüketici güven endeksi"  # short hint keeps Turkish letters
 
 
 def test_sector_map_and_list_include_readable_metadata(client):
@@ -172,6 +174,47 @@ def test_sector_map_and_list_include_readable_metadata(client):
     sectors = client.get("/api/sectors", headers=AUTH).json()
     bank = next(s for s in sectors if s["id"] == "bankacilik")
     assert bank["pending"] >= 1 and bank["ml_use_cases"]
+
+
+def test_sector_map_sends_turkish_labels_for_every_enum(client):
+    from mlbooster.domain.model import Access, Verification
+
+    m = client.get("/api/sectors/bankacilik/map", headers=AUTH).json()
+    labels = m["labels"]
+    assert set(labels["access"]) == {a.value for a in Access}
+    assert set(labels["verification"]) == {v.value for v in Verification}
+    assert set(labels["status"]) == {"ready", "pending_discovery", "no_provider"}
+    assert all(f in labels["frequency"] for s in m["sources"] for f in s["frequency"])
+    assert all(f["status"] in labels["status"] for f in m["macro_features"])
+
+
+# Turkified technical terms and old headings the panel must not show (CLAUDE.md language standard).
+BANNED_PANEL_TERMS = ("çıta", "çapa", "kırılma", "durağan", "eğilim", "hizala", "geleceği görmeyen", "sızıntı",
+                      "aykırı", "bayat", "kantil", "ne yapmalı", "sizden gerekenler", "kısaca")
+
+
+def test_panel_text_keeps_technical_terms_in_english():
+    for name in ("app.js", "glossary.js", "charts.js", "index.html"):
+        text = (WEB_STATIC / name).read_text(encoding="utf-8").lower().replace("İ", "i")
+        found = [t for t in BANNED_PANEL_TERMS if t in text]
+        assert not found, f"{name}: {found}"
+
+
+def test_stationarity_labels_cover_the_domain_classes():
+    import inspect
+
+    from mlbooster.domain.services import distribution
+
+    classes = set(re.findall(r'return "(\w+)"', inspect.getsource(distribution._classify)))
+    app_js = (WEB_STATIC / "app.js").read_text(encoding="utf-8")
+    mapping = re.search(r"const STATIONARITY = \{([^}]*)\}", app_js).group(1)
+    assert classes == set(re.findall(r"(\w+):", mapping)) == {"stationary", "unit_root", "break_suspected", "inconclusive"}
+
+
+def test_glossary_has_one_entry_per_term():
+    js = (WEB_STATIC / "glossary.js").read_text(encoding="utf-8")
+    terms = re.findall(r'term: "([^"]+)"', js) + [f"{n} — model" for n in re.findall(r'^\s+\w+: \["([^"]+)"', js, re.M)]
+    assert len(terms) == len(set(terms)) and len(terms) > 40
 
 
 # --- market share screen -----------------------------------------------------------------------------------------
