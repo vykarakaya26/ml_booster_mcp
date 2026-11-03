@@ -17,7 +17,7 @@ sector-analysis ──► evds-series-discovery ──► data-quality-audit ─
 | 2 | `evds-series-discovery` | Keşif bekleyen feature | Kullanıcı kataloğunda bağlanan seri | Tamamlanmış panel |
 | 3 | `data-quality-audit` | Sektör paneli | `audit.json`, kalite raporu | Structural break ve outlier dönemleri, güncelliğini yitirmiş seriler |
 | 4 | `data-prep` | Panel, hedef, eğitim sonu, model ailesi | `prepared.csv`, `prep.json` | Dağılıma göre hazırlanmış panel |
-| 5 | `feature-engineering` | Panel (ön işlemeyle), hedef, ufuk, eğitim sonu | `features_selected.csv`, `features.json` | Seçilen feature'lar |
+| 5 | `feature-engineering` | Panel (ön işlemeyle), hedef, horizon, eğitim sonu | `features_selected.csv`, `features.json` | Seçilen feature'lar |
 | 6 | `forecast-baseline` | Panel ya da `features_selected.csv`, `--eval-start` | `bt.json`, backtest raporu | Benchmark ve feature'ların katkısı |
 | — | `market-share` | Oyuncu bazlı tablo, sektör | `share.json`, rekabet raporu | Pazar büyümesinin makro sürücüleri, rakip seti |
 
@@ -27,7 +27,7 @@ sector-analysis ──► evds-series-discovery ──► data-quality-audit ─
 2. **Tek varsayım kaydı:** her skill aynı `assumptions.json` dosyasına ekleme yapar; kimlikler (A1, A2, …) çakışmaz.
 3. **Dayanak etiketleri:** her ifade veri, varsayım, model ya da yorum olarak etiketlenir
    (`assumptions-guide.md`).
-4. **Kalite bulguları aktarılır:** `data-quality-audit` tarafından işaretlenen kırılma tarihleri, `data-prep`
+4. **Kalite bulguları aktarılır:** `data-quality-audit` tarafından işaretlenen structural break tarihleri, `data-prep`
    outlier göstergeleri ve `feature-engineering` olay feature'larıyla tutarlı yorumlanır.
 5. **Dil standardı:** raporlar kurumsal araştırma notu üslubuyla yazılır (`market-share/references/report-guide.md`).
 

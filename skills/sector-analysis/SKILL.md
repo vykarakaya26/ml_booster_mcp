@@ -48,9 +48,9 @@ tanımlama.
 ### 1b. Girdileri ve varsayımları topla → `$OUT/assumptions.json`
 Yorum içeren her çıktı varsayımlara bağlanır; okur bir ifadenin neye dayandığını görebilmelidir. Bunun için
 `${CLAUDE_SKILL_DIR}/../_shared/references/assumptions-guide.md` dosyasını oku.
-- İstekten çıkarılabilenleri (sektör, hedef, ufuk…) kendin doldur.
+- İstekten çıkarılabilenleri (sektör, hedef, horizon…) kendin doldur.
 - Sonucu değiştirecek eksik girdileri kullanıcıya **tek seferde, en fazla 3–4 kısa soruyla** sor.
-  AskUserQuestion aracı varsa onu kullan. Sorulacaklar: amaç ve karar, hedef değişken, ufuk, nominal/reel.
+  AskUserQuestion aracı varsa onu kullan. Sorulacaklar: amaç ve karar, hedef değişken, horizon, nominal/reel.
   Sektör varsayımlarını `${CLAUDE_SKILL_DIR}/../_shared/references/sector-assumptions.md` dosyasındaki
   seçeneklerle sun.
 - Yanıt gelmezse ya da kullanıcı "sen karar ver" derse sektör varsayılanlarıyla devam et. Bunları
@@ -108,7 +108,7 @@ uygulanır.
   payı kaynağının henüz provider'ı olmadığı için, bunu raporun ilk bulgusu yap ve mevcut veriyle hangi modelin
   kurulamayacağını açıkça yaz.
 - Rakamlar yalnızca üretilen dosyalardan gelir. Veri yoksa "veri yok" yaz, tahmin etme.
-- Point-in-time hizalamayı bozma. Paneldeki bir ayın satırı, o ayın sonunda bilinen bilgiyi içerir. Bunu
+- Point-in-time kuralını bozma. Paneldeki bir ayın satırı, o ayın sonunda bilinen bilgiyi içerir. Bunu
   okura "Eylül TÜFE'si Ekim satırında" gibi bir örnekle açıkla.
 - Kaynak atfı rapora otomatik eklenir. Verinin başka bir ürüne konmasını öneriyorsan EVDS'nin "ek ücret
   olarak yansıtılamaz" koşulunu hatırlat.

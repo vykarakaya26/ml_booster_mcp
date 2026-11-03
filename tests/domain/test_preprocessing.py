@@ -23,7 +23,7 @@ def test_profile_chooses_robust_center_for_skewed_data():
     p = _panel()
     assert profile(p["normal"], "normal", None).center_scale == "mean/standard deviation"
     skewed = profile(p["skewed"], "skewed", None)
-    assert skewed.center_scale == "median/IQR" and any("çarpıklık" in r for r in skewed.reasons)
+    assert skewed.center_scale == "median/IQR" and any("skewness" in r for r in skewed.reasons)
     assert skewed.mad == pytest.approx((p["skewed"] - p["skewed"].median()).abs().median() * 1.4826)
 
 

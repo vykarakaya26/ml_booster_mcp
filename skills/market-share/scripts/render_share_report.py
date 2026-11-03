@@ -223,10 +223,10 @@ def build(an: dict, competitors: dict | None, narrative: str | None, assumptions
     body = '<div class="grid-2">' + chart + change_bars(players, "Yıllık pay değişimi (yüzde puan)", focus) + "</div>"
     body += H.table(
         ["Sıra", "Oyuncu", "Pay", "Yıllık değişim (puan)", "Önceki döneme göre (puan)", "Bir yıl önceki sıra",
-         "Eğim (puan/yıl)", "Eğilim", "Göreli pay", "Pazara göre büyüme farkı (puan)"],
+         "Eğim (puan/yıl)", "Trend", "Göreli pay", "Pazara göre büyüme farkı (puan)"],
         rows, numeric=[0, 2, 3, 4, 5, 6, 8, 9], raw=[1, 7],
     )  # fmt: skip
-    body += ('<p class="muted">Eğilim, son dönemlerin dönemlik paylarına doğrusal regresyonla tahmin edilir; |t| ≥ 2 ve '
+    body += ('<p class="muted">Trend, son dönemlerin dönemlik paylarına doğrusal regresyonla tahmin edilir; |t| ≥ 2 ve '
              "yıllık eğim en az 0,2 puan olduğunda kazanma ya da kaybetme olarak sınıflandırılır. Göreli pay, oyuncunun payının "
              "en büyük rakibinin payına oranıdır (liderde 1'in üstü).</p>")  # fmt: skip
     sections.append(H.section("Oyuncular ve pay dinamikleri", body, "players"))
@@ -310,7 +310,7 @@ def competitor_section(comp: dict | None, documented: dict | None, by_entity: di
         if not documented:
             body += ('<p class="muted">Nitel değerlendirme (ürün, fiyat bandı, kanal, coğrafya) eklenmemiştir; '
                      "rakip seti bu nedenle ön değerlendirme niteliğindedir.</p>")
-    body += H.table(["Oyuncu", "Pay", "Yıllık değişim (puan)", "Eğilim", "İkame korelasyonu", "Veriye dayalı kanıt",
+    body += H.table(["Oyuncu", "Pay", "Yıllık değişim (puan)", "Trend", "Substitution correlation", "Veriye dayalı kanıt",
                      "Nitel değerlendirme", "Güven"], rows, numeric=[1, 2, 4], raw=[0, 3, 5, 6, 7])  # fmt: skip
     body += ('<p class="muted"><strong>Veriye dayalı kanıt</strong> pay tablosundan otomatik çıkarılır: pay sıralamasında '
              "komşuluk, pazar liderliği, dönemlik pay değişimlerinin ters yönlü korelasyonu (ikame) ve segment karmasının "

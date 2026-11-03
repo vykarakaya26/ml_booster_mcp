@@ -10,14 +10,14 @@ dayanır; kanonik bir kural olmayanlar ayrıca belirtilmiştir.
 | Durum | Merkez | Yayılım | Dayanak |
 |---|---|---|---|
 | Yaklaşık simetrik, ince kuyruklu (ör. düzgün bir endeksin log-farkı) | Ortalama | Standart sapma | Normal dağılımda en etkin tahminciler (PSDS böl. 1; SKL StandardScaler) |
-| Kalın kuyruk ya da outlier (ör. aylık kur değişimi, kriz ayları) | Medyan | MAD × 1,4826 | Birkaç uç değerden etkilenmez; 1,4826 katsayısı normal dağılımda MAD'ı σ'ya eşitler (PSDS böl. 1; NIST §1.3.5.17) |
+| Heavy tail ya da outlier (ör. aylık kur değişimi, kriz ayları) | Medyan | MAD × 1,4826 | Birkaç outlier'dan etkilenmez; 1,4826 katsayısı normal dağılımda MAD'ı σ'ya eşitler (PSDS böl. 1; NIST §1.3.5.17) |
 | Scaler için robust yayılım gerekiyorsa | Medyan | IQR (Ç3 − Ç1) | RobustScaler'ın tanımı (SKL) |
 | 0–1 aralığındaki paylar | Logit dönüşümünden sonra ortalama | Logit üzerinde standart sapma | Sınırlı oranlar (FES §6.1) |
 
-**Karar kuralı (varsayılan):** |çarpıklık| > 1, aşırı basıklık > 3 ya da robust outlier oranı > %2 ise medyan ve
-IQR; aksi halde ortalama ve standart sapma kullanılır. |çarpıklık| > 1 bandı genellikle Bulmer'e (1979) atfedilir;
-basıklık ve outlier oranı eşikleri uygulamadan gelen pratik kesim noktalarıdır. Daha katı bir ölçüt olarak Kim
-(2013), belirgin normallik dışılığı |çarpıklık| > 2 ya da aşırı basıklık > 4 ile tanımlar ve küçük örneklemde
+**Karar kuralı (varsayılan):** |skewness| > 1, excess kurtosis > 3 ya da robust outlier oranı > %2 ise medyan ve
+IQR; aksi halde ortalama ve standart sapma kullanılır. |skewness| > 1 bandı genellikle Bulmer'e (1979) atfedilir;
+Excess kurtosis ve outlier oranı eşikleri uygulamadan gelen pratik kesim noktalarıdır. Daha katı bir ölçüt olarak Kim
+(2013), belirgin normallik dışılığı |skewness| > 2 ya da excess kurtosis > 4 ile tanımlar ve küçük örneklemde
 (n < 50) z testlerini önerir.
 
 **Robust z-score:** M = 0,6745 · (x − medyan) / MAD; |M| > 3,5 olan gözlemler outlier sayılır (Iglewicz ve
@@ -37,16 +37,16 @@ Hoaglin, NIST §1.3.5.17). Küçük örneklemde klasik z-score'dan daha güvenil
    kullandığından yalnızca tanı amaçlı uygundur. Doğrusal ve yapay sinir ağı modellerinde değer bu aralığın
    sınırlarına winsorize edilir ve `__outlier` göstergesi eklenir. Ağaç modellerinde değer korunur, yalnızca gösterge eklenir.
 
-## 3. Çarpıklık ve kalın kuyruk: dönüşümler
+## 3. Skewness ve heavy tail: dönüşümler
 | Dönüşüm | Tanım aralığı | Ne zaman | Dayanak |
 |---|---|---|---|
 | log | x > 0 | Çarpımsal büyüyen düzeyler: kur, TÜFE, nominal TL tutarlar, kart harcaması | Farkı yaklaşık yüzde değişimdir (FPP §3.1) |
 | Box–Cox | x > 0 | Varyans düzeyle artıyor ama log fazla ya da az düzeltiyor | λ Guerrero yöntemiyle seçilir (FPP §3.1) |
 | Yeo–Johnson | Bütün reel sayılar | Negatif olabilen oranlar, faiz farkları, büyüme oranları | SKL PowerTransformer; FES §6.1 |
-| Quantile → normal | Bütün reel sayılar | Çok kalın kuyruk, uzaklık tabanlı modeller | Korelasyonları bozar; doğrusal katsayılar yorumlanacaksa kullanılmaz; yaklaşık 100 eğitim ayının altında Yeo–Johnson tercih edilir (SKL) |
+| Quantile → normal | Bütün reel sayılar | Çok belirgin heavy tail, uzaklık tabanlı modeller | Korelasyonları bozar; doğrusal katsayılar yorumlanacaksa kullanılmaz; yaklaşık 100 eğitim ayının altında Yeo–Johnson tercih edilir (SKL) |
 | logit | (0, 1) | Pazar payları ve oranlar | FES §6.1 |
 
-- **Varsayılan karar:** Doğrusal ve yapay sinir ağı modellerinde |çarpıklık| > 1 ise pozitif ve mertebe farkı büyük
+- **Varsayılan karar:** Doğrusal ve yapay sinir ağı modellerinde |skewness| > 1 ise pozitif ve mertebe farkı büyük
   (max/min > 10) düzey serilerine log, diğerlerine Yeo–Johnson uygulanır. λ, eğitim penceresinde profile likelihood
   ile tahmin edilir.
 - **Geri dönüşüm:** Log ya da Box–Cox ölçeğindeki bir tahmin geri çevrildiğinde ortalamayı değil medyanı verir;
@@ -62,21 +62,21 @@ Hoaglin, NIST §1.3.5.17). Küçük örneklemde klasik z-score'dan daha güvenil
 4. Bir kolonda eğitim penceresinin yaklaşık %20'sinden fazlası eksikse doldurmak yerine değişkeni çıkarmak
    değerlendirilmelidir (FES §8.5; katı bir kural değildir).
 
-## 5. Durağanlık ve fark alma
-1. **Sıra:** önce varyans (log/Box–Cox), sonra ortalama (fark) durağanlaştırılır (FPP §9.1).
-2. **ADF ve KPSS birlikte okunur.** Sıfır hipotezleri terstir: ADF birim kökü, KPSS durağanlığı sınar
+## 5. Stationarity ve fark alma
+1. **Sıra:** önce varyans (log/Box–Cox), sonra ortalama (fark) stationary hale getirilir (FPP §9.1).
+2. **ADF ve KPSS birlikte okunur.** Sıfır hipotezleri terstir: ADF unit root'u, KPSS stationarity'yi sınar
    (FPP §9.1; SM).
 
    | ADF | KPSS | Sonuç | İşlem |
    |---|---|---|---|
-   | durağan | durağan | durağan | yok |
-   | durağan değil | durağan değil | birim kök | fark al |
-   | durağan değil | durağan | trend durağan | trendden arındır |
-   | durağan | durağan değil | fark durağan | fark al |
+   | stationary | stationary | stationary | yok |
+   | non-stationary | non-stationary | unit root | fark al |
+   | non-stationary | stationary | trend-stationary | trendden arındır |
+   | stationary | non-stationary | difference-stationary | fark al |
 3. **Aşırı fark almaktan kaçın.** Gereğinden fazla fark sahte dinamik üretir. Kısa ve structural break içeren
-   örneklemlerde birim kök testlerinin gücü düşüktür; sonuçlar yol gösterici olarak kullanılır (FPP §9.1).
+   örneklemlerde unit root testlerinin gücü düşüktür; sonuçlar yol gösterici olarak kullanılır (FPP §9.1).
 4. **Varsayılan karar:** `prep` birinci farkı yalnızca doğrusal modelde, katalogda düzey olarak tanımlı ve iki testin
-   birlikte birim kök gösterdiği serilerde alır. Pozitif ve mertebe farkı büyük serilerde farktan önce log alınır.
+   birlikte unit root gösterdiği serilerde alır. Pozitif ve mertebe farkı büyük serilerde farktan önce log alınır.
    Yıllık değişim ya da log-fark olarak tanımlı serilerin yeniden farkı alınmaz.
 
 ## 6. Mevsimsellik ve takvim
@@ -88,11 +88,11 @@ Hoaglin, NIST §1.3.5.17). Küçük örneklemde klasik z-score'dan daha güvenil
   bunları üretir. Hareketli bayramlar Türkiye verisinde anlamlı bir takvim etkisi yaratır (AA04; IUE11).
 
 ## 7. Scaling
-- **Scaling gerektiren modeller:** düzenlileştirilmiş doğrusal modeller (ridge, lasso), kernel tabanlı modeller,
+- **Scaling gerektiren modeller:** regularized doğrusal modeller (ridge, lasso), kernel tabanlı modeller,
   k-nearest neighbors, PCA ve yapay sinir ağları.
 - **Scaling'den etkilenmeyenler:** ağaç tabanlı modeller (SKL; FES §6.1).
-- **Scaler seçimi:** yaklaşık normal değişkende ortalama ve standart sapma, kalın kuyrukta medyan ve IQR. Min–max
-  scaling robust değildir; tek bir uç değer diğer bütün değerleri sıkıştırır (SKL).
+- **Scaler seçimi:** yaklaşık normal değişkende ortalama ve standart sapma, heavy tail'de medyan ve IQR. Min–max
+  scaling robust değildir; tek bir outlier diğer bütün değerleri sıkıştırır (SKL).
 - **Yalnızca eğitimde öğren:** scaling'i train/test split'ten önce yapmak bilinen bir leakage nedenidir (HUYEN
   böl. 5). `prep` parametreleri eğitim penceresinde tahmin eder ve test dönemine aynen uygular (MLDP #21).
 
@@ -102,7 +102,7 @@ Hoaglin, NIST §1.3.5.17). Küçük örneklemde klasik z-score'dan daha güvenil
 - Yıllık değişimde baz etkisi vardır: 12 ay önceki büyük bir aylık artış bugünkü yıllık değişimi mekanik olarak
   düşürür. Aylık ve yıllık değişimi birlikte kullanmak, yıllık değişimin farkını ise dikkatsizce almamak önerilir.
 - Ex-ante reel faiz için enflasyon beklentisi (Piyasa Katılımcıları Anketi, PKA) kullanılır. Ex-post reel faiz,
-  gerçekleşen TÜFE açıklandıktan sonra bilinir; panelin publication lag hizalaması bunu güvenceye alır.
+  gerçekleşen TÜFE açıklandıktan sonra bilinir; panelde uygulanan publication lag bunu güvenceye alır.
 
 ## 9. Varsayılan ayarların özeti
 | Ayar | Varsayılan | Değiştirme gerekçesi |
@@ -111,4 +111,4 @@ Hoaglin, NIST §1.3.5.17). Küçük örneklemde klasik z-score'dan daha güvenil
 | `--train-end` | örneklemin ilk %80'i | Backtest ve feature seçim penceresiyle aynı tarih verilmelidir |
 | `--outliers` | auto (doğrusal: winsorize + işaretle; ağaç: işaretle) | Hata kaynaklı outlier'lar biliniyorsa önce veride düzeltilir |
 | `--max-gap` | 2 dönem | Çeyreklik kaynaklı seriler aylığa çevrildiyse 2 yeterlidir |
-| `--difference` | auto | Düzey ilişkisi (eşbütünleşme) önemliyse `none` |
+| `--difference` | auto | Düzey ilişkisi (cointegration) önemliyse `none` |

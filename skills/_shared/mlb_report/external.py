@@ -117,11 +117,11 @@ def section(data: dict, today: date | None = None, latest: dict[str, tuple[str, 
         "kullanılır; çünkü ortalama tek bir outlier görüşe duyarlıdır. "
         f"{STALE_DAYS} günden eski tahminler 'güncel değil' olarak işaretlenir.</p>"
         + H.table(
-            ["Değişken", "Ufuk", "n", "Konsensüs", "Kural", "Medyan", "Ortalama", "Aralık", "Son değere göre"],
+            ["Değişken", "Horizon", "n", "Konsensüs", "Kural", "Medyan", "Ortalama", "Aralık", "Son değere göre"],
             summary_rows, numeric=[2, 3, 5, 6], raw=[0, 1, 3, 4, 7, 8],
         )
         + "<h3>Kurum bazında</h3>"
-        + H.table(["Kurum", "Değişken", "Ufuk", "Tahmin", "Yayın", "Kaynak türü", "Bağlantı", "Not"], detail_rows,
+        + H.table(["Kurum", "Değişken", "Horizon", "Tahmin", "Yayın", "Kaynak türü", "Bağlantı", "Not"], detail_rows,
                   numeric=[3], raw=[0, 1, 2, 3, 4, 5, 6, 7])  # fmt: skip
     )
     if data.get("retrieved"):

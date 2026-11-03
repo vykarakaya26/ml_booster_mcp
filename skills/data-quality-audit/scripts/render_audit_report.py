@@ -21,7 +21,7 @@ from mlb_report.data import read_json, read_panel_csv
 from mlb_report.svg import Flag, LineChart, Marker, Series, line_chart
 
 DESCRIPTION = "mlbooster audit --json çıktısı ve panel CSV'sinden HTML veri kalitesi raporu üretir."
-STATIONARITY = {"stationary": "durağan", "unit_root": "unit root", "break_suspected": "structural break şüphesi", "inconclusive": "kararsız"}
+STATIONARITY = {"stationary": "stationary", "unit_root": "unit root", "break_suspected": "structural break şüphesi", "inconclusive": "belirsiz"}
 
 
 def build(audit: dict, dates: list[date], columns: dict, sector: str, notes: str | None = None, assumptions: dict | None = None) -> str:
@@ -84,12 +84,12 @@ def build(audit: dict, dates: list[date], columns: dict, sector: str, notes: str
         ]  # fmt: skip
         recs = [(d["feature"], r) for d in diag for r in d["recommendations"]]
         body = (
-            '<p class="muted">ADF (H0: unit root, %5 kritik değer −2,86) ve KPSS (H0: durağan, %5 kritik değer 0,463) birlikte okunur. '
-            "Oynaklık oranı: son 36 aydaki değişimlerin std'si / tüm dönemdeki std. ACF12: lag 12'deki otokorelasyon (mevsimsellik).</p>"
-            + H.table(["Feature", "n", "Durağanlık", "ADF t", "KPSS", "Çarpıklık", "Fazla basıklık", "Oynaklık oranı", "ACF12"], drows, numeric=[1, 3, 4, 5, 6, 7, 8])
+            '<p class="muted">ADF (H0: unit root, %5 kritik değer −2,86) ve KPSS (H0: stationary, %5 kritik değer 0,463) birlikte okunur. '
+            "Volatilite oranı: son 36 aydaki değişimlerin std'si / tüm dönemdeki std. ACF12: lag 12'deki otokorelasyon (mevsimsellik).</p>"
+            + H.table(["Feature", "n", "Stationarity", "ADF t", "KPSS", "Skewness", "Excess kurtosis", "Volatilite oranı", "ACF12"], drows, numeric=[1, 3, 4, 5, 6, 7, 8])
             + ("<h3>Ön işleme önerileri</h3>" + H.table(["Feature", "Öneri"], recs) if recs else "")
         )
-        sections.append(H.section("Dağılım ve durağanlık", body, "distribution"))
+        sections.append(H.section("Dağılım ve stationarity", body, "distribution"))
 
     srows = [
         (

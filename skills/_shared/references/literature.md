@@ -7,9 +7,9 @@ doğrulanmıştır. Alt bölüm düzeyinde doğrulanamayan atıflar `[doğrula]`
 ## Serbest erişimli temel kaynaklar
 | Kısaltma | Kaynak | Kullanıldığı konu |
 |---|---|---|
-| FPP | Hyndman & Athanasopoulos, *Forecasting: Principles and Practice*, 3. baskı, https://otexts.com/fpp3/ | Dönüşümler ve Guerrero λ (§3.1), geri dönüşüm yanlılığı (§5.6), zaman serisi cross-validation (§5.10), müdahale ve takvim değişkenleri (§7.4), durağanlık ve fark alma (§9.1), aykırı ve eksik değerler (§13.9) |
+| FPP | Hyndman & Athanasopoulos, *Forecasting: Principles and Practice*, 3. baskı, https://otexts.com/fpp3/ | Dönüşümler ve Guerrero λ (§3.1), geri dönüşüm yanlılığı (§5.6), zaman serisi cross-validation (§5.10), müdahale ve takvim değişkenleri (§7.4), stationarity ve fark alma (§9.1), outlier ve missing value (§13.9) |
 | FES | Kuhn & Johnson, *Feature Engineering and Selection*, https://feat.engineering/ | Sayısal dönüşümler (§6.1), etkileşimler (bölüm 7), eksik veri ve eksiklik göstergesi (§8.4–8.5), seçimde overfitting ve dış doğrulama (§10.4) |
-| NIST | NIST/SEMATECH e-Handbook of Statistical Methods | Değiştirilmiş z skoru ve 3,5 eşiği (§1.3.5.17), çarpıklık ve basıklık (§1.3.5.11) |
+| NIST | NIST/SEMATECH e-Handbook of Statistical Methods | Değiştirilmiş z skoru ve 3,5 eşiği (§1.3.5.17), skewness ve kurtosis (§1.3.5.11) |
 | SKL | scikit-learn kullanıcı kılavuzu, "Preprocessing data" ve "Common pitfalls" | StandardScaler, RobustScaler, PowerTransformer (Box–Cox, Yeo–Johnson), QuantileTransformer; ön işlemenin yalnızca eğitim verisinde öğrenilmesi |
 | SM | statsmodels belgeleri | ADF ve KPSS'nin birlikte yorumlanması, STL, X-13 |
 | ESS | Eurostat, *ESS Guidelines on Seasonal Adjustment* (2015) | Takvim ve outlier ön düzeltmesi, revizyon politikası |
@@ -17,7 +17,7 @@ doğrulanmıştır. Alt bölüm düzeyinde doğrulanamayan atıflar `[doğrula]`
 | BH | Benjamini & Hochberg (1995), *JRSS-B* 57(1) | Yanlış keşif oranı denetimi |
 | TSFRESH | tsfresh belgeleri; Christ vd. (2018), *Neurocomputing* 307 | Feature başına test + FDR denetimiyle otomatik seçim (FRESH) |
 | HAMPEL | Pearson vd. (2016), "Generalized Hampel Filters", *EURASIP J. Adv. Signal Process.* | Rolling window medyanı ve MAD ile outlier tespiti |
-| KIM13 | Kim (2013), *Restor Dent Endod* 38(1) | Örneklem büyüklüğüne göre çarpıklık ve basıklık eşikleri |
+| KIM13 | Kim (2013), *Restor Dent Endod* 38(1) | Örneklem büyüklüğüne göre skewness ve kurtosis eşikleri |
 | STABSEL | Meinshausen & Bühlmann (2010), *JRSS-B* 72(4) | İstikrar seçimi (alt örneklemlerde tutarlılık) |
 | BRETHERTON | Bretherton vd. (1999), *Journal of Climate* 12 | Otokorelasyonlu serilerde etkin örneklem büyüklüğü |
 | AA04 | Aruoba & Alper (2004), "Moving Holidays and Seasonal Adjustment: The Case of Turkey" | Türkiye'de hareketli bayramların mevsimsel düzeltmeye etkisi |

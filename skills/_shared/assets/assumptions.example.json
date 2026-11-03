@@ -28,7 +28,7 @@
       "kind": "sector",
       "confirmed": false,
       "source": "Resmî Gazete ÖTV listeleri",
-      "impact": "Değişiklik aylarında aykırı satış",
+      "impact": "Değişiklik aylarında outlier satış",
       "check": "ÖTV değişiklik tarihleri için dummy",
       "as_of": "2026-10-30",
       "confidence": "medium"
@@ -39,7 +39,7 @@
       "statement": "Paneldeki tarih, verinin yayımlandığı ayı gösterir (look-ahead yok).",
       "kind": "data",
       "confirmed": true,
-      "source": "mlbooster nokta-zamanlı hizalama",
+      "source": "mlbooster point-in-time panel",
       "impact": "Hedefle birleştirirken ek kaydırma yapılmamalı",
       "check": "panel.csv ile ham seriyi karşılaştır",
       "as_of": "2026-10-30",
@@ -47,8 +47,8 @@
     },
     {
       "id": "A4",
-      "topic": "Ufuk",
-      "statement": "Karar sıklığı aylık olduğu için birincil ufuk 1 ay.",
+      "topic": "Horizon",
+      "statement": "Karar sıklığı aylık olduğu için birincil horizon 1 ay.",
       "kind": "user",
       "confirmed": true,
       "source": "Kullanıcı yanıtı",

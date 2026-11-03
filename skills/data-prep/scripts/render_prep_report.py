@@ -26,8 +26,8 @@ STEP_LABELS = {
     "outlier_winsorize": "Outlier: winsorize + gösterge", "outlier_flag": "Outlier: gösterge",
     "scale_standard": "Scaling: ortalama/std", "scale_robust": "Scaling: medyan/IQR",
 }  # fmt: skip
-FAMILY = {"linear": "doğrusal / düzenlileştirilmiş", "tree": "ağaç tabanlı", "neural": "yapay sinir ağı"}
-STATIONARITY = {"stationary": "durağan", "unit_root": "unit root", "break_suspected": "structural break şüphesi", "inconclusive": "kararsız"}
+FAMILY = {"linear": "doğrusal / regularized", "tree": "ağaç tabanlı", "neural": "yapay sinir ağı"}
+STATIONARITY = {"stationary": "stationary", "unit_root": "unit root", "break_suspected": "structural break şüphesi", "inconclusive": "belirsiz"}
 CENTER_SCALE = {"mean/standard deviation": "ortalama/standart sapma", "median/IQR": "medyan/IQR"}
 
 
@@ -73,7 +73,7 @@ def build(prep: dict, raw: tuple | None, prepared: tuple | None, notes: str | No
         stats, numeric=[1, 2, 3, 4, 5, 6, 7, 8], raw=[0],
     )
     body += "<h3>Kararlar</h3>" + H.table(
-        ["Değişken", "Çarpıklık (önce → sonra)", "Aşırı basıklık (önce → sonra)", "Durağanlık", "Merkez / ölçek", "Adımlar"],
+        ["Değişken", "Skewness (önce → sonra)", "Excess kurtosis (önce → sonra)", "Stationarity", "Merkez / ölçek", "Adımlar"],
         decisions, numeric=[1, 2], raw=[0, 3, 4, 5],
     )
     body += ('<p class="muted">İstatistikler eğitim penceresinde hesaplanmıştır. MAD, normal dağılımda standart sapmayla '
@@ -126,14 +126,14 @@ def _params(step: dict) -> str:
 
 METHOD = """
 <ul>
-<li><strong>Merkez ve ölçek seçimi:</strong> |çarpıklık| &gt; 1, aşırı basıklık &gt; 3 ya da aykırı oranı &gt; %2 ise ortalama ve standart
-sapma yerine medyan ve IQR kullanılır. Ortalama ve standart sapma tek bir uç değerden büyük ölçüde etkilenir; medyan ve IQR
+<li><strong>Merkez ve ölçek seçimi:</strong> |skewness| &gt; 1, excess kurtosis &gt; 3 ya da outlier oranı &gt; %2 ise ortalama ve standart
+sapma yerine medyan ve IQR kullanılır. Ortalama ve standart sapma tek bir outlier'dan büyük ölçüde etkilenir; medyan ve IQR
 etkilenmez.</li>
 <li><strong>Outlier'lar:</strong> nedensel (causal) Hampel filtresiyle tespit edilir: t anındaki değer, yalnızca t−1'e kadarki 24 dönemin
 medyanı ve MAD'ı ile karşılaştırılır. Doğrusal modellerde değer bu aralığa winsorize edilir ve gösterge değişken eklenir; ağaç
-modellerinde değer korunur. Türkiye verisindeki uç değerler çoğunlukla gerçek şoklardır ve silinmez.</li>
+modellerinde değer korunur. Türkiye verisindeki outlier'lar çoğunlukla gerçek şoklardır ve silinmez.</li>
 <li><strong>Dönüşümler:</strong> pozitif ve mertebe farkı büyük serilerde log; işaret içeren çarpık serilerde Yeo–Johnson (λ eğitim
-penceresinde profile likelihood ile tahmin edilir). ADF ve KPSS birlikte birim kök gösteriyorsa doğrusal modelde birinci fark alınır.</li>
+penceresinde profile likelihood ile tahmin edilir). ADF ve KPSS birlikte unit root gösteriyorsa doğrusal modelde birinci fark alınır.</li>
 <li><strong>Leakage önlemi:</strong> bütün parametreler (λ, merkez, ölçek) yalnızca eğitim penceresinden tahmin edilir ve test dönemine aynı
 değerlerle uygulanır; missing value'lar yalnızca forward fill ile doldurulur (geleceğe ait değer kullanılmaz). Hedef değişkenin dağılımı değiştirilmez.</li>
 </ul>

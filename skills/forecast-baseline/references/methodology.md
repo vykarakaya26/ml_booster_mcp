@@ -19,7 +19,7 @@ değişmemelidir (`test_backtest_future_values_do_not_change_past_predictions`).
 | mean12 | son 12 ayın ortalaması (Atkeson–Ohanian) | Enflasyon: literatürde geçilmesi zor bir benchmark ([Stock & Watson](https://scholar.harvard.edu/sites/scholar.harvard.edu/files/stock/files/forecastinginflation.pdf)) |
 | anchor_naive | anchor[t] (`--anchor`) | Aylık ortalama hedefler. Ay sonu değeri ortalamadan belirgin biçimde daha günceldir |
 | median12 | son 12 ayın medyanı | Çarpık ya da outlier içeren veride mean12'nin robust karşılığı |
-| drift_recent | y[t] + h · son 6 ayın ortalama eğimi | Kontrollü patikalar (ör. TCMB'nin yönettiği kur); tüm dönemin drift'i rejim değişiminde yanlı sonuç verir |
+| drift_recent | y[t] + h · son 6 ayın ortalama eğimi | Kontrollü seyir izleyen seriler (ör. TCMB'nin yönettiği kur); tüm dönemin drift'i rejim değişiminde yanlı sonuç verir |
 | qr | taban[t] + quantile regression (τ=0,5); aralık τ=0,1/0,9 | Belirsizliğin asimetrik olduğu durumlar (kur sıçraması riski, enflasyon şokları); olasılıksal forecast |
 | combo_mean / combo_median | üyelerin ortalaması / medyanı | Basit kombinasyon çoğu zaman tek modeli geçer (forecast combination puzzle); medyan, zayıf performanslı bir üyeye karşı robust'tır |
 | auto_robust | geçmiş değişimlerde excess kurtosis > 3 ya da outlier oranı > %5 ise medyan, değilse ortalama | Çarpıklığı dönemden döneme değişen seriler; kural yalnızca geçmiş veriyle uygulanır |
@@ -28,7 +28,7 @@ değişmemelidir (`test_backtest_future_values_do_not_change_past_predictions`).
 Ridge ayrıntıları:
 - Lag'ler 0, 1, 2 ve 11 aydır; hedefin ve (açıksa) diğer feature'ların lag'leri kullanılır.
 - Standardizasyon yalnızca training kümesiyle yapılır; alpha 10'dur.
-- Değişimi öğrenip naive'in üzerine eklediği için en kötü durumda naive'e yakın kalır. Durağan olmayan
+- Değişimi öğrenip naive'in üzerine eklediği için en kötü durumda naive'e yakın kalır. Non-stationary
   Türkiye serilerinde seviyeyi doğrudan tahmin etmekten daha sağlamdır.
 
 ## Aralıklar ve olasılıksal değerlendirme
@@ -58,7 +58,7 @@ Ridge ayrıntıları:
 kazanıp şok döneminde kaybediyor olabilir. Kabul ölçütüne son rejimdeki MAE'yi de ekle.
 
 ## Dikkat edilecek noktalar
-- Ufuk büyüdükçe (h ≥ 6) örnek sayısı azalır ve metrikler oynaklaşır.
+- Horizon büyüdükçe (h ≥ 6) örnek sayısı azalır ve metrikler istikrarsızlaşır.
 - 2021-12 ile 2023 arası tüm modellerin hatasını büyütür. Bu dönemi dışarıda bırakan ayrı bir backtest
   (`--start` ya da `--end` ile) karşılaştırma için faydalı olabilir; dönem dışlandıysa bu raporda
   belirtilmelidir.
@@ -85,6 +85,6 @@ benchmark'ı yarı yarıya olduğundan düşük gösterir.
 Audit'in `managed_path` bulgusu, son 12 ayda değişimin pozitif ve istikrarlı, volatilitenin de düşük olduğunu
 gösterir; 2023 ortasından beri USD/TRY'de bu durum görülür. Bu rejimde:
 - Benchmark son dönem değişimidir (naive / `drift_recent`). Uzun dönem ortalaması yanıltır.
-- Nokta tahmin iyi görünür ama tail risk yüksektir: geçmiş kırılmalar 2018-08, 2021-12, 2023-06 ve
-  2025-03'tür. Quantile aralığını ve kırılma senaryosunu raporda ayrıca göster.
+- Nokta tahmin iyi görünür ama tail risk yüksektir: geçmiş structural break'ler 2018-08, 2021-12, 2023-06 ve
+  2025-03'tür. Quantile aralığını ve structural break senaryosunu raporda ayrıca göster.
 - Dış forecast'lerle karşılaştır (`../_shared/references/external-forecasts.md`).

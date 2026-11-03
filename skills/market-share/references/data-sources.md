@@ -50,7 +50,7 @@ TOPLAM,2026-09,24877,Hafif ticari
    satırı kaynak toplamıdır ve coverage oranı raporda bu bağlamda yorumlanır.
 2. **Süreklilik**: Unvan değişiklikleri ve birleşmeler aynı oyuncu adı altında birleştirilmiş ve
    `assumptions.json` dosyasına `kind: data` olarak yazılmıştır.
-3. **Tanım değişiklikleri**: Kaynağın segment ya da branş tanımı dönem içinde değiştiyse kırılma tarihi not edilir.
+3. **Tanım değişiklikleri**: Kaynağın segment ya da branş tanımı dönem içinde değiştiyse tanım değişikliğinin tarihi not edilir.
 4. **Birim**: Tutar verisinin nominal olduğu ve adet verisinin fiyat etkisi taşımadığı rapora yansıtılır.
 5. **Kaynak atfı**: Her kaynağın adı ve yayın dönemi `--source` ile rapora eklenir; lisans koşulları katalogdaki
    `license` alanında yer alır.
