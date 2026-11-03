@@ -9,11 +9,12 @@ auth:
   type: oauth
   # BQ_PROJECT_ID = billing project; credentials from GOOGLE_APPLICATION_CREDENTIALS or the gcloud ADC file.
   env_vars: [BQ_PROJECT_ID, GOOGLE_APPLICATION_CREDENTIALS]
-rate_limit: {rps: 2, backoff: exponential, notes: "Her seri en fazla iki sorgu çalıştırır; her sorgu bölüm (refresh_date) ve ülke filtresiyle sınırlanır ve maximumBytesBilled tavanı taşır (BQ_MAX_BYTES_BILLED, varsayılan 5 GiB). BigQuery ayda 1 TiB sorguyu ücretsiz işler; sandbox projelerinde fatura hesabı gerekmez."}
+rate_limit: {rps: 2, backoff: exponential, notes: "Tablolar refresh_date ile bölümlenmiş ama kümelenmemiştir; liste sorgusu gün başına yaklaşık 0,25 GiB tarar (35 gün: 7,8 GiB, 2026-11-03 ölçümü). Listeler 7 günlük parçalarla (yaklaşık 1,75 GiB) ve yalnızca eksik günler için çekilir; ilk çekim yaklaşık 8 GiB, sonraki günlük güncellemeler yaklaşık 1 GiB tarar. Her sorgu maximumBytesBilled tavanı taşır (BQ_MAX_BYTES_BILLED, varsayılan 5 GiB). BigQuery ayda 1 TiB sorguyu ücretsiz işler; sandbox projelerinde fatura hesabı gerekmez."}
 # Upstream keeps 30 daily lists: the history of count series exists only in the local store. revision_days makes
-# FetchSeries serve the stored range and ask the source only for the recent tail (the provider clamps it to the
-# retained window); interest series always return their whole rescaled backfill. default_years: start without --start.
-history: {default_years: 5, revision_days: 400}
+# FetchSeries serve the stored range and ask the source only for the last 3 days before the newest stored day (each
+# listed day costs ~0.25 GiB); interest series always return their whole rescaled backfill. default_years: start
+# without --start.
+history: {default_years: 5, revision_days: 3}
 license: {attribution: required, notes: "Google Trends verisi BigQuery public dataset programı kapsamında 'olduğu gibi', garanti verilmeden sunulur; kullanım Google Hizmet Şartları'na tabidir. Açık bir lisans (ör. CC-BY) yayımlanmamıştır; ticari kullanım koşulları doğrulanmadı. Yayımlarken 'Kaynak: Google Trends' atfı verin. Sorgular kullanıcının kendi Google Cloud projesine faturalanır."}
 # Keep raw query responses out of bronze (their URL carries the user's project id); the silver store keeps the
 # observations, so the 30-day upstream window accumulates into a longer local history.
@@ -21,9 +22,9 @@ storage: {raw: false, observations: true}
 frequency: [D, W]
 formats: [json]
 sectors: [makro_genel, akaryakit, bankacilik, otomotiv, telekom]
-publication_lag_days: 1
-verification_status: reported
-verification_notes: "2026-11-03: Şema, bölümleme ve saklama süresi Marketplace kaydından (google-trends-intl), Google Cloud blogundan ve Google'ın public-datasets-pipelines deposundan alındı: her gün ülke başına Top 25 ve Top 25 Rising terim, her biri için bölge (ISO 3166-2) bazında 5 yıllık haftalık skor; bölüm anahtarı refresh_date, bölümler 30 gün saklanır. Hesap ve proje olmadığı için canlı sorgu çalıştırılmadı; Türkiye'nin (TR) kapsandığı, tablo boyutu ve ülke düzeyinde satır olup olmadığı doğrulanmadı."
+publication_lag_days: 2  # live 2026-11-03: the newest partition was 2026-11-01
+verification_status: verified
+verification_notes: "2026-11-03: Canlı doğrulandı (kullanıcının Google Cloud projesi, ADC ile). Tablolar refresh_date ile günlük bölümlenmiş, kümelenmemiş, konum US; international_top_terms yaklaşık 15,5 GiB. Türkiye (TR) kapsanıyor: her gün 25 terim, her terim için 81 il × 261 hafta (5 yıl) skor; ülke düzeyinde satır yok, düşük hacimli hafta ve illerde skor boş (null). En yeni bölüm iki gün geriden geliyor (3 Kasım'da 1 Kasım). Ekim 2026 öncesindeki bölümler neredeyse boş; saklama yaklaşık 30 gün. Liste sorgusu gün başına yaklaşık 0,25 GiB, tek terimin ilgi sorgusu yaklaşık 0,3 GiB tarıyor."
 known_breaks: ["Kaynakta yalnızca son ~30 günün listeleri tutulur; 'count' serilerinin daha eski geçmişi yalnızca yerel depoda, ilk çekimden itibaren birikir", "'interest' skorları her yenilemede 5 yıllık seri yeniden ölçeklenerek yayımlanır (en yüksek hafta = 100); eski haftalar revize olur ve terim yalnızca listeye girdiği için görünür (seçim yanlılığı)"]
 adapter: bq_trends
 priority: 30

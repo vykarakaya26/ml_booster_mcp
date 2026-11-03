@@ -65,6 +65,6 @@ def test_bq_trends_interest_of_a_listed_term(trends):
         pytest.skip(f"latest top term cannot be expressed as a series code: {term!r}")
     df = trends.fetch(FetchRequest.create("bq_trends", [code], today - timedelta(days=5 * 365), today))
     total = df[df["entity_id"] == ""]
-    assert len(total) > 200  # about five years of weeks
+    assert len(total) >= 250  # live 2026-11-03: 261 weeks (five years) per term
     assert total["value"].between(0, 100).all()
     assert df[df["entity_id"] != ""]["entity_id"].str.startswith("TR-").all()
