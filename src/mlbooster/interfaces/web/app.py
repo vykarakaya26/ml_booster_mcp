@@ -43,16 +43,19 @@ from mlbooster.domain.services.backtest import MODELS, BacktestConfig
 from mlbooster.domain.services.market_share import ShareConfig
 from mlbooster.domain.validation import slug
 from mlbooster.interfaces.presenters import (
+    ACCESS_LABELS,
     BASIS_LABELS,
     HHI_CLASS_LABELS,
     SEVERITY_LABELS,
+    STATUS_LABELS,
     TREND_LABELS,
+    VERIFICATION_LABELS,
     backtest_dict,
     health_dict,
     quality_dict,
     sector_map_dict,
 )
-from mlbooster.interfaces.web.labels import UNITS, sector_feature_info
+from mlbooster.interfaces.web.labels import FREQUENCIES, UNITS, sector_feature_info
 
 log = logging.getLogger(__name__)
 
@@ -309,7 +312,9 @@ def create_app(container_factory: Callable[[], Container] = build_container, tok
         def run():
             c = container()
             m = c.sector_map(sector)  # validates the id
-            return sector_map_dict(m) | {"feature_info": sector_feature_info(m)}
+            labels = {"status": STATUS_LABELS, "access": ACCESS_LABELS, "verification": VERIFICATION_LABELS,
+                      "frequency": FREQUENCIES}
+            return sector_map_dict(m) | {"feature_info": sector_feature_info(m), "labels": labels}
 
         return await call(run)
 

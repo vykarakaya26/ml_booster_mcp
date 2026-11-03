@@ -275,7 +275,7 @@ def audit(
     if json_out is not None:
         _write_json(data, json_out)
     counts = report.counts
-    typer.echo(f"{report.months} ay × {len(report.series)} feature — yüksek {counts['high']}, orta {counts['medium']}, bilgi {counts['info']}")
+    typer.echo(f"{report.months} ay × {len(report.series)} feature — kritik {counts['high']}, uyarı {counts['medium']}, bilgi {counts['info']}")
     colors = {"high": typer.colors.RED, "medium": typer.colors.YELLOW, "info": typer.colors.BLUE}
     for i in report.issues:
         label = SEVERITY_LABELS.get(i.severity.value, i.severity.value)

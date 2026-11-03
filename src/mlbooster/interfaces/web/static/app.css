@@ -94,7 +94,8 @@ nav a[aria-current="page"] b { background: var(--accent); color: var(--accent-in
 .main { min-width: 0; display: flex; flex-direction: column; }
 .toolbar { display: flex; gap: 12px; align-items: end; flex-wrap: wrap; padding: 12px 32px; background: var(--surface); border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 5; }
 .toolbar-spacer { flex: 1; }
-.field { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--ink-2); }
+.field { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--ink-2); min-width: 0; max-width: 100%; }
+.field select { max-width: 100%; } /* long feature names must not widen the page on phones */
 .field > span { font-weight: 500; display: flex; align-items: center; gap: 4px; }
 select, input, button { font: inherit; color: inherit; }
 select, input[type="month"], input[type="number"], input[type="text"], textarea {
