@@ -24,7 +24,8 @@ açıkça söylemek de geçerli bir sonuçtur.
 - Kişisel veri kaydetme. Sayfa metni saklama: en fazla 15 sözcüklük alıntı ve olgular yeterlidir.
 
 ## Akış
-1. **Kuralları al.** Aramadan önce `evidence_policy(brand, sector)` çağır. Sorguları, izinli alan adlarını, reddedilen kaynakları, bütçeyi ve
+1. **Kuralları al.** `evidence_policy(brand, sector)` çağır. MCP sunucusu birkaç saniye geç bağlanabilir: araçlar henüz görünmüyorsa
+   durma, resmî kaynak aramasıyla başla ve araçlar görünür görünmez bu çağrıyı yap. Sorguları, izinli alan adlarını, reddedilen kaynakları, bütçeyi ve
    kayıtlı bulguları döndürür. `already_recorded` listesindeki bir bulguyu yeniden arama; yeni dönem ya da bağımsız kaynak ara.
 2. **Ara.** Türkçe ve İngilizce sorguların ikisini de kullan. Önce resmî kaynak (Rekabet Kurulu kararı, sektör raporu), sonra
    şirket raporu ve dernek, en son basın. Bütçe `budget` alanındadır: en fazla `max_searches` arama ve `max_fetches` sayfa. Bütçe
@@ -36,10 +37,13 @@ açıkça söylemek de geçerli bir sonuçtur.
    görünür; yalnızca açık yazılanı kaydet, aralıkta `qualifier=range` kullan.
 4. **Rakamı sına.** Şunları sayfadan oku:
    - Dönem: rakam hangi döneme ait, yayım tarihinden farklı olabilir. Dönem bitmemişse ya da rakam hedef veya tahminse kaydetme.
+     Kümülatif rakamı `2026-01/2026-09` biçiminde yaz; tek bir ayın rakamı `2026-09`, tam yıl `2025` olur.
    - Ölçü: ciro, adet, abone, hacim, prim, aktif... Yazmıyorsa `other` kullan ve güveni düşür.
    - Kapsam: coğrafya ve segment. "Organize gıda perakendesi" ile "toplam perakende" farklı pazarlardır; `segment` alanına sayfanın
-     kullandığı pazar tanımını yaz.
-   - Özgün kaynak: rakam başka bir kurumdan alıntıysa adını ve tarihini yaz. Basında bu ikisi zorunludur. Ücretli araştırma
+     kullandığı pazar tanımını kısa ve yalın yaz (ör. "elektrikli otomobil", "modern FMCG"). Dönem ya da açıklama ekleme: çelişki
+     denetimi bu alanı karşılaştırır. Rakam markanın değil tek bir modelinse bunu da `segment` alanında belirt.
+   - Özgün kaynak: rakam başka bir kurumdan alıntıysa `original_source` alanına yalnızca kurum adını yaz (ör. "ODMD") ve tarihini ver.
+     Sayfada ayrı bir tarih yoksa verinin ait olduğu dönemi yaz. Basında bu ikisi zorunludur. Ücretli araştırma
      rakamı yalnızca Tier 1–3 bir sayfada herkese açık alıntılanmışsa, o sayfa kaynak gösterilerek `second_hand=true` ile kaydedilir.
 5. **Kaydet.** `record_share_evidence` ile yalnızca sayfada gördüğünü yaz. `quote` rakamı sayfadaki yazımıyla içermelidir.
    Araç bir alanı reddederse kaydı zorlama: alan adı izinli değilse o sayfayı atla ve aday kaynak olarak not et. Hata

@@ -53,6 +53,7 @@ DEFAULT_TERMS = ("pazar pay", "market share", "pazar lider")
 NEAR_PP = 1.0  # a computed and a published figure this close need no explanation
 SAME_PERIOD_DAYS = 31
 
+_SPAN_MONTHS = {Frequency.ANNUAL: 12, Frequency.SEMI_ANNUAL: 6, Frequency.QUARTERLY: 3, Frequency.MONTHLY: 1, Frequency.DAILY: 0}
 _HOST = re.compile(r"^[a-z0-9-]+(\.[a-z0-9-]+)+$")
 _TRACKING = re.compile(r"^(utm_.+|gclid|fbclid|yclid|mc_eid|mc_cid)$", re.IGNORECASE)
 _TR_SECOND_LEVEL = frozenset({"com", "org", "net", "gov", "edu", "k12", "web", "gen", "bel", "info", "biz", "name", "tv"})
@@ -240,6 +241,19 @@ def _period(value: str, field: str) -> tuple[date, Frequency]:
     return parsed
 
 
+def period_span(value: str) -> tuple[date, int]:
+    """End of the period the figure refers to and how many months it covers (0: a single day). `YYYY-AA/YYYY-AA` is a
+    cumulative period: January–September is not the same figure as September."""
+    if not isinstance(value, str) or "/" not in value:
+        end, freq = _period(value, "Dönem")
+        return end, _SPAN_MONTHS[freq]
+    first, _, last = value.partition("/")
+    (start, start_freq), (end, end_freq) = _period(first.strip(), "Dönem"), _period(last.strip(), "Dönem")
+    if start_freq is not Frequency.MONTHLY or end_freq is not Frequency.MONTHLY or start >= end:
+        raise InvalidInput("Kümülatif dönem YYYY-AA/YYYY-AA biçiminde ve başlangıcı bitişinden önce olmalıdır")
+    return end, (end.year - start.year) * 12 + end.month - start.month + 1
+
+
 def _claim(draft: EvidenceDraft) -> tuple[float, float | None]:
     if draft.claim not in CLAIMS:
         raise InvalidInput(f"Geçersiz iddia türü: {draft.claim!r} (izin verilenler: {', '.join(CLAIMS)})")
@@ -293,7 +307,7 @@ def build(draft: EvidenceDraft, policy: EvidencePolicy, lexicon: BrandLexicon, t
         raise InvalidInput(f"Geçersiz ölçü: {draft.basis!r} (izin verilenler: {', '.join(BASIS_LABELS)})")
     if draft.confidence not in CONFIDENCE:
         raise InvalidInput(f"Geçersiz güven düzeyi: {draft.confidence!r} (izin verilenler: {', '.join(CONFIDENCE)})")
-    period_end, _ = _period(draft.period, "Dönem")
+    period_end, _ = period_span(draft.period)
     if period_end > today:
         raise InvalidInput("Dönem henüz bitmemiş; hedef ve tahminler kaydedilmez")
     published_end, published_freq = _period(draft.published, "Yayım tarihi")
@@ -340,12 +354,17 @@ def is_current(item: ShareEvidence, today: date, max_age_days: int) -> bool:
     return today - item.period_end <= timedelta(days=max_age_days)
 
 
+def _as_published(value: float) -> str:
+    """As many decimals as the page gave: 44 → '44', 2.54 → '2,54'."""
+    return tr_num(value, ".2f").rstrip("0").rstrip(",")
+
+
 def claim_text(item: ShareEvidence) -> str:
     if item.claim == RANK:
         return f"{int(item.value)}. sıra"
     if item.value_high is not None:
-        return f"%{tr_num(item.value, '.1f')}–{tr_num(item.value_high, '.1f')}"
-    return f"{QUALIFIERS[item.qualifier]}%{tr_num(item.value, '.1f')}"
+        return f"%{_as_published(item.value)}–{_as_published(item.value_high)}"
+    return f"{QUALIFIERS[item.qualifier]}%{_as_published(item.value)}"
 
 
 def as_dict(item: ShareEvidence, policy: EvidencePolicy) -> dict:
@@ -382,7 +401,7 @@ def _gap(a: ShareEvidence, b: ShareEvidence) -> float:
 def _same_scope(a: ShareEvidence, b: ShareEvidence) -> bool:
     return (
         a.claim == b.claim and a.basis == b.basis and fold(a.geography) == fold(b.geography) and fold(a.segment or "") == fold(b.segment or "")
-        and abs((a.period_end - b.period_end).days) <= SAME_PERIOD_DAYS
+        and abs((a.period_end - b.period_end).days) <= SAME_PERIOD_DAYS and period_span(a.period)[1] == period_span(b.period)[1]
     )  # fmt: skip
 
 
@@ -402,11 +421,17 @@ def contradictions(items: list[ShareEvidence], tolerance_pp: float) -> list[dict
     return out
 
 
+def _origin(text: str) -> str:
+    """First word of a name: 'ODMD verileri' and 'ODMD, AA derlemesi' are one origin."""
+    words = fold(text).split()
+    return words[0].strip(",.;:") if words else ""
+
+
 def independent_sources(items: list[ShareEvidence]) -> int:
-    """Pages that repeat one original source, and the pages of one site, count once."""
+    """Pages that repeat one original source, and the pages of one site, count once. When in doubt two pages merge."""
     groups: list[set[str]] = []
     for e in items:
-        keys = {fold(e.publisher), fold(e.original_source or e.publisher), _site_label(urlsplit(e.url).hostname or "")}
+        keys = {_origin(e.publisher), _origin(e.original_source or e.publisher), _site_label(urlsplit(e.url).hostname or "")}
         linked = [g for g in groups if g & keys]
         groups = [g for g in groups if not g & keys] + [keys.union(*linked)]
     return len(groups)
@@ -442,8 +467,8 @@ def _reasons(item: ShareEvidence, chosen: dict, computed_at: date, gap: float) -
         reasons.append(f"Ölçü farklı: bulgu {BASIS_LABELS[item.basis]} payı, hesap {chosen['name']}.")
     if abs((item.period_end - computed_at).days) > SAME_PERIOD_DAYS:
         reasons.append(f"Dönem farklı: bulgu {item.period}, hesap {month_label(computed_at)}.")
-    elif chosen["basis"] == "ttm" and parse_period(item.period)[1] in (Frequency.MONTHLY, Frequency.DAILY):
-        reasons.append("Taban farklı: bulgu tek bir aya, hesap son 12 ayın toplamına ait.")
+    elif chosen["basis"] == "ttm" and period_span(item.period)[1] != 12:
+        reasons.append(f"Taban farklı: bulgu {item.period} dönemine, hesap son 12 ayın toplamına ait.")
     if item.segment and not set(fold(item.segment).split()) <= set(fold(chosen["name"]).split()):
         reasons.append(f"Kapsam farklı: bulgu {item.segment} segmentine, hesap {chosen['name']} serisine ait.")
     if fold(item.geography) not in {"turkiye", "tr", "turkey"}:

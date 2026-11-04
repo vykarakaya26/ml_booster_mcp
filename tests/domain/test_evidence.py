@@ -155,9 +155,23 @@ def test_bad_claims_are_refused(build, changes, needle):
         build(draft(**changes))
 
 
+def test_a_cumulative_period_is_not_the_same_figure_as_its_last_month(build):
+    assert rules.period_span("2026-01/2026-09") == (date(2026, 9, 30), 9)
+    assert rules.period_span("2025") == (date(2025, 12, 31), 12) and rules.period_span("2025-Q3")[1] == 3 and rules.period_span("2026-09-30")[1] == 0
+    for bad in ("2026-09/2026-01", "2026/2026-09", "2026-01/x"):
+        with pytest.raises(InvalidInput):
+            rules.period_span(bad)
+    month, _ = build(draft(period="2026-09", published="2026-10", value=44, quote="payı %44"))
+    cumulative, _ = build(draft(period="2026-01/2026-09", published="2026-10", value=31, quote="payı %31"))
+    assert month.id != cumulative.id and cumulative.period_end == date(2026, 9, 30)
+    assert not rules.contradictions([month, cumulative], 1.0)
+
+
 def test_range_and_rank_claims(build):
     ranged, _ = build(draft(value=20, value_high=30, qualifier="range", quote="payı %20-30 aralığındadır"))
-    assert ranged.value_high == 30 and rules.claim_text(ranged) == "%20,0–30,0"
+    assert ranged.value_high == 30 and rules.claim_text(ranged) == "%20–30"
+    assert rules.claim_text(build(draft(value=2.54, quote="payı %2,54"))[0]) == "%2,54"
+    assert rules.claim_text(build(draft(value=30, qualifier="about", quote="yaklaşık %30"))[0]) == "yaklaşık %30"
     ranked, _ = build(draft(claim="rank", value=2, quote="sektörün ikinci büyük oyuncusu"))
     assert rules.claim_text(ranked) == "2. sıra"
     with pytest.raises(InvalidInput, match="tam sayı"):
@@ -269,6 +283,8 @@ def test_comparison_of_a_range_and_a_rank(build):
 def test_comparison_names_a_monthly_figure_against_a_twelve_month_share(build):
     item, _ = build(togg(period="2026-09", published="2026-10", value=9, quote="eylülde payımız %9"))
     assert any("Taban farklı" in r for r in rules.compare([item], SERIES)[0]["reasons"])
+    cumulative, _ = build(togg(period="2026-01/2026-09", published="2026-10", value=9, quote="payımız %9"))
+    assert any("2026-01/2026-09" in r for r in rules.compare([cumulative], SERIES)[0]["reasons"])
 
 
 def test_queries_cover_both_languages_and_skip_a_missing_sector_term(catalog):
@@ -309,4 +325,10 @@ def test_document_terms_default_to_the_brand_and_stay_bounded(catalog):
 def test_pages_of_one_site_count_once(build):
     a, _ = build(draft())
     b, _ = build(draft(url="https://www.migroskurumsal.com/kurumsal", original_source="Nielsen", original_date="2025", value=25, quote="pay %25"))
+    assert rules.independent_sources([a, b]) == 1
+
+
+def test_one_origin_written_in_different_ways_counts_once(build):
+    a, _ = build(draft(url="https://www.aa.com.tr/x", publisher="Anadolu Ajansı", original_source="ODMD verileri, AA derlemesi", original_date="2025"))
+    b, _ = build(draft(url="https://www.ntv.com.tr/x", publisher="NTV", original_source="ODMD verileri", original_date="2025"))
     assert rules.independent_sources([a, b]) == 1

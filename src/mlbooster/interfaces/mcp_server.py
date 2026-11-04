@@ -378,8 +378,8 @@ def record_share_evidence(
     """Bir sayfada okunan pazar payı rakamını kaydeder. Yalnızca sayfayı açıp rakamı orada gördüyseniz çağırın; arama özetinden
     kayıt yapmayın ve asla rakam tahmin etmeyin. claim: share (value yüzde, 0–100) | rank (value sıra). qualifier: exact, about,
     over, under, range (range ise value_high üst sınırdır). basis: revenue, units, subscribers, volume, premium, assets, loans,
-    deposits, stores, passengers, other. period: rakamın ait olduğu ve bitmiş dönem (YYYY, YYYY-Qn, YYYY-AA, YYYY-AA-GG);
-    published: yayım tarihi. quote: rakamı içeren en fazla 15 sözcük (KAP'ta boş). Kaynak türünü alan adı belirler; izinli olmayan
+    deposits, stores, passengers, other. period: rakamın ait olduğu ve bitmiş dönem (YYYY, YYYY-Qn, YYYY-AA, YYYY-AA-GG; kümülatif
+    dönem YYYY-AA/YYYY-AA, ör. 2026-01/2026-09); published: yayım tarihi. segment: kısa pazar tanımı; original_source: kurum adı. quote: rakamı içeren en fazla 15 sözcük (KAP'ta boş). Kaynak türünü alan adı belirler; izinli olmayan
     site reddedilir. Basında original_source ve original_date zorunludur. Ücretli araştırma rakamı second_hand=true ve
     original_source ile kaydedilir. Hedef ve tahminler kaydedilmez. Kayıt gözlem deposuna ve feature panellerine girmez."""
     draft = EvidenceDraft(
