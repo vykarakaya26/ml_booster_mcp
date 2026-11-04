@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import replace
 from datetime import date, timedelta
 from pathlib import Path
@@ -205,12 +206,15 @@ class AnalyzeMarketShare:
         sector_id: str | None = None,
         refresh: bool = False,
         kind: str | None = None,
+        reshape: Callable[[pd.DataFrame], pd.DataFrame] | None = None,
     ) -> dict:
         """Shares of the entities (e.g. bank groups) of a catalog series. `kind` defaults to the catalog's series kind
-        (level → stock, flow → flow), the unit to the catalog unit; source and proxy status are added to `meta`."""
+        (level → stock, flow → flow), the unit to the catalog unit; source and proxy status are added to `meta`.
+        `reshape` changes the table before the analysis (a brand group as one player)."""
         if self._source_tables is None:
             raise InvalidInput("Kaynaktan pazar payı bu yapılandırmada kullanılamıyor")
         table, meta = self._source_tables(source_id, series_id, start, end, refresh)
+        table = reshape(table) if reshape else table
         series_kind = "flow" if meta["kind"] == SeriesKind.FLOW.value else "stock"
         config = replace(config, kind=kind or series_kind, unit=config.unit or meta["unit"] or "")
         out = self(table, config, sector_id, start)

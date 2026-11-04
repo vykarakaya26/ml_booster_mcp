@@ -20,6 +20,7 @@ from mlbooster.domain.model import (
     AuthKind,
     AuthSpec,
     BrandEntry,
+    BrandGroup,
     BrandLexicon,
     BrandTarget,
     Catalog,
@@ -27,6 +28,7 @@ from mlbooster.domain.model import (
     EvidenceTier,
     FeatureRecipe,
     Frequency,
+    GroupMember,
     HistoryPolicy,
     LicenseSpec,
     MacroFeature,
@@ -329,6 +331,43 @@ class BrandEntrySchema(_Strict):
         return BrandEntry(self.name, tuple(self.aliases), targets, self.sector, self.note)
 
 
+class GroupMemberSchema(_Strict):
+    entity: str = Field(pattern=r"^[A-Za-z0-9_.]{1,64}$")
+    name: str = Field(min_length=2, max_length=80)
+    url: str
+    checked: date
+    start: date | None = Field(default=None, alias="from")
+    end: date | None = Field(default=None, alias="to")
+    note: str | None = None
+
+    @field_validator("url")
+    @classmethod
+    def _https_only(cls, v: str) -> str:
+        if urlsplit(v).scheme != "https":
+            raise ValueError("üyelik kaynağı https olmalıdır")
+        return v
+
+    def to_domain(self) -> GroupMember:
+        return GroupMember(self.entity, self.name, self.url, self.checked, self.start, self.end, self.note)
+
+
+class BrandGroupSchema(_Strict):
+    id: str
+    name: str = Field(min_length=2, max_length=80)
+    source: str
+    aliases: list[str] = Field(default_factory=list)
+    members: list[GroupMemberSchema] = Field(min_length=2)
+    note: str | None = None
+
+    @field_validator("id")
+    @classmethod
+    def _id(cls, v: str) -> str:
+        return slug(v)
+
+    def to_domain(self) -> BrandGroup:
+        return BrandGroup(self.id, self.name, self.source, tuple(m.to_domain() for m in self.members), tuple(self.aliases), self.note)
+
+
 class BrandsSchema(_Strict):
     """catalog_data/brands.yaml: name knowledge used to resolve brands against the entity-level sources."""
 
@@ -336,11 +375,13 @@ class BrandsSchema(_Strict):
     generic_tokens: list[str] = Field(default_factory=list)
     sector_keywords: dict[str, list[str]] = Field(default_factory=dict)
     brands: list[BrandEntrySchema] = Field(default_factory=list)
+    groups: list[BrandGroupSchema] = Field(default_factory=list)
 
     def to_domain(self) -> BrandLexicon:
         return BrandLexicon(
             tuple(b.to_domain() for b in self.brands), frozenset(self.legal_tokens), frozenset(self.generic_tokens),
             tuple((sector, tuple(words)) for sector, words in self.sector_keywords.items()),
+            tuple(g.to_domain() for g in self.groups),
         )  # fmt: skip
 
 

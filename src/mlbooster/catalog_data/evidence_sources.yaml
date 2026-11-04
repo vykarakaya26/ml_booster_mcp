@@ -76,6 +76,8 @@ company_domains:  # own sites of known brands: valid for that brand only
   Teknosa: [teknosa.com]
   Boyner: [boyner.com.tr, boynergrup.com]
   Togg: [togg.com.tr]
+  Doğuş Otomotiv: [dogusotomotiv.com.tr]
+  Tofaş: [tofas.com.tr]
   Türk Hava Yolları: [turkishairlines.com]
   Pegasus: [flypgs.com]
 brand_domain_rule:  # own site of a brand that is not listed above: the registrable domain must start with the brand name

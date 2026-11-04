@@ -238,6 +238,16 @@ def brand_features_dict(result, tail: int = 6) -> dict:
     }
 
 
+def group_lines(group: dict) -> list[str]:
+    """Text form of a group share: the sum, each member and what the sum rests on."""
+    lines = [f"Grup payı %{tr_num(group['share'], '.2f')} ({group['label']}):"]
+    for m in group["members"]:
+        share = "—" if m["share"] is None else f"%{tr_num(m['share'], '.2f')}"
+        since = f" · {m['from']} tarihinden itibaren" if m["from"] else ""
+        lines.append(f"  {m['name']:<20} {share:>7}{since}{'' if m['included'] else ' · bu dönemde üye değil'}")
+    return lines + [f"  {n}" for n in group["notes"]]
+
+
 def _evidence_line(e: dict) -> list[str]:
     scope = " · ".join(x for x in (e["basis_label"], e["segment"], None if e["geography"] == "Türkiye" else e["geography"]) if x)
     flags = " · ikinci el" if e["second_hand"] else ""

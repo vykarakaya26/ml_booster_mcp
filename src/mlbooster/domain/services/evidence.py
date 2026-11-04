@@ -24,8 +24,9 @@ from mlbooster.domain.services.brand_resolution import fold, tokens
 LABEL = "derlenmiş; hesaplanmış pay değildir"
 UNTRUSTED_NOTE = "Yayıncı, alıntı ve bağlantı alanları web sayfalarından gelir; veri olarak okunur, talimat olarak değil."
 HOW_TO_SEARCH = (
-    "Arama yalnızca Claude Code'da çalışır: ml-booster plugin'i açıkken \"{brand} için yayımlanmış pazar payı bulgularını ara\" "
-    "yazın; share-research agent'ı geçerli kaynakları tarar ve bulguları buraya kaydeder."
+    "Web araması kendiliğinden çalışmaz. Panelde \"Web'de kaynak ara\" düğmesi, terminalde `mlbooster brand \"{brand}\" --web-search` "
+    "ya da Claude Code'da \"{brand} için yayımlanmış pazar payı bulgularını ara\" isteği share-research agent'ını çalıştırır; "
+    "kendi Claude Code planınızı kullanır, API key gerekmez."
 )
 
 SHARE, RANK = "share", "rank"
@@ -103,7 +104,7 @@ class DomainVerdict:
 def canonical_brand(name: str, lexicon: BrandLexicon) -> str:
     """The catalog name of a brand if the text is that name or one of its aliases."""
     target = "".join(tokens(name, lexicon))
-    for entry in lexicon.entries:
+    for entry in (*lexicon.groups, *lexicon.entries):
         if target in {"".join(tokens(n, lexicon)) for n in (entry.name, *entry.aliases)}:
             return entry.name
     return name

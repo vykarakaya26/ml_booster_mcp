@@ -306,3 +306,4 @@ textarea { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-siz
 .candidates button { width: 100%; justify-content: flex-start; text-align: left; }
 .cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; }
 .cols h3 { margin-bottom: 6px; }
+.report-text { white-space: pre-wrap; max-height: 320px; overflow: auto; }
