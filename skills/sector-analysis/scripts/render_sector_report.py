@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
-"""Sector analysis report: source map + panel + quality summary + (optional) backtests + commentary.
+"""Sector analysis report: source map + panel + quality summary + commentary.
 
 Usage:
   python3 render_sector_report.py --map map.json --panel panel.csv --audit audit.json \
-      --narrative narrative.md [--backtest bt1.json --backtest bt2.json] --out report.html
-The inputs are the outputs of `mlbooster map show --format json`, `build-panel --out x.csv`, `audit --json` and
-`backtest --json`. Requires only the standard library.
+      --narrative narrative.md --out report.html
+The inputs are the outputs of `mlbooster map show --format json`, `build-panel --out x.csv` and `audit --json`.
+Requires only the standard library.
 """
 
 from __future__ import annotations
@@ -18,13 +18,12 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "_shared"))
 
 from mlb_report import assumptions as A
-from mlb_report import external as X
 from mlb_report import html as H
 from mlb_report.data import read_json, read_panel_csv
 from mlb_report.svg import LineChart, Series, line_chart
 
 ASSETS = Path(__file__).resolve().parents[1] / "assets"
-DESCRIPTION = "Sektör analizi raporu: kaynak haritası, panel, kalite özeti, (opsiyonel) backtest'ler ve yorum."
+DESCRIPTION = "Sektör analizi raporu: kaynak haritası, panel, kalite özeti ve yorum."
 STATUS = {"ready": "Panelde", "pending_discovery": "Seri kodu bekleniyor", "no_provider": "Provider yok"}
 TRANSFORM = {"level": "seviye", "log_diff": "aylık log değişim", "yoy_pct": "yıllık % değişim", "diff": "fark"}
 
@@ -47,7 +46,7 @@ def _fmt(v: float | None, transform: str | None = None) -> str:
     return H.num(v, 1 if a >= 100 else 2 if a >= 1 else 4)
 
 
-def build(m: dict, dates: list[date], columns: dict, audit: dict, backtests: list[dict], narrative: str, assumptions: dict | None = None, external: dict | None = None, latest: dict | None = None) -> str:
+def build(m: dict, dates: list[date], columns: dict, audit: dict, narrative: str, assumptions: dict | None = None) -> str:
     sector = m["sector"]
     features = {f["name"]: f for f in m["macro_features"]}
     sections = [H.section("Yönetici özeti", f'<div class="narrative">{H.markdown(narrative)}</div>', "summary")]
@@ -93,25 +92,6 @@ def build(m: dict, dates: list[date], columns: dict, audit: dict, backtests: lis
     body += H.table(["Önem", "Feature", "Bulgu"], top, raw=[0]) if top else "<p>Yüksek veya orta önemde bulgu yok.</p>"
     sections.append(H.section("Veri kalitesi", body, "quality"))
 
-    if backtests:
-        rows = []
-        for bt in backtests:
-            by = {x["model"]: x for x in bt["metrics"]}
-            best, naive = bt["best_model"], by.get("naive")
-            gain = (1 - by[best]["mae"] / naive["mae"]) * 100 if naive and best != "naive" and naive["mae"] else None
-            rows.append((bt["config"]["target"], bt["config"]["horizon"], best, _fmt(by[best]["mae"]), "—" if gain is None else f"%{H.num(gain, 1, sign=True)}", bt["common_origins"]))
-        body = H.table(["Hedef", "Horizon (ay)", "En iyi model", "MAE", "Naive'e göre", "n"], rows, numeric=[1, 3, 4, 5])
-        for bt in backtests:
-            reg = [r for r in bt.get("regime_metrics") or [] if r["model"] == bt["best_model"]]
-            if reg:
-                body += f"<h3>{H.esc(bt['config']['target'])}: en iyi modelin rejimlere göre MAE'si</h3>" + H.table(
-                    ["Rejim", "n", "MAE"], [(r["regime"], r["n"], _fmt(r["mae"])) for r in reg], numeric=[1, 2]
-                )
-        body += '<p class="muted">Baseline modeller: naive, seasonal naive, drift, ridge (değişim). Üretimdeki modelin bunları geçmesi beklenir.</p>'
-        sections.append(H.section("Forecast baseline'ları", body, "forecast"))
-
-    if external:
-        sections.append(X.section(external, latest=latest))
     method = (ASSETS / "methodology.md").read_text(encoding="utf-8")
     sections.append(H.section("Metodoloji ve sınırlar", f'<div class="narrative">{H.markdown(method)}</div>', "methodology"))
     licenses = [(s["name"], s["license"] or "—") for s in m["sources"]]
@@ -119,8 +99,6 @@ def build(m: dict, dates: list[date], columns: dict, audit: dict, backtests: lis
 
     nav = [("summary", "Özet")] + ([("assumptions", "Varsayımlar")] if assumptions else [])
     nav += [("outlook", "Görünüm"), ("source-map", "Kaynak haritası"), ("quality", "Kalite")]
-    nav += [("forecast", "Forecast")] if backtests else []
-    nav += [("external-forecasts", "Dış tahminler")] if external else []
     nav += [("methodology", "Metodoloji")]
     period = f"{dates[0]:%Y-%m} → {dates[-1]:%Y-%m}" if dates else ""
     return H.page(
@@ -132,39 +110,20 @@ def build(m: dict, dates: list[date], columns: dict, audit: dict, backtests: lis
     )
 
 
-def _parse_latest(items: list[str]) -> dict[str, tuple[str, float]]:
-    out = {}
-    for item in items:
-        try:
-            var, rest = item.split("=", 1)
-            month, value = rest.split(":", 1)
-            out[var.strip()] = (month.strip(), float(value))
-        except ValueError:
-            raise SystemExit(f"--latest biçimi değişken=YYYY-AA:değer olmalı: {item}") from None
-    return out
-
-
 def main() -> None:
     ap = argparse.ArgumentParser(description=DESCRIPTION)
     ap.add_argument("--map", required=True, type=Path)
     ap.add_argument("--panel", required=True, type=Path)
     ap.add_argument("--audit", required=True, type=Path)
     ap.add_argument("--narrative", required=True, type=Path, help="Yönetici özeti (Markdown)")
-    ap.add_argument("--backtest", type=Path, action="append", default=[])
     ap.add_argument("--out", required=True, type=Path)
     ap.add_argument("--assumptions", type=Path, help="Girdi/varsayım kaydı (assumptions.json)")
-    ap.add_argument("--external", type=Path, help="Kurumsal tahminler (external_forecasts.json)")
-    ap.add_argument("--latest", action="append", default=[], help="Son gerçekleşen: değişken=YYYY-AA:değer (ör. usdtry=2026-10:49.70)")
     args = ap.parse_args()
     assumptions = A.load(args.assumptions) if args.assumptions else None
-    external = X.load(args.external) if args.external else None
     if assumptions is None:
         print("Uyarı: --assumptions verilmedi; raporda girdiler ve varsayımlar bölümü yer almayacak.", file=sys.stderr)
     dates, columns = read_panel_csv(args.panel)
-    html = build(
-        read_json(args.map), dates, columns, read_json(args.audit),
-        [read_json(p) for p in args.backtest], args.narrative.read_text(encoding="utf-8"), assumptions, external, _parse_latest(args.latest),
-    )  # fmt: skip
+    html = build(read_json(args.map), dates, columns, read_json(args.audit), args.narrative.read_text(encoding="utf-8"), assumptions)
     args.out.parent.mkdir(parents=True, exist_ok=True)
     args.out.write_text(html, encoding="utf-8")
     print(f"Rapor → {args.out}")

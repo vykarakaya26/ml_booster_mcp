@@ -28,7 +28,7 @@ KINDS = {
     "sector": ("info", "◆", "Sektör varsayımı"),
     "default": ("serious", "▲", "Varsayılan"),
     "data": ("info", "≡", "Veriden"),
-    "external": ("info", "↗", "Dış tahmin"),
+    "external": ("info", "↗", "Dış kaynak"),
 }
 CONTEXT_LABELS = [
     ("purpose", "Amaç"), ("decision", "Desteklenen karar"), ("audience", "Okur"),
@@ -133,7 +133,7 @@ def section(data: dict) -> str:
         body += "<h3>Açık sorular</h3><ul>" + "".join(f"<li>{H.esc(q)}</li>" for q in data["open_questions"]) + "</ul>"
     legend = (
         '<p class="muted">Raporda her ifade bir dayanağa bağlanır: <strong>veri</strong> (yayımlanmış gözlem), '
-        "<strong>varsayım</strong> (A# kimliğiyle), <strong>model</strong> (forecast/backtest; yöntem ve belirsizlikle birlikte) "
+        "<strong>varsayım</strong> (A# kimliğiyle), <strong>model</strong> (istatistiksel hesap; yöntem ve örneklemle birlikte) "
         "ya da <strong>yorum</strong> (analistin çıkarımı, güven düzeyiyle).</p>"
     )
     return H.section("Girdiler ve varsayımlar", legend + body, "assumptions")

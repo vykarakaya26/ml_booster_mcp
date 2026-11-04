@@ -79,8 +79,6 @@ def test_invalid_input_returns_safe_message(client):
         ).status_code
         == 400
     )
-    models = client.post("/api/backtest", json={"sector": "telekom", "target": "x", "models": ["rm -rf"]}, headers=AUTH)
-    assert models.status_code == 400 and "Tanımsız model" in models.json()["error"]
 
 
 def test_unexpected_errors_are_not_leaked(catalog_repo):
@@ -94,12 +92,12 @@ def test_unexpected_errors_are_not_leaked(catalog_repo):
 
 def test_meta_and_sector_map(client):
     meta = client.get("/api/meta", headers=AUTH).json()
-    assert "naive" in meta["models"] and meta["providers"] == ["evds3"]
+    assert meta["providers"] == ["evds3"]
     m = client.get("/api/sectors/telekom/map", headers=AUTH).json()
     assert m["sector"]["id"] == "telekom" and m["macro_features"] and m["sources"]
 
 
-def test_panel_audit_backtest_and_export(client):
+def test_panel_audit_and_export(client):
     scope = {"sector": "telekom", "start": "2019-01", "end": "2026-09-30"}
     panel = client.post("/api/panel", json=scope, headers=AUTH).json()
     assert "usdtry_logdiff" in panel["features"]
@@ -108,15 +106,6 @@ def test_panel_audit_backtest_and_export(client):
 
     audit = client.post("/api/audit", json=scope, headers=AUTH).json()
     assert audit["months"] == len(audit["dates"]) and "counts" in audit
-
-    bt = client.post(
-        "/api/backtest",
-        json={**scope, "target": "usdtry_logdiff", "min_train": 24, "models": ["naive", "drift", "mean12"]},
-        headers=AUTH,
-    ).json()
-    assert {m["model"] for m in bt["metrics"]} == {"naive", "drift", "mean12"}
-    assert bt["best_model"] in {"naive", "drift", "mean12"}
-    assert len(bt["history"]["dates"]) == len(bt["history"]["values"]) > 0
 
     csv = client.post("/api/panel/export", json={**scope, "format": "csv"}, headers=AUTH)
     assert csv.status_code == 200 and csv.headers["content-disposition"] == 'attachment; filename="telekom_m_panel.csv"'
@@ -213,8 +202,11 @@ def test_stationarity_labels_cover_the_domain_classes():
 
 def test_glossary_has_one_entry_per_term():
     js = (WEB_STATIC / "glossary.js").read_text(encoding="utf-8")
-    terms = re.findall(r'term: "([^"]+)"', js) + [f"{n} — model" for n in re.findall(r'^\s+\w+: \["([^"]+)"', js, re.M)]
-    assert len(terms) == len(set(terms)) and len(terms) > 40
+    terms = re.findall(r'term: "([^"]+)"', js)
+    assert len(terms) == len(set(terms)) and len(terms) > 20
+    keys = set(re.findall(r"^  (\w+): \{$", js, re.M))
+    used = set(re.findall(r'term\("(\w+)"', (WEB_STATIC / "app.js").read_text(encoding="utf-8")))
+    assert used and used <= keys
 
 
 # --- market share screen -----------------------------------------------------------------------------------------

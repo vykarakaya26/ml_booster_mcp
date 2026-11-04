@@ -3,9 +3,8 @@
 
 Usage:
   python3 render_feature_report.py --features features.json --out features.html \
-      [--bt-base bt_base.json --bt-features bt_features.json] [--notes notes.md] [--assumptions assumptions.json]
-`--bt-base` and `--bt-features` are two backtests run with the same target and evaluation start (--eval-start):
-one with the sector panel, the other with the selected features. Requires only the standard library.
+      [--notes notes.md] [--assumptions assumptions.json]
+Requires only the standard library.
 """
 
 from __future__ import annotations
@@ -35,29 +34,7 @@ def num(v: float | None, d: int = 2) -> str:
     return H.num(v, d)
 
 
-def _mae(bt: dict, model: str) -> float | None:
-    return next((m["mae"] for m in bt.get("metrics", []) if m["model"] == model), None)
-
-
-def backtest_section(base: dict, feat: dict) -> str:
-    naive = _mae(feat, "naive") or _mae(base, "naive")
-    rows = []
-    for label, bt in (("Sektör paneli", base), ("Seçilen feature'lar", feat)):
-        ridge = _mae(bt, "ridge")
-        best = bt.get("best_model")
-        gain = (1 - ridge / naive) * 100 if ridge is not None and naive else None
-        rows.append((label, num(ridge, 3), num(_mae(bt, best), 3) + f" ({H.esc(best)})" if best else "—",
-                     f"%{num(gain, 1)}" if gain is not None else "—", bt.get("common_origins", "—")))  # fmt: skip
-    cfg = feat.get("config", {})
-    body = H.table(["Feature kümesi", "Ridge MAE", "En iyi model MAE", "Ridge'in naive'e göre iyileşmesi", "Ortak origin"],
-                   rows, numeric=[1, 2, 3, 4], raw=[2])  # fmt: skip
-    body += (f'<p class="muted">Naive MAE: {num(naive, 3)}. Değerlendirme başlangıcı: {H.esc(cfg.get("eval_start") or "belirtilmedi")}. '
-             "Feature'lar bu tarihe kadarki veriyle seçildiği için seçimin gerçek katkısını yalnızca sonraki dönemlerdeki hata "
-             "gösterir. Değerlendirme başlangıcı belirtilmediyse sonuç iyimserdir.</p>")  # fmt: skip
-    return H.section("Seçimin tahmin performansına katkısı", body, "backtest")
-
-
-def build(fe: dict, bt_base: dict | None, bt_feat: dict | None, notes: str | None, assumptions: dict | None) -> str:
+def build(fe: dict, notes: str | None, assumptions: dict | None) -> str:
     selected = fe.get("selected", [])
     screening = fe.get("screening", [])
     by_name = {r["name"]: r for r in screening}
@@ -92,8 +69,7 @@ def build(fe: dict, bt_base: dict | None, bt_feat: dict | None, notes: str | Non
         sections.append(H.section("Seçilen feature'lar", body, "selected"))
     elif fe.get("label"):
         sections.append(H.section("Seçilen feature'lar", "<p>False discovery rate ve istikrar ölçütlerini sağlayan feature bulunamadı. "
-                                  "Bu, panelin hedefin kendi geçmişinin ötesinde güvenilir bilgi taşımadığını gösterebilir; naive ve "
-                                  "anchor naive modelleri bu durumda doğru benchmark'tır.</p>", "selected"))  # fmt: skip
+                                  "Bu, panelin hedefin kendi geçmişinin ötesinde güvenilir bilgi taşımadığını gösterebilir.</p>", "selected"))  # fmt: skip
 
     if screening:
         rows = [(H.esc(r["name"]), H.esc(FAMILIES.get(r.get("family"), r.get("family") or "—")), num(r.get("r")), num(r.get("n_eff"), 0),
@@ -108,8 +84,6 @@ def build(fe: dict, bt_base: dict | None, bt_feat: dict | None, notes: str | Non
         rows += [(H.esc(n), "—", "—", H.esc(f"Atlandı: {why}")) for n, why in fe.get("skipped_recipes", {}).items()]
         sections.append(H.section("Sektör tarifleri", H.table(["Tarif", "İşlem", "Girdiler", "Açıklama"], rows, raw=[0, 1, 2, 3]), "recipes"))
 
-    if bt_base and bt_feat:
-        sections.append(backtest_section(bt_base, bt_feat))
     if assumptions:
         sections.append(A.section(assumptions))
     sections.append(H.section("Yöntem", METHOD, "method"))
@@ -129,8 +103,8 @@ düzey. Düzeyler arası korelasyon, ortak trend nedeniyle sahte ilişki üreteb
 <li><strong>Seçim:</strong> yalnızca etiketi eğitim sonuna kadar gözlenmiş dönemlerde Spearman korelasyonu; otokorelasyona göre
 etkin örneklem; Benjamini–Hochberg ile false discovery rate kontrolü (q ≤ 0,10); üç alt dönemin en az ikisinde aynı işaret; |r| ≥ 0,95
 olan çiftlerde fazlalık eleme; seçilen feature sayısı etkin örneklem / 15 ile sınırlı (Harrell).</li>
-<li><strong>Sınırlar:</strong> tarama ilişkiyi gösterir, nedenselliği göstermez. Seçimin değeri, seçim penceresinden sonraki
-dönemlerde yapılan backtest ile ölçülür.</li>
+<li><strong>Sınırlar:</strong> tarama ilişkiyi gösterir, nedenselliği göstermez. Seçim bir ön elemedir; bir modele katkısı bu
+raporda ölçülmez.</li>
 </ul>
 """
 
@@ -139,8 +113,6 @@ def main() -> None:
     ap = argparse.ArgumentParser(description=DESCRIPTION)
     ap.add_argument("--features", required=True, type=Path, help="mlbooster features --json çıktısı")
     ap.add_argument("--out", required=True, type=Path)
-    ap.add_argument("--bt-base", type=Path, help="Sektör paneliyle backtest JSON")
-    ap.add_argument("--bt-features", type=Path, help="Seçilen feature'larla backtest JSON")
     ap.add_argument("--notes", type=Path, help="Yorum (Markdown)")
     ap.add_argument("--assumptions", type=Path, help="Girdi/varsayım kaydı (assumptions.json)")
     args = ap.parse_args()
@@ -148,10 +120,8 @@ def main() -> None:
         assumptions = A.load(args.assumptions) if args.assumptions else None
     except A.AssumptionsError as exc:
         sys.exit(f"Hata: {exc}")
-    bt_base = read_json(args.bt_base) if args.bt_base else None
-    bt_feat = read_json(args.bt_features) if args.bt_features else None
     notes = args.notes.read_text(encoding="utf-8") if args.notes else None
-    html = build(read_json(args.features), bt_base, bt_feat, notes, assumptions)
+    html = build(read_json(args.features), notes, assumptions)
     args.out.parent.mkdir(parents=True, exist_ok=True)
     args.out.write_text(html, encoding="utf-8")
     print(f"Rapor → {args.out}")

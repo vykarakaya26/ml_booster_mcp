@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from mlbooster.application.ports import PanelStore, TableReader
+from mlbooster.application.ports import PanelStore
 from mlbooster.domain.errors import InvalidInput
 
 EXPORT_SUFFIXES = (".parquet", ".csv")
@@ -26,13 +26,3 @@ class ExportTable:
 
     def __call__(self, frame: pd.DataFrame, path: Path) -> str:
         return self._panels.export(frame, self.check(path))
-
-
-class ReadPanelFile:
-    """Reads a wide panel CSV supplied by the user (first column is the date)."""
-
-    def __init__(self, tables: TableReader):
-        self._tables = tables
-
-    def __call__(self, path: Path) -> pd.DataFrame:
-        return self._tables.read_panel(path)
