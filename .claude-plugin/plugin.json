@@ -1,6 +1,6 @@
 {
   "name": "ml-booster",
-  "description": "Türkiye için ücretsiz veri kaynakları haritası → ML'e hazır aylık panel. MCP sunucusu ile sektör analizi, pazar payı ve rakip analizi, seri keşfi, veri kalitesi denetimi, dağılıma dayalı ön işleme, otomatik feature üretimi ve forecast backtest skill'leri.",
+  "description": "Türkiye için ücretsiz veri kaynakları haritası → ML'e hazır aylık panel ve türetilmiş feature'lar. MCP sunucusu ile sektör analizi, pazar payı ve rakip analizi, seri keşfi, veri kalitesi denetimi, dağılıma dayalı ön işleme ve otomatik feature üretimi skill'leri.",
   "author": {
     "name": "Yağız Karakaya"
   },
@@ -13,7 +13,7 @@
     "tcmb",
     "macro",
     "feature-engineering",
-    "forecasting",
+    "ml-ready-data",
     "market-share",
     "data-preprocessing",
     "mcp"

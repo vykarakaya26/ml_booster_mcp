@@ -108,7 +108,7 @@ Hoaglin, NIST §1.3.5.17). Küçük örneklemde klasik z-score'dan daha güvenil
 | Ayar | Varsayılan | Değiştirme gerekçesi |
 |---|---|---|
 | `--model` | linear | Ağaç modeli kullanılacaksa `tree`: scaling, winsorize ve power transform atlanır |
-| `--train-end` | örneklemin ilk %80'i | Backtest ve feature seçim penceresiyle aynı tarih verilmelidir |
+| `--train-end` | örneklemin ilk %80'i | Feature seçim penceresiyle aynı tarih verilmelidir |
 | `--outliers` | auto (doğrusal: winsorize + işaretle; ağaç: işaretle) | Hata kaynaklı outlier'lar biliniyorsa önce veride düzeltilir |
 | `--max-gap` | 2 dönem | Çeyreklik kaynaklı seriler aylığa çevrildiyse 2 yeterlidir |
 | `--difference` | auto | Düzey ilişkisi (cointegration) önemliyse `none` |

@@ -1,7 +1,5 @@
 import asyncio
 
-import numpy as np
-import pandas as pd
 import pytest
 from typer.testing import CliRunner
 
@@ -21,7 +19,7 @@ def test_mcp_tools_registered_with_annotations():
     tools = {t.name: t for t in asyncio.run(mcp_server.server.list_tools())}
     assert set(tools) == {
         "list_sectors", "list_sources", "show_map", "discover_series", "fetch_series", "build_panel", "health",
-        "search_series", "set_feature_series", "audit_panel", "run_backtest", "check_updates",
+        "search_series", "set_feature_series", "audit_panel", "check_updates",
         "analyze_market_share", "analyze_source_market_share", "prepare_panel", "engineer_features",
     }  # fmt: skip
     assert tools["show_map"].annotations.read_only_hint is True
@@ -154,21 +152,6 @@ def test_cli_number_format_is_turkish():
     assert cli.tr_num(12345.6, ",.0f") == "12.346"
     assert cli.tr_num(31.5, ".2f") == "31,50"
     assert cli.tr_num(-0.25, "+.2f") == "-0,25"
-
-
-def test_backtest_panel_file_and_reader(tmp_path):
-    from mlbooster.infrastructure.table_reader import LocalTableReader
-
-    idx = pd.date_range("2015-01-31", periods=80, freq="ME")
-    frame = pd.DataFrame({"date": idx.strftime("%Y-%m-%d"), "target": np.arange(80.0) + np.sin(np.arange(80)), "x": np.cos(np.arange(80))})
-    path = tmp_path / "selected.csv"
-    frame.to_csv(path, index=False)
-    panel = LocalTableReader().read_panel(path)
-    assert isinstance(panel.index, pd.DatetimeIndex) and list(panel.columns) == ["target", "x"]
-    out = CliRunner().invoke(cli.app, ["backtest", "--sector", "makro_genel", "--target", "target", "--min-train", "36",
-                                       "--models", "naive,ridge", "--panel-file", str(path), "--eval-start", "2019-12"])  # fmt: skip
-    assert out.exit_code == 0, out.output
-    assert "en iyi" in out.output
 
 
 def test_period_end_reads_months_as_month_end():

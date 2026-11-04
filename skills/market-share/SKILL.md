@@ -23,8 +23,8 @@ yanıltıcı olur.
 ## Dil
 Kullanıcıya görünen bütün metinleri (`narrative.md`, `assumptions.json` açıklamaları, `competitors.json` kanıtları,
 sohbetteki özet) `references/report-guide.md` dosyasındaki dil standardına göre yaz: akıcı, nesnel ve kurumsal
-Türkçe. Teknik terimler İngilizce kalır ve Türkçeleştirilmez (HHI, CR-k, shift-share, coverage, baseline,
-backtest); ek gerekiyorsa kesme işaretiyle bağlanır ("HHI'ye", "backtest'te"). Sayılar Türkçe biçimde yazılır
+Türkçe. Teknik terimler İngilizce kalır ve Türkçeleştirilmez (HHI, CR-k, shift-share, coverage); ek
+gerekiyorsa kesme işaretiyle bağlanır ("HHI'ye", "coverage'ı"). Sayılar Türkçe biçimde yazılır
 (%26,5; 1.448; +2,5 puan).
 
 ## Akış
@@ -99,8 +99,8 @@ python3 "${CLAUDE_SKILL_DIR}/scripts/render_share_report.py" --analysis "$OUT/sh
   --assumptions "$OUT/assumptions.json" --source "<kaynak kurum ve yayın>" --out "$OUT/report.html"
 ```
 Kullanıcıya rapor yolunu, üç ila beş satırlık özeti (konum, trend, ana rakip, yoğunlaşma, veri coverage'ı) ve
-somut sonraki adımları ver. Örneğin eksik dönemleri tamamlamak, segment verisi eklemek ya da `forecast-baseline`
-ile pay forecast'ı yapmak sonraki adımlar arasında olabilir.
+somut sonraki adımları ver. Örneğin eksik dönemleri tamamlamak ya da segment verisi eklemek sonraki adımlar arasında
+olabilir.
 
 ## Kalite ölçütleri
 - **Önce tanım ve kapsam.** Pazar tanımı, ölçü birimi ve coverage oranı rapor özetinde açıkça yer alır. Coverage
@@ -120,6 +120,5 @@ Her ifade dört dayanaktan birine bağlanır ve bu dayanak metinde görünür: *
 değişikliği, birleşmeler, kampanya ya da vergi değişikliği nedeniyle öne çekilmiş talep.
 
 ## Bütünsel akıştaki yeri
-`--sector` ile pazar büyümesi sektörün makro paneliyle ilişkilendirilir. Pay ya da pazar büyüklüğü forecast
-edilecekse pazar toplamı serisi `forecast-baseline` ve `feature-engineering` ile aynı eğitim penceresinde
-değerlendirilir. Akış: `${CLAUDE_SKILL_DIR}/../_shared/references/workflow.md`.
+`--sector` ile pazar büyümesi sektörün makro paneliyle ilişkilendirilir. Pazar toplamı serisi `feature-engineering`
+ile aynı eğitim penceresinde değerlendirilebilir; pay forecast'ı kapsam dışıdır. Akış: `${CLAUDE_SKILL_DIR}/../_shared/references/workflow.md`.

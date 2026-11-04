@@ -33,8 +33,6 @@ from mlbooster.application.use_cases import (
     ListShareSeries,
     ListSources,
     PreparePanel,
-    ReadPanelFile,
-    RunBacktest,
     RunHealthChecks,
     SearchSeries,
     SetFeatureSeries,
@@ -108,10 +106,6 @@ class Container:
         return CheckForUpdates(__version__, self.updates or _NoUpdates())
 
     @cached_property
-    def run_backtest(self) -> RunBacktest:
-        return RunBacktest(self.build_panel)
-
-    @cached_property
     def prepare_panel(self) -> PreparePanel:
         return PreparePanel(self.build_panel)
 
@@ -126,10 +120,6 @@ class Container:
     @cached_property
     def export_table(self) -> ExportTable:
         return ExportTable(self.panels)
-
-    @cached_property
-    def read_panel_file(self) -> ReadPanelFile:
-        return ReadPanelFile(self._tables)
 
     @cached_property
     def share_series(self) -> ListShareSeries:

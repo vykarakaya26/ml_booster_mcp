@@ -1,6 +1,6 @@
 ---
 name: sector-analysis
-description: Türkiye'de bir sektör (bankacılık, sigorta, telekom, otomotiv, akaryakıt…) için uçtan uca veri ve feature analizi yapar. Ücretsiz veri kaynaklarının haritasını çıkarır, TCMB EVDS'den point-in-time aylık feature paneli üretir, veri kalitesini denetler, baseline forecast backtest'i koşar ve yorumlu, paylaşılabilir bir HTML rapor teslim eder. Kullanıcı bir sektör için "analiz", "rapor", "hangi veriler var", "ML için feature hazırla", "makro görünüm", "sektörün veri haritası" gibi bir şey istediğinde ya da Türkiye makro verisini (kur, enflasyon, faiz, kredi, güven endeksi) bir sektörle ilişkilendirmek istediğinde, skill adını anmasa bile bunu kullan. Tek bir adım istendiğinde kullanma: yalnızca veri kalitesi için data-quality-audit, yalnızca forecast/backtest için forecast-baseline, oyuncu düzeyinde pay için market-share, tek bir seri kodu için evds-series-discovery. Also use for "Turkey sector macro data analysis / EVDS feature report".
+description: Türkiye'de bir sektör (bankacılık, sigorta, telekom, otomotiv, akaryakıt…) için uçtan uca veri ve feature analizi yapar. Ücretsiz veri kaynaklarının haritasını çıkarır, TCMB EVDS'den point-in-time aylık feature paneli üretir, veri kalitesini denetler ve yorumlu, paylaşılabilir bir HTML rapor teslim eder. Kullanıcı bir sektör için "analiz", "rapor", "hangi veriler var", "ML için feature hazırla", "makro görünüm", "sektörün veri haritası" gibi bir şey istediğinde ya da Türkiye makro verisini (kur, enflasyon, faiz, kredi, güven endeksi) bir sektörle ilişkilendirmek istediğinde, skill adını anmasa bile bunu kullan. Tek bir adım istendiğinde kullanma: yalnızca veri kalitesi için data-quality-audit, oyuncu düzeyinde pay için market-share, tek bir seri kodu için evds-series-discovery. Forecast ve model karşılaştırması kapsam dışıdır; akış veri haritası, feature paneli ve kalite denetiminde biter. Also use for "Turkey sector macro data analysis / EVDS feature report".
 allowed-tools:
   - Bash(${CLAUDE_SKILL_DIR}/../_shared/bin/mlb *)
   - Bash(python3 ${CLAUDE_SKILL_DIR}/scripts/render_sector_report.py *)
@@ -48,9 +48,9 @@ tanımlama.
 ### 1b. Girdileri ve varsayımları topla → `$OUT/assumptions.json`
 Yorum içeren her çıktı varsayımlara bağlanır; okur bir ifadenin neye dayandığını görebilmelidir. Bunun için
 `${CLAUDE_SKILL_DIR}/../_shared/references/assumptions-guide.md` dosyasını oku.
-- İstekten çıkarılabilenleri (sektör, hedef, horizon…) kendin doldur.
+- İstekten çıkarılabilenleri (sektör, hedef…) kendin doldur.
 - Sonucu değiştirecek eksik girdileri kullanıcıya **tek seferde, en fazla 3–4 kısa soruyla** sor.
-  AskUserQuestion aracı varsa onu kullan. Sorulacaklar: amaç ve karar, hedef değişken, horizon, nominal/reel.
+  AskUserQuestion aracı varsa onu kullan. Sorulacaklar: amaç ve karar, hedef değişken, nominal/reel.
   Sektör varsayımlarını `${CLAUDE_SKILL_DIR}/../_shared/references/sector-assumptions.md` dosyasındaki
   seçeneklerle sun.
 - Yanıt gelmezse ya da kullanıcı "sen karar ver" derse sektör varsayılanlarıyla devam et. Bunları
@@ -66,42 +66,35 @@ Yorum içeren her çıktı varsayımlara bağlanır; okur bir ifadenin neye daya
 kısmında adlarıyla geçmelidir. Kullanıcı eksiksiz bir panel istiyorsa önce `evds-series-discovery` skill'iyle
 seri kodlarını bağla.
 
-### 3. Panel, kalite ve baseline'lar
+### 3. Panel ve kalite
 ```bash
 "$MLB" build-panel --sector "$SECTOR" --start 2012-01 --out "$OUT/panel.csv"
 "$MLB" audit --sector "$SECTOR" --start 2012-01 --json "$OUT/audit.json"
-"$MLB" backtest --sector "$SECTOR" --target <hedef> --horizon <h> --start 2012-01 --json "$OUT/bt-<hedef>.json"
 ```
 - Kullanıcı haftalık ya da günlük panel isterse `build-panel --freq W` ya da `--freq B` ile ayrıca üret.
-  Audit ve backtest aylık panelde çalışır.
+  Audit aylık panelde çalışır.
 - Başlangıç 2012-01'dir; EVDS serilerinin çoğu bu tarihten itibaren ortak dönemi kapsar. Kullanıcı daha uzun
   geçmiş isterse değiştir.
-- Backtest hedefini ve ufkunu sektöre göre `references/targets.md` tablosundan seç (1–2 hedef yeterli).
-  Hedef, `panel.csv` kolonlarından biri olmalıdır.
+- Hedef adayını sektöre göre `references/targets.md` tablosundan seç (1–2 hedef yeterli) ve `panel.csv`
+  kolonlarında olup olmadığını kontrol et.
 - `build-panel` çıktısındaki "atlandı" satırlarını kaydet; bunlar rapora girer.
 
 ### 4. Yönetici özetini yaz → `$OUT/narrative.md`
 `references/narrative-guide.md` ve `${CLAUDE_SKILL_DIR}/../_shared/references/analysis-playbook.md`
-dosyalarını oku ve oradaki yapıya uy. Önce `audit.json`, `panel.csv` (son satırlar) ve `bt-*.json`
-dosyalarını oku. Her bulguya ay ve değer koy (ör. "TÜFE yıllık %31,5, 2026-09"). Yatırım tavsiyesi verme.
+dosyalarını oku ve oradaki yapıya uy. Önce `audit.json` ve `panel.csv` (son satırlar) dosyalarını oku. Her bulguya ay ve değer koy (ör. "TÜFE yıllık %31,5, 2026-09"). Yatırım tavsiyesi verme.
 Metni akıcı, nesnel ve kurumsal Türkçeyle yaz. Teknik terimleri İngilizce bırak ve eki kesme işaretiyle
-ekle ("feature'lar", "backtest'te", "outlier'lar"); terimlere Türkçe karşılık uydurma. Rakamları Türkçe
+ekle ("feature'lar", "outlier'lar"); terimlere Türkçe karşılık uydurma. Rakamları Türkçe
 biçimde yaz (%31,5; 2,4 puan), yüzde ile yüzde puanı ayır.
 
 ### 5. Raporu üret ve teslim et
 ```bash
 python3 "${CLAUDE_SKILL_DIR}/scripts/render_sector_report.py" \
   --map "$OUT/map.json" --panel "$OUT/panel.csv" --audit "$OUT/audit.json" \
-  --narrative "$OUT/narrative.md" --backtest "$OUT/bt-<hedef>.json" \
-  --assumptions "$OUT/assumptions.json" --out "$OUT/report.html"
+  --narrative "$OUT/narrative.md" --assumptions "$OUT/assumptions.json" --out "$OUT/report.html"
 ```
-Kullanıcıya şunları ver: rapor yolu, 3–5 satırlık özet (en önemli bulgu, veri durumu, en iyi baseline model)
-ve somut sonraki adımlar (seri kodu bekleyen feature'lar, hedef için daha iyi bir model). `panel.csv`'nin
+Kullanıcıya şunları ver: rapor yolu, 3–5 satırlık özet (en önemli bulgu, veri durumu, panelin kapsamı) ve
+somut sonraki adımlar (seri kodu bekleyen feature'lar, `data-prep` ve `feature-engineering`). `panel.csv`'nin
 ML'e hazır çıktı olduğunu da belirt.
-Kur, enflasyon ya da faiz görünümü sektör için kritikse (ör. otomotivde kur geçişkenliği), kurumların yıl
-sonu forecast'lerini `${CLAUDE_SKILL_DIR}/../_shared/references/external-forecasts.md` dosyasına göre derle
-ve rapora `--external` ile ekle. Bunlar varsayımdır; konsensüs kuralı ve güncellik kontrolü otomatik
-uygulanır.
 
 ## Kalite ölçütleri
 - **Hedef değişken panelde mi?** Sektörün asıl hedefi (satış, prim, abone vb.) panelde yoksa, örneğin pazar
@@ -119,7 +112,7 @@ Her ifade dört dayanaktan birine bağlanır ve bu dayanak metinde görünür (a
 - **Veri**: yayımlanmış gözlem; ay ve kaynakla.
 - **Varsayım**: `(A2)` gibi bir kimlikle. Onaylanmamış ya da güncelliğini yitirmiş bir varsayıma dayanan
   sonuç koşullu yazılır.
-- **Model**: forecast ya da backtest sonucu; yöntem, örneklem ve belirsizlikle.
+- **Model**: istatistiksel hesap (ör. structural break testi, korelasyon); yöntem ve örneklemle.
 - **Yorum**: analistin çıkarımı; güven düzeyiyle ("muhtemel, orta güven"). Nedensellik iddia edilmez.
 Bulguyu zayıflatan kanıtı da yaz: dönem seçimi, kısa rejim örneklemi, baz etkisi, nominal yanılsama.
 Belirsizliği gizlemek okuru yanıltır; doğru ölçüde vermek kararı güçlendirir.
@@ -128,5 +121,5 @@ Belirsizliği gizlemek okuru yanıltır; doğru ölçüde vermek kararı güçle
 Bu skill zincirin başlangıcıdır (`${CLAUDE_SKILL_DIR}/../_shared/references/workflow.md`). Kullanıcı model
 kurmak istiyorsa rapordan sonra şu sırayı öner ve aynı çalışma klasörüyle devam et: `data-quality-audit`
 (veri sorunları) → `data-prep` (dağılıma göre hazırlık) → `feature-engineering` (sektöre özgü feature'lar ve
-seçim) → `forecast-baseline` (`--panel-file` ve `--eval-start` ile katkı ölçümü). Oyuncu düzeyinde bir soru
-varsa `market-share` skill'ini aynı sektörle çalıştır.
+seçim). Zincir ML'e hazır feature'larda biter; forecast ve model karşılaştırması kapsam dışıdır. Oyuncu
+düzeyinde bir soru varsa `market-share` skill'ini aynı sektörle çalıştır.

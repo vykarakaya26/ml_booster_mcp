@@ -177,15 +177,12 @@ def test_set_feature_rejects_unknown_feature_and_stale_series(deps):
         SetFeatureSeries(catalog, providers, None)("bankacilik", "kredi_faizi", "TP.TUKFIY2025.GENEL")
 
 
-def test_audit_and_backtest_use_cases(deps):
-    from mlbooster.application.use_cases import AuditPanel, RunBacktest
-    from mlbooster.domain.services.backtest import BacktestConfig
+def test_audit_use_case(deps):
+    from mlbooster.application.use_cases import AuditPanel
 
     build = BuildPanel(*deps)
     report, result = AuditPanel(build)("telekom", date(2024, 1, 1), date(2026, 9, 30))
     assert report.months == len(result.panel)
-    bt, _ = RunBacktest(build)("telekom", BacktestConfig(target="usdtry_logdiff", min_train=24), date(2024, 1, 1), date(2026, 9, 30))
-    assert not bt.metrics.empty
 
 
 def test_set_feature_create_adds_new_feature_and_unknown_override_fails(tmp_path, deps):

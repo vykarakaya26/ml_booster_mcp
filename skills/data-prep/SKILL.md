@@ -1,6 +1,6 @@
 ---
 name: data-prep
-description: Türkiye makro/sektör panelini modellemeye hazırlar. Her değişkenin dağılımını (ortalama, standart sapma, medyan, MAD, IQR, skewness, excess kurtosis, outlier oranı, stationarity) eğitim penceresinde ölçer; buna göre merkez/ölçek seçimini, imputation'ı, outlier winsorize etmeyi ya da işaretlemeyi, log/Yeo–Johnson dönüşümünü, fark almayı ve standard/robust scaling'i leakage olmadan uygular ve gerekçeli bir HTML rapor üretir. Kullanıcı "veri ön işleme", "data prep", "normalize et", "ölçekle", "outlier'ları temizle", "eksikleri doldur", "dağılım çarpık", "medyan mı ortalama mı", "modele hazırla" dediğinde ya da bir panelle model kurmadan önce kullan. Veri kalitesi teşhisi için kullanma (data-quality-audit); yeni feature üretimi için kullanma (feature-engineering). Also: "distribution-aware preprocessing for Turkish macro panel", "scaling, imputation, outlier handling".
+description: Türkiye makro/sektör panelini modellemeye hazırlar. Her değişkenin dağılımını (ortalama, standart sapma, medyan, MAD, IQR, skewness, excess kurtosis, outlier oranı, stationarity) eğitim penceresinde ölçer; buna göre merkez/ölçek seçimini, imputation'ı, outlier winsorize etmeyi ya da işaretlemeyi, log/Yeo–Johnson dönüşümünü, fark almayı ve standard/robust scaling'i leakage olmadan uygular ve gerekçeli bir HTML rapor üretir. Kullanıcı "veri ön işleme", "data prep", "normalize et", "ölçekle", "outlier'ları temizle", "eksikleri doldur", "dağılım çarpık", "medyan mı ortalama mı", "modele hazırla" dediğinde ya da bir panelle model kurmadan önce kullan. Veri kalitesi teşhisi için kullanma (data-quality-audit); yeni feature üretimi için kullanma (feature-engineering). Forecast ve model karşılaştırması kapsam dışıdır. Also: "distribution-aware preprocessing for Turkish macro panel", "scaling, imputation, outlier handling".
 allowed-tools:
   - Bash(${CLAUDE_SKILL_DIR}/../_shared/bin/mlb *)
   - Bash(python3 ${CLAUDE_SKILL_DIR}/scripts/render_prep_report.py *)
@@ -37,7 +37,7 @@ Kullanıcıya en fazla üç kısa soru sor (yanıt gelmezse varsayılanı kullan
 - **Model ailesi**: doğrusal/regularized (varsayılan), ağaç tabanlı ya da yapay sinir ağı. Ağaç
   modellerinde scaling ve power transform gereksizdir; skill bunları atlar.
 - **Hedef değişken**: dağılımı değiştirilmeyecek kolon.
-- **Eğitim penceresi sonu**: backtest ve feature seçimiyle aynı tarih olmalıdır (ör. son 36 ay test için
+- **Eğitim penceresi sonu**: feature seçimiyle aynı tarih olmalıdır (ör. son 36 ay test için
   ayrılıyorsa bundan önceki ay). Verilmezse örneklemin ilk %80'i kullanılır ve bu raporda belirtilir.
 
 ### 2. Paneli ve ön işlemeyi üret
@@ -69,12 +69,12 @@ python3 "${CLAUDE_SKILL_DIR}/scripts/render_prep_report.py" --prep "$OUT/prep.js
   --raw "$OUT/panel.csv" --prepared "$OUT/prepared.csv" --notes "$OUT/prep-notes.md" \
   --assumptions "$OUT/assumptions.json" --out "$OUT/prep.html"
 ```
-Kullanıcıya rapor yolunu ver, `prepared.csv` dosyasının modele hazır olduğunu belirt ve sonraki adımı öner:
-feature üretimi için `feature-engineering`, performans ölçümü için `forecast-baseline`.
+Kullanıcıya rapor yolunu ver, `prepared.csv` dosyasının modele hazır olduğunu belirt ve feature üretimi için
+`feature-engineering` adımını öner.
 
 ## Kalite ölçütleri
 - Raporda eğitim penceresi sonu ve model ailesi açıkça yazılıdır.
 - Hedef değişken dönüştürülmemiştir; yalnızca eksik değerleri ileri taşınmıştır.
 - Robust seçimin gerekçesi sayıyla verilir (ör. "skewness +2,53; outlier oranı %14").
 - Outlier'lar "silindi" diye değil, "winsorize edildi ve işaretlendi" ya da "işaretlendi" diye anlatılır.
-- Ön işleme tek başına model performansını kanıtlamaz; etkisi `forecast-baseline` ile ölçülür.
+- Ön işleme tek başına model performansını kanıtlamaz; model kurmak ve performans ölçmek bu ürünün kapsamı dışındadır.

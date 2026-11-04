@@ -6,7 +6,7 @@
     {
       "name": "ml-booster",
       "source": "./",
-      "description": "Türkiye makro ve sektör verisi için MCP sunucusu ve otonom analiz skill'leri"
+      "description": "Türkiye makro ve sektör verisi için MCP sunucusu ve ML'e hazır feature üreten analiz skill'leri"
     }
   ]
 }

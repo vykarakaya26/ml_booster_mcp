@@ -1,15 +1,12 @@
-"""Panel analysis: quality audit and baseline forecast backtest."""
+"""Panel analysis: quality audit."""
 
 from __future__ import annotations
 
 from datetime import date
 
-import pandas as pd
-
 from mlbooster.application.dto import PanelResult
 from mlbooster.application.use_cases.panel import DEFAULT_START, BuildPanel
 from mlbooster.domain.errors import InvalidInput
-from mlbooster.domain.services.backtest import BacktestConfig, BacktestResult, rolling_origin_backtest
 from mlbooster.domain.services.quality import QualityReport, QualityThresholds, audit_panel
 
 
@@ -37,27 +34,3 @@ class AuditPanel:
         }
         report = audit_panel(result.panel, end or date.today(), thresholds, transforms, companions)
         return report, result
-
-
-class RunBacktest:
-    def __init__(self, build_panel: BuildPanel):
-        self._build = build_panel
-
-    def __call__(
-        self,
-        sector_id: str,
-        config: BacktestConfig,
-        start: date = DEFAULT_START,
-        end: date | None = None,
-        panel: pd.DataFrame | None = None,
-    ) -> tuple[BacktestResult, PanelResult]:
-        """If `panel` is given (e.g. feature-engineering output), it is used instead of the sector panel."""
-        if panel is not None:
-            if not isinstance(panel.index, pd.DatetimeIndex) or panel.empty:
-                raise InvalidInput("Dışarıdan verilen panel, tarih indeksli ve boş olmayan bir tablo olmalıdır")
-            result = PanelResult(sector_id, panel)
-        else:
-            result = self._build(sector_id, start, end, save=False)
-        if result.panel.empty:
-            raise InvalidInput(f"{sector_id} paneli boş; atlanan feature'lar: {result.skipped}")
-        return rolling_origin_backtest(result.panel, config), result
