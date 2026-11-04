@@ -834,7 +834,7 @@ views.pazar = async (root) => {
       h("div", { class: "card-head" }, h("div", {}, h("h2", {}, "Arama ilgisi"), h("p", {}, s.note))),
       done ? [
         h("p", {}, `Google Trends Türkiye listeleri, ${s.coverage.first_day} – ${s.coverage.last_day} (${nf(0).format(s.coverage.list_days)} günlük liste).`),
-        searchTerms(s),
+        ...searchTerms(s),
         listed.length ? h("p", {}, `Listelerde görünme sırası: ${listed.map((x) => `${x.rank}. ${x.label} (${nf(0).format(x.list_days)} gün)`).join(", ")}.`) : null,
         s.provinces ? h("p", {}, `${r.brand?.name || s.brand} için ${nf(0).format(s.provinces.provinces_with_data)} ilde veri var. ${s.provinces.note}`) : null,
         h("p", { class: "caption" }, s.withheld.arama_payi),
