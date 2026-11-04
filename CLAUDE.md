@@ -6,6 +6,7 @@ The user selects a sector in Turkey; the system produces for that sector (a) a m
 monthly panel (Parquet). Distribution: GitHub repository, `pip install git+...`.
 Usage is through the CLI (`mlbooster`), the MCP server (`mlbooster-mcp`, stdio) and a local web panel
 (`mlbooster web`, bound to 127.0.0.1 only; a hosted/public site is out of scope).
+The product ends at ML-ready features: forecasting, model training and model comparison are out of scope.
 
 ## Technology
 - Python 3.12+, httpx, pandas, pydantic v2, duckdb ≥2, pyarrow, typer, python-dotenv
@@ -21,11 +22,11 @@ src/mlbooster/
   domain/            # core: model.py (frozen dataclasses), validation.py (allow-lists, DateRange), periods.py
                      # (single period-string parser), numfmt.py (Turkish number formatting for messages),
                      # observations.py (observation frame contract), services/ (frequency, deflation, features,
-                     # chunking, sector_map, quality, backtest, distribution, preprocessing, feature_engineering,
+                     # chunking, sector_map, quality, distribution, preprocessing, feature_engineering,
                      # calendar_tr, market_share). Allowed: stdlib + pandas/numpy. NO I/O.
   application/       # ports.py (Protocols), dto.py (FetchRequest: input validation gate), errors.py,
                      # use_cases/ (catalog, series, discovery, panel, health, analysis, modeling, market_share,
-                     # files: ExportTable/ReadPanelFile). Depends only on domain.
+                     # files: ExportTable). Depends only on domain.
   infrastructure/    # port implementations: providers/ (evds3, sdmx, tuik, bddk, tbb, bkm, tsb, odmd, epdk, btk, epias,
                      # bigquery_trends + google_auth/bigquery_rest, registry), http_client.py (SecureHttpClient),
                      # catalog_yaml.py (pydantic → domain), secret_store.py, settings.py, storage/,
@@ -36,7 +37,7 @@ src/mlbooster/
   bootstrap.py       # composition root: the single wiring point
   catalog_data/      # sources/*.yaml, sectors/*.yaml (package-data); user override: ~/.mlbooster/catalog/overrides.yaml
 skills/              # Claude Code plugin skills (sector-analysis, data-quality-audit, data-prep, feature-engineering,
-                     # forecast-baseline, evds-series-discovery, market-share); _shared/ = stdlib-only report library
+                     # evds-series-discovery, market-share); _shared/ = stdlib-only report library
                      # + bin/mlb CLI wrapper
 .claude-plugin/      # plugin.json (mcpServers: uvx --from ${CLAUDE_PLUGIN_ROOT}) + marketplace.json; there is NO
                      # .mcp.json at the root — if there were, sessions opened in the repo folder would treat it as a
@@ -49,7 +50,7 @@ Rules:
 - Interfaces do NOT import infrastructure directly; they use `bootstrap.build_container()`.
 - Every identifier/code coming from the outside world is validated with `domain.validation` (FetchRequest.create,
   use case entry points).
-- Analysis logic (quality audit, backtest) lives in the package and is tested; skill scripts only handle
+- Analysis logic (quality audit, market share) lives in the package and is tested; skill scripts only handle
   presentation, import nothing outside the stdlib (enforced by tests/skills) and escape every value written to HTML.
 - Versioning: there is NO `version` in `.claude-plugin/plugin.json`. The plugin tracks the git commit of the
   installed copy, so every merge into `main` reaches users through automatic updates. The MCP server and `mlb` run
@@ -222,6 +223,7 @@ currency, is_proxy, vintage_ts, publication_lag_days. Key: source_id, series_id,
 
 ## Do not
 - Integrate paid sources (Nielsen, Euromonitor, IQVIA are documentation-only).
+- Add forecasting, backtests or model comparison; the product stops at ML-ready features.
 - Scrape in violation of robots.txt / terms of use, or access areas that require login.
 - Store fields containing personal data (KVKK).
 - Put raw data in the repository; the repository contains only code and the catalog.
@@ -239,7 +241,7 @@ documents (SKILL.md, references, evals), catalog text shown to users, and README
 - Write the way a Turkish data scientist writes: short, natural sentences, no translationese, no slang, metaphors,
   exclamations or casual phrasing.
 - Technical terms always stay in English and are never Turkified; Turkish suffixes are attached with an apostrophe:
-  "feature'lar", "backtest'te", "outlier'ları". Examples: not "bayat seri" but "stale seri"; not "aykırı değer
+  "feature'lar", "outlier'ları". Examples: not "bayat seri" but "stale seri"; not "aykırı değer
   tespiti" but "outlier tespiti"; not "sızıntı" but "leakage"; not "nokta-zamanlı" but "point-in-time".
 - Plain domain words stay Turkish: pazar payı, oyuncu, sektör, enflasyon, kur, faiz, dönem, rapor, varsayım.
 - Code-level enum values are shown to users through Turkish labels (e.g. `STATUS_LABELS` in
