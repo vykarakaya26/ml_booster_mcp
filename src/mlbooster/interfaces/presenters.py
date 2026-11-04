@@ -8,7 +8,6 @@ import math
 from dataclasses import asdict
 
 from mlbooster.domain.model import HealthResult, Source
-from mlbooster.domain.services.backtest import BacktestResult
 from mlbooster.domain.services.quality import QualityReport
 from mlbooster.domain.services.sector_map import SectorMap
 
@@ -137,29 +136,6 @@ def quality_dict(report: QualityReport, skipped: dict[str, str] | None = None) -
         "diagnostics": [{k: _clean(v) for k, v in asdict(d).items()} for d in report.diagnostics],
         "notable_pairs": [{"a": a, "b": b, "corr": c, "note": n} for a, b, c, n in report.notable_pairs],
     }
-
-
-def backtest_dict(result: BacktestResult, sector_id: str, max_predictions: int | None = None) -> dict:
-    preds = result.predictions
-    if max_predictions is not None:
-        last_dates = sorted(preds["date"].unique())[-max_predictions:]
-        preds = preds[preds["date"].isin(last_dates)]
-    c = result.config
-    return {
-        "sector": sector_id,
-        "config": {
-            "target": c.target, "horizon": c.horizon, "min_train": c.min_train, "lags": list(c.lags),
-            "alpha": c.alpha, "models": list(c.models), "exogenous": c.exogenous, "anchor": c.anchor,
-            "eval_start": c.eval_start.date().isoformat() if c.eval_start is not None else None,
-        },
-        "best_model": result.best_model,
-        "common_origins": result.common_origins,
-        "robust_share": result.robust_share,
-        "metrics": [{k: _clean(v) for k, v in row.items()} for row in result.metrics.to_dict(orient="records")],
-        "regime_metrics": [{k: _clean(v) for k, v in row.items()} for row in result.regime_metrics.to_dict(orient="records")],
-        "features_used": list(result.features_used),
-        "predictions": [{k: _clean(v) for k, v in row.items()} for row in preds.to_dict(orient="records")],
-    }  # fmt: skip
 
 
 def _deep(value):

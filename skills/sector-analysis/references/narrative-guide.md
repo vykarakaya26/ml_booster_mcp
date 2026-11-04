@@ -15,7 +15,6 @@ almak ister: bu veriyle ne yapılabilir ve nelere dikkat etmek gerekir.
 
 ## Modelleme için öneriler
 - Hangi dönüşüm ve hedef uygun, hangi rejim dummy'leri gerekli, hangi feature'lar aynı bilgiyi taşıyor (collinear).
-- Backtest sonucu: en iyi baseline model ve naive'e göre farkı; production modelinin geçmesi gereken benchmark.
 
 ## Sınırlar
 - Seri kodu bekleyen ve provider'ı olmayan kaynaklar, proxy uyarıları.
@@ -36,7 +35,7 @@ almak ister: bu veriyle ne yapılabilir ve nelere dikkat etmek gerekir.
 
 ## Dil
 - Kısa, açık ve etken cümleler kur; resmi ve analitik bir üslup kullan. Teknik terimleri İngilizce bırak,
-  eki kesme işaretiyle ekle (feature'lar, backtest'te); Türkçe karşılık uydurma.
+  eki kesme işaretiyle ekle (feature'lar, outlier'lar); Türkçe karşılık uydurma.
 - Rakamları Türkçe biçimde yaz (%31,5; 2,4 puan; 2026-09). Yüzde ile yüzde puanı ayır.
-- Belirsizliği açıkça yaz: "backtest'te naive'i geçemedi" net bir ifadedir, "iyi sonuç" ise muğlaktır.
+- Belirsizliği açıkça yaz: "seri 2026-06'dan beri güncellenmiyor" net bir ifadedir, "veride sorun var" ise muğlaktır.
 - Yatırım ya da finansal tavsiye verme; analizi veri ve modelleme bağlamında tut.

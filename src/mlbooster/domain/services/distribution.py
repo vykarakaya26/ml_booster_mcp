@@ -198,8 +198,8 @@ def diagnose(series: pd.Series, name: str, transform: str | None = None) -> Diag
         acf12=round(acf12, 3) if acf12 is not None and not math.isnan(acf12) else None,
         recommendations=tuple(_recommend(facts, transform) + (
             ["Kontrollü seyir: son 12 ayda değişim pozitif ve istikrarlı, volatilite düşük (ör. yönetilen kur). "
-             "Benchmark olarak son dönemin ortalama değişimini (naive/drift_recent) kullanın; kuyruk riski (ani sıçrama) "
-             "için quantile aralığını ve geçmiş structural break dönemlerini (2018-08, 2021-12, 2023-06, 2025-03) dikkate alın."]
+             "Son dönemin ortalama değişimi uzun dönem ortalamasından daha temsil edicidir; kuyruk riski (ani sıçrama) "
+             "için geçmiş structural break dönemlerini (2018-08, 2021-12, 2023-06, 2025-03) dikkate alın."]
             if _managed_path(y, transform, vol) else []
         )),
         managed_path=_managed_path(y, transform, vol),

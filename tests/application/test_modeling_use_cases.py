@@ -2,12 +2,9 @@ from datetime import date
 
 import numpy as np
 import pandas as pd
-import pytest
 
 from mlbooster.application.dto import PanelResult
-from mlbooster.application.use_cases import EngineerFeatures, PreparePanel, RunBacktest
-from mlbooster.domain.errors import InvalidInput
-from mlbooster.domain.services.backtest import BacktestConfig
+from mlbooster.application.use_cases import EngineerFeatures, PreparePanel
 from mlbooster.domain.services.feature_engineering import FeatureConfig
 from mlbooster.domain.services.preprocessing import PrepConfig
 
@@ -47,14 +44,3 @@ def test_engineer_features_applies_sector_recipes(catalog):
     names = {s.name for s in result.specs if s.family == "sector_recipe"}
     assert {"reel_faiz_ex_ante", "aofm_politika_farki"} <= names and prepared is not None
     assert result.screening is not None and "q" in result.screening
-
-
-def test_backtest_accepts_external_panel_and_eval_start(catalog):
-    build = StubBuild(catalog)
-    panel = build.panel[["tufe_yoy", "aofm"]]
-    cfg = BacktestConfig(target="tufe_yoy", min_train=36, models=("naive", "ridge"), eval_start=pd.Timestamp("2018-12-31"))
-    bt, result = RunBacktest(build)("makro_genel", cfg, panel=panel)
-    assert build.calls == [] and result.panel is panel
-    assert bt.predictions.loc[bt.predictions["origin"] > "2018-12-31", "origin"].nunique() == bt.common_origins
-    with pytest.raises(InvalidInput, match="tarih indeksli"):
-        RunBacktest(build)("makro_genel", cfg, panel=panel.reset_index())

@@ -11,6 +11,6 @@
 
 ## Sınırlar
 - Audit'teki structural break eşleştirmesi bilinen şok tarihlerine yakınlığa dayanır; nedensellik iddiası değildir.
-- Backtest modelleri baseline niteliğindedir. Türkiye verisindeki 2018, 2021 ve 2023 gibi rejim değişimleri hata metriklerini büyütür.
+- Rapor veri ve feature'larla sınırlıdır; forecast ve model karşılaştırması kapsam dışıdır.
 - Katalogda durumu "reported" olan kaynakların henüz provider'ı yoktur; bu kaynaklar haritada görünür ama panele girmez.
 - Proxy pazar payları (KAP gelirleri, arama ilgisi) gerçek pazar payı değildir.

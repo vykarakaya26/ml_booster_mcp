@@ -2,7 +2,7 @@
 
 Katalogdaki tarifler (`feature_recipes`) ve olaylar (`events`) her sektör için otomatik uygulanır. Aşağıdaki liste bu
 tariflerin ekonomik gerekçesini ve henüz katalogda olmayan, sınanması önerilen **hipotezleri** listeler. Hipotezler
-olgu değildir: veriyle sınanır ve seçimden geçse bile backtest ile doğrulanır. Tarihi doğrulanmamış düzenlemeler
+olgu değildir: veriyle sınanır ve seçimden geçmesi yalnızca bir ilişkiye işaret eder. Tarihi doğrulanmamış düzenlemeler
 `[doğrula]` ile işaretlidir ve Resmî Gazete ya da düzenleyici kurumdan kontrol edilmeden olay olarak kodlanmaz.
 
 ## Tarif yazımı

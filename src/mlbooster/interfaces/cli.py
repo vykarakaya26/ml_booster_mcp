@@ -19,7 +19,6 @@ from mlbooster.bootstrap import Container, build_container
 from mlbooster.domain.errors import DomainError
 from mlbooster.domain.model import HealthStatus
 from mlbooster.domain.numfmt import tr_num
-from mlbooster.domain.services.backtest import MODELS, BacktestConfig
 from mlbooster.domain.services.feature_engineering import FeatureConfig
 from mlbooster.domain.services.market_share import ShareConfig
 from mlbooster.domain.services.preprocessing import PrepConfig
@@ -28,7 +27,6 @@ from mlbooster.interfaces.presenters import (
     HHI_CLASS_LABELS,
     SEVERITY_LABELS,
     TREND_LABELS,
-    backtest_dict,
     features_dict,
     prep_dict,
     quality_dict,
@@ -282,38 +280,6 @@ def audit(
         typer.secho(f"{label:<7} {i.feature:<28} {i.message}", fg=colors[i.severity.value])
 
 
-@app.command()
-def backtest(
-    sector: Annotated[str, typer.Option(help="Sektör id")],
-    target: Annotated[str, typer.Option(help="Hedef feature (panel kolonu)")],
-    horizon: Annotated[int, typer.Option(help="Kaç ay ileri (1–24)")] = 1,
-    min_train: Annotated[int, typer.Option(help="İlk eğitim penceresi (ay, ≥24)")] = 48,
-    models: Annotated[str, typer.Option(help=f"Virgülle ayrılmış: {','.join(MODELS)}")] = ",".join(MODELS),
-    no_exog: Annotated[bool, typer.Option("--no-exog", help="Ridge'de diğer feature'ları kullanma")] = False,
-    anchor: Annotated[str | None, typer.Option(help="Anchor kolonu (ör. aofm_son): anchor_naive modeli bu kolonun son değerini kullanır")] = None,
-    start: Annotated[str, typer.Option(help="YYYY-AA[-GG]")] = DEFAULT_START.isoformat(),
-    end: Annotated[str | None, typer.Option(help="YYYY-AA[-GG]")] = None,
-    json_out: Annotated[Path | None, typer.Option("--json", help="Metrikleri ve forecast'leri bu dosyaya yaz")] = None,
-    panel_file: Annotated[Path | None, typer.Option("--panel-file", help="Sektör paneli yerine bu CSV'yi kullan (ör. features --selected-out çıktısı)")] = None,
-    eval_start: Annotated[str | None, typer.Option(help="Metrikleri yalnızca bu aydan sonraki origin'lerde hesapla (seçim penceresinin sonu)")] = None,
-):
-    """Rolling-origin backtest ile baseline modelleri karşılaştırır (look-ahead korumalı)."""
-    try:
-        config = BacktestConfig(
-            target=target, horizon=horizon, min_train=min_train,
-            models=tuple(m.strip() for m in models.split(",") if m.strip()), exogenous=not no_exog, anchor=anchor,
-            eval_start=pd.Timestamp(_period_end(eval_start)) if eval_start else None,
-        )  # fmt: skip
-        external = container().read_panel_file(panel_file) if panel_file is not None else None
-        result, _ = container().run_backtest(sector, config, _date(start), _date(end), panel=external)
-    except DomainError as exc:
-        _fail(exc)
-    if json_out is not None:
-        _write_json(backtest_dict(result, sector), json_out)
-    typer.echo(f"Hedef {target}, horizon {horizon} ay — en iyi: {result.best_model}")
-    typer.echo(result.metrics.round(4).to_string(index=False))
-
-
 def _prep_config(target, train_end, model, outliers, power, scaling, difference, max_gap) -> PrepConfig:
     return PrepConfig(target=target, train_end=_period_end(train_end), model_family=model, outliers=outliers, power=power,
                       scaling=scaling, difference=difference, max_gap=max_gap)  # fmt: skip
@@ -360,7 +326,7 @@ def prep(
 def features(
     sector: Annotated[str, typer.Option(help="Sektör id")],
     target: Annotated[str | None, typer.Option(help="Hedef kolon: verilirse feature'lar h dönem sonrasındaki hedefe göre taranır ve seçilir")] = None,
-    horizon: Annotated[int, typer.Option(help="Tahmin ufku (ay)")] = 1,
+    horizon: Annotated[int, typer.Option(help="Hedefin kaç ay sonrasına göre taranacağı (horizon)")] = 1,
     train_end: Annotated[str | None, typer.Option(help="Eğitim penceresinin son ayı (YYYY-AA)")] = None,
     label: Annotated[str, typer.Option(help="Tarama etiketi: auto | level | change")] = "auto",
     max_features: Annotated[int | None, typer.Option(help="Seçilecek en fazla feature sayısı (varsayılan: eğitim gözlemi / 10)")] = None,
@@ -369,7 +335,7 @@ def features(
     start: Annotated[str, typer.Option(help="YYYY-AA[-GG]")] = DEFAULT_START.isoformat(),
     end: Annotated[str | None, typer.Option(help="YYYY-AA[-GG]")] = None,
     out: Annotated[Path | None, typer.Option(help="Bütün feature matrisini bu .csv / .parquet yoluna yaz")] = None,
-    selected_out: Annotated[Path | None, typer.Option("--selected-out", help="Hedefi ve seçilen feature'ları yaz (backtest --panel-file için)")] = None,
+    selected_out: Annotated[Path | None, typer.Option("--selected-out", help="Hedefi ve seçilen feature'ları bu .csv / .parquet yoluna yaz")] = None,
     json_out: Annotated[Path | None, typer.Option("--json", help="Feature kataloğunu ve tarama sonuçlarını bu JSON dosyasına yaz")] = None,
 ):
     """Otomatik ve sektöre özgü feature üretimi (lag, rolling istatistik, sektör tarifi, takvim, olay) ve leakage'sız ön seçim."""

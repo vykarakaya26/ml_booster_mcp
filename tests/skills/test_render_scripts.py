@@ -13,9 +13,8 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from mlbooster.domain.services.backtest import BacktestConfig, rolling_origin_backtest
 from mlbooster.domain.services.quality import audit_panel
-from mlbooster.interfaces.presenters import backtest_dict, quality_dict
+from mlbooster.interfaces.presenters import quality_dict
 
 ROOT = Path(__file__).resolve().parents[2]
 SKILLS = ROOT / "skills"
@@ -34,8 +33,6 @@ def artifacts(tmp_path):
     panel.to_csv(tmp_path / "panel.csv", date_format="%Y-%m-%d")
     audit = quality_dict(audit_panel(panel, date(2026, 10, 30)), {"kredi_faizi": EVIL})
     (tmp_path / "audit.json").write_text(json.dumps(audit), encoding="utf-8")
-    bt = rolling_origin_backtest(panel, BacktestConfig(target="tufe_yoy", min_train=36))
-    (tmp_path / "bt.json").write_text(json.dumps(backtest_dict(bt, "telekom", 24)), encoding="utf-8")
     sector_map = {
         "sector": {"id": "telekom", "name": "Telekom", "ml_use_cases": ["Churn"]},
         "sources": [
@@ -50,7 +47,6 @@ def artifacts(tmp_path):
     }  # fmt: skip
     (tmp_path / "map.json").write_text(json.dumps(sector_map), encoding="utf-8")
     (tmp_path / "narrative.md").write_text(f"## Ana bulgular\n- **TÜFE** %31,5 {EVIL}\n\n<img src=x onerror=alert(1)>\n", encoding="utf-8")
-    (tmp_path / "notes.md").write_text(f"Naive kazandı {EVIL}", encoding="utf-8")
     assumptions = json.loads((SKILLS / "_shared/assets/assumptions.example.json").read_text(encoding="utf-8"))
     assumptions["assumptions"][0]["statement"] += EVIL
     (tmp_path / "assumptions.json").write_text(json.dumps(assumptions, ensure_ascii=False), encoding="utf-8")
@@ -78,21 +74,12 @@ def test_audit_report(artifacts):
     assert 'id="findings"' in html and 'href="#series-summary"' in html
 
 
-def test_backtest_report(artifacts):
-    out = artifacts / "bt.html"
-    _run(SKILLS / "forecast-baseline/scripts/render_backtest_report.py", "--backtest", str(artifacts / "bt.json"),
-         "--notes", str(artifacts / "notes.md"), "--assumptions", str(artifacts / "assumptions.json"), "--out", str(out))  # fmt: skip
-    html = out.read_text(encoding="utf-8")
-    _assert_safe(html)
-    assert "Model karşılaştırması" in html and "Gerçekleşen" in html
-
-
 def test_sector_report(artifacts):
     out = artifacts / "report.html"
     _run(SKILLS / "sector-analysis/scripts/render_sector_report.py", "--map", str(artifacts / "map.json"),
          "--panel", str(artifacts / "panel.csv"), "--audit", str(artifacts / "audit.json"),
-         "--narrative", str(artifacts / "narrative.md"), "--backtest", str(artifacts / "bt.json"),
-         "--assumptions", str(artifacts / "assumptions.json"), "--out", str(out))  # fmt: skip
+         "--narrative", str(artifacts / "narrative.md"), "--assumptions", str(artifacts / "assumptions.json"),
+         "--out", str(out))  # fmt: skip
     html = out.read_text(encoding="utf-8")
     _assert_safe(html)
     assert "2 varsayım kullanıcı tarafından onaylanmadı (A1, A2)" in html
@@ -158,39 +145,6 @@ def test_stale_assumptions_flagged():
     assert "güncel değil — doğrulanmalı" in section(data)
 
 
-def _external(values, published="2026-10-01"):
-    return {
-        "retrieved": "2026-10-30",
-        "forecasts": [
-            {"institution": f"Banka{i}", "variable": "usdtry", "horizon": "2026-12", "value": v, "unit": "TRY",
-             "published": published, "source_url": "https://example.com/n", "primary": False}
-            for i, v in enumerate(values)
-        ],
-    }
-
-
-def test_external_consensus_rule_and_validation():
-    sys.path.insert(0, str(SKILLS / "_shared"))
-    from mlb_report.external import ExternalForecastError, consensus, section, validate
-
-    tight = consensus([50.0, 50.5, 51.0, 51.2])
-    assert tight["rule"] == "mean" and tight["consensus"] == pytest.approx(50.675)
-    wide = consensus([45.0, 50.0, 52.0, 70.0])  # a single outlying view drags the mean
-    assert wide["dispersed"] and wide["consensus"] == pytest.approx(51.0) and wide["mean"] > 54
-    assert consensus([50.0, 60.0])["rule"].startswith("median")
-    for bad in ({"forecasts": []}, _external([1.0]) | {"forecasts": [{"institution": "x"}]}):
-        with pytest.raises(ExternalForecastError):
-            validate(bad)
-    evil = _external([50.0])
-    evil["forecasts"][0]["source_url"] = "javascript:alert(1)"
-    with pytest.raises(ExternalForecastError):
-        validate(evil)
-    old = _external([50.0, 51.0, 52.0], published="2026-01-01")
-    old["forecasts"][0]["institution"] = EVIL
-    html = section(old, latest={"usdtry": ("2026-10", 49.7)})
-    assert "güncel değil" in html and EVIL not in html and "Son değere göre" in html
-
-
 def test_market_share_report(tmp_path):
     from mlbooster.domain.services.market_share import ShareConfig, analyze
 
@@ -249,12 +203,8 @@ def test_prep_and_feature_reports(tmp_path):
 
     fe = engineer(prep.panel, [], FeatureConfig(target="target", train_end=date(2021, 12, 31)))
     (tmp_path / "fe.json").write_text(json.dumps(features_dict(fe, "telekom")), encoding="utf-8")
-    bt = {"config": {"eval_start": "2021-12-31"}, "best_model": "naive", "common_origins": 20,
-          "metrics": [{"model": "naive", "mae": 1.0}, {"model": "ridge", "mae": 0.9}]}  # fmt: skip
-    (tmp_path / "bt.json").write_text(json.dumps(bt), encoding="utf-8")
     out = tmp_path / "fe.html"
-    _run(SKILLS / "feature-engineering/scripts/render_feature_report.py", "--features", str(tmp_path / "fe.json"),
-         "--bt-base", str(tmp_path / "bt.json"), "--bt-features", str(tmp_path / "bt.json"), "--out", str(out))  # fmt: skip
+    _run(SKILLS / "feature-engineering/scripts/render_feature_report.py", "--features", str(tmp_path / "fe.json"), "--out", str(out))
     html = out.read_text(encoding="utf-8")
     _assert_safe(html)
-    assert "Feature aileleri" in html and "Seçimin tahmin performansına katkısı" in html and "%10,0" in html
+    assert "Feature aileleri" in html and "Yöntem" in html

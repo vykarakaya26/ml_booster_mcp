@@ -27,12 +27,10 @@ from mlbooster.application.dto import FetchRequest
 from mlbooster.application.use_cases.panel import DEFAULT_START
 from mlbooster.bootstrap import Container, build_container
 from mlbooster.domain.errors import DomainError, InvalidInput
-from mlbooster.domain.services.backtest import MODELS, BacktestConfig
 from mlbooster.domain.services.feature_engineering import FeatureConfig
 from mlbooster.domain.services.market_share import ShareConfig
 from mlbooster.domain.services.preprocessing import PrepConfig
 from mlbooster.interfaces.presenters import (
-    backtest_dict,
     features_dict,
     health_dict,
     prep_dict,
@@ -55,8 +53,8 @@ server = MCPServer(
     instructions=(
         "Türkiye için ücretsiz veri kaynaklarını haritalar ve ML'e hazır aylık panel üretir. "
         "Önce list_sectors / show_map ile kaynakları incele; EVDS serilerini search_series ve discover_series ile "
-        "bul, fetch_series ile çek, build_panel ile sektör panelini üret. Verileri kullanırken kaynak atfı "
-        "zorunludur. Oturum başında check_updates ile yeni sürüm olup olmadığını kontrol et ve varsa kullanıcıya "
+        "bul, fetch_series ile çek, build_panel ile sektör panelini üret. Ürün ML'e hazır feature'larda biter; forecast "
+        "ve model karşılaştırması kapsam dışıdır. Verileri kullanırken kaynak atfı zorunludur. Oturum başında check_updates ile yeni sürüm olup olmadığını kontrol et ve varsa kullanıcıya "
         "bir kez bildir."
     ),
 )
@@ -156,7 +154,7 @@ def fetch_series(
 @safe_tool
 def build_panel(sector: str, start: str = DEFAULT_START.isoformat(), end: str | None = None, freq: str = "M") -> dict:
     """Sektörün feature'larından point-in-time panel üretir (freq: M aylık, W haftalık/Cuma, B iş günü) ve
-    yerel veri dizinine Parquet olarak yazar. Kalite denetimi ve backtest aylık panel üzerinde çalışır."""
+    yerel veri dizinine Parquet olarak yazar. Kalite denetimi aylık panel üzerinde çalışır."""
     result = container().build_panel(sector, _iso(start, "start"), _iso(end, "end") if end else None, freq=freq)
     tail = result.panel.tail(6).round(4).reset_index()
     return {
@@ -217,31 +215,6 @@ def audit_panel(sector: str, start: str = DEFAULT_START.isoformat(), end: str | 
     structural break (Türkiye'deki bilinen şoklarla eşleştirilir) ve aşırı korelasyon."""
     report, result = container().audit_panel(sector, _iso(start, "start"), _iso(end, "end") if end else None)
     return quality_dict(report, result.skipped)
-
-
-@server.tool(annotations=WRITES_LOCAL)
-@safe_tool
-def run_backtest(
-    sector: str,
-    target: str,
-    horizon: int = 1,
-    min_train: int = 48,
-    models: list[str] | None = None,
-    exogenous: bool = True,
-    anchor: str | None = None,
-    start: str = DEFAULT_START.isoformat(),
-    end: str | None = None,
-) -> dict:
-    """Paneldeki hedef kolon için rolling-origin backtest (look-ahead korumalı). Modeller: naive, seasonal_naive,
-    drift, ridge (lag'li; exogenous=True ise diğer feature'larla birlikte). Metrikler: MAE, RMSE, sMAPE, MASE.
-    anchor: hedefin daha güncel bir versiyonu (ör. aofm_son); verilirse anchor_naive modeli eklenir. Aylık
-    ortalama hedeflerde asıl benchmark budur. Son 24 forecast noktasını döner."""
-    config = BacktestConfig(
-        target=target, horizon=horizon, min_train=min_train, models=tuple(models or MODELS), exogenous=exogenous,
-        anchor=anchor,
-    )
-    result, _ = container().run_backtest(sector, config, _iso(start, "start"), _iso(end, "end") if end else None)
-    return backtest_dict(result, sector, max_predictions=24)
 
 
 @server.tool(annotations=WRITES_LOCAL)

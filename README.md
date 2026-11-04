@@ -1,11 +1,11 @@
 # ML Booster Map
 
-Türkiye için ücretsiz veri kaynaklarını sektör bazında haritalayan ve ML'e hazır **aylık panel** üreten araç. Üç şekilde kullanılabilir:
+Türkiye için ücretsiz veri kaynaklarını sektör bazında haritalayan, ML'e hazır **aylık panel** ve bu panelden türetilmiş **feature**'lar üreten araç. Amaç veri kaynağı ve ML'e hazır feature'lardır; ürün burada biter. Forecast, model eğitimi ve model karşılaştırması kapsam dışıdır. Dört şekilde kullanılabilir:
 
-- **Claude Code plugin'i**: MCP sunucusu ve uçtan uca birlikte çalışan 7 skill. "Otomotiv sektörünü analiz et" gibi doğal dildeki bir istek, paylaşılabilir bir HTML rapor üretir.
+- **Claude Code plugin'i**: MCP sunucusu ve uçtan uca birlikte çalışan 6 skill. "Otomotiv sektörünü analiz et" gibi doğal dildeki bir istek, paylaşılabilir bir HTML rapor üretir.
 - **MCP sunucusu**: Claude Code ya da Claude Desktop'tan araç olarak.
 - **CLI / Python paketi**: `mlbooster`.
-- **Yerel web paneli**: `mlbooster web`. Sektörü, tarih aralığını, hedef seriyi ve modelleri tarayıcıdan seçersiniz; yalnızca bu bilgisayarda (127.0.0.1) çalışır.
+- **Yerel web paneli**: `mlbooster web`. Sektörü ve tarih aralığını tarayıcıdan seçersiniz; panel, veri kalitesi ve pazar payı ekranları yalnızca bu bilgisayarda (127.0.0.1) çalışır.
 
 > **Durum:** Katalog 12 kaynak ve 9 sektör içeriyor (bankacılık, sigorta, telekom, otomotiv, akaryakıt, perakende, turizm, konut, makro_genel). Veri çeken provider'lar **TCMB EVDS3**, **TÜİK**, **BDDK**, **TSB** (şirket ve branş bazında prim üretimi; `mlbooster market-share --source tsb --series TSB.PRIM.TRAFIK.YTD`), **BKM** (kartlı ödeme istatistikleri; lisans gereği yerel depoya yazılmaz), **EPDK** (petrol ve LPG aylık sektör raporları, 2016'dan itibaren lisans sahibi bazında satışlar; `mlbooster market-share --source epdk --series EPDK.PETROL.MOTORIN`), **BTK** (çeyreklik Pazar Verileri Raporu: mobil abone payı, işletmeci gelirleri, sabit genişbant payları; `mlbooster market-share --source btk --series BTK.MOBIL.ABONE.PAY`), **ODMD** (marka bazında aylık otomobil ve hafif ticari satışları; `mlbooster market-share --source odmd --series ODMD.OTOMOBIL`), **TBB** (banka bazında çeyreklik aktif, kredi, mevduat ve özkaynak; `mlbooster market-share --source tbb --series TBB.AKTIF`), **BIS** ve **OECD**; on biri de canlı doğrulandı. **EPİAŞ** adapter'ı hazır; kullanmak için ücretsiz bir Şeffaflık Platformu hesabı gerekir (aşağıda). MVP'deki 10 kaynağın hepsinin adapter'ı hazır.
 
@@ -62,13 +62,12 @@ Ek olarak:
 
 | Skill | Ne yapar | Örnek istem |
 |---|---|---|
-| `sector-analysis` | Kaynak haritasını, paneli, kalite özetini ve forecast baseline'larını yorumlu bir HTML raporda birleştirir | "Otomotiv sektörü için veri analizi ve rapor hazırla" |
+| `sector-analysis` | Kaynak haritasını, feature panelini ve kalite özetini yorumlu bir HTML raporda birleştirir | "Otomotiv sektörü için veri analizi ve rapor hazırla" |
 | `evds-series-discovery` | EVDS'de güncel seri kodunu bulur, canlı doğrular ve feature'a bağlar | "Bankacılıkta kredi faizi feature'ı eksik, EVDS'den bul" |
 | `data-quality-audit` | Stale seri, eksik gözlem, outlier, structural break ve collinearity denetimi yapar (HTML) | "Sigorta panelindeki verilerin kalitesini denetle" |
-| `forecast-baseline` | Look-ahead korumalı backtest yapar. Karşılaştırılan modeller:<br>• anchor/naive, drift ve son dönem eğimi<br>• son 12 ay ortalaması ve medyanı<br>• ridge<br>• quantile regression (%10–%90 aralık)<br>• ortalama/medyan kombinasyonları (sapma yüksekse medyana geçen otomatik kural dahil)<br>Ölçütler: interval coverage ve pinball loss. Kurumların yıl sonu tahminlerinin konsensüsünü karşılaştırma için yanına koyar (fan chart'lı HTML) | "USD/TRY için geçilmesi gereken baseline nedir; kurumların yıl sonu tahminleri ne düzeyde?" |
 | `market-share` | Pazar payı ve rekabet analizi: paylar (aylık akımda son 12 ay tabanı), yoğunlaşma (HHI aralığı, CR3/CR5, istikrarsızlık endeksi), oyuncu bazında trend, veriye dayalı rakip seti (substitution correlation, segment örtüşmesi) ve nitel rakip değerlendirmesi, shift-share ayrıştırması, pazar büyümesinin makro sürücüleri (HTML). Girdi kolonları `entity, date, value[, segment]`; pazar toplamı `TOPLAM` satırlarıyla verilir (`TOTAL` da kabul edilir) | "Elimdeki ODMD verisiyle Marka X'in pazar payını ve rakiplerini analiz et" |
-| `data-prep` | Dağılıma dayalı ön işleme: her feature için eğitim penceresinde ortalama/standart sapma ile medyan/MAD/IQR arasında seçim, nedensel Hampel filtresiyle outlier'ları winsorize etme ya da işaretleme, log/Yeo–Johnson, unit root varsa fark alma, standard/robust scaling; bütün parametreler yalnızca eğitim penceresinden tahmin edilir (HTML) | "Telekom panelini ridge modeline hazırla; medyan mı ortalama mı karar ver" |
-| `feature-engineering` | Sektöre özgü otomatik feature üretimi (lag, rolling istatistik, momentum, z-score, reel faiz ve faiz farkı tarifleri, iş günü ve bayram takvimi, ÖTV/eşel mobil/deprem gibi olaylar) ve etkin örneklem + Benjamini–Hochberg ile leakage'sız seçim; katkısı seçim sonrası dönemde backtest ile ölçülür (HTML) | "Enflasyonu 1 ay ileri tahmin etmek için feature üret ve seç" |
+| `data-prep` | Dağılıma dayalı ön işleme: her feature için eğitim penceresinde ortalama/standart sapma ile medyan/MAD/IQR arasında seçim, nedensel Hampel filtresiyle outlier'ları winsorize etme ya da işaretleme, log/Yeo–Johnson, unit root varsa fark alma, standard/robust scaling; bütün parametreler yalnızca eğitim penceresinden tahmin edilir (HTML) | "Telekom panelini doğrusal model için hazırla; medyan mı ortalama mı karar ver" |
+| `feature-engineering` | Sektöre özgü otomatik feature üretimi (lag, rolling istatistik, momentum, z-score, reel faiz ve faiz farkı tarifleri, iş günü ve bayram takvimi, ÖTV/eşel mobil/deprem gibi olaylar) ve etkin örneklem + Benjamini–Hochberg ile leakage'sız seçim (HTML) | "Enflasyon modelim için 1 ay ilerisine göre feature üret ve seç" |
 
 Raporlar çalışma dizininde `mlbooster-reports/<sektör>-<tarih>/` altına yazılır. Her rapor tek dosyadır, açık/koyu temayı destekler ve dış kaynak yüklemez.
 
@@ -82,13 +81,13 @@ Analiz yapan skill'ler işe başlamadan önce kullanıcıdan şu girdileri alır
 
 Bu girdiler `assumptions.json` dosyasına kaydedilir. Raporun **Girdiler ve varsayımlar** bölümü her varsayımın türünü (kullanıcı onaylı, sektör varsayımı, onaysız varsayılan ya da veriden türetilmiş), güven düzeyini ve tarihini gösterir. 3 aydan eski bilgiler "güncel değil — doğrulanmalı" olarak işaretlenir. Rapordaki her ifade dört dayanaktan birine bağlanır: **veri**, **varsayım (A#)**, **model** ya da **yorum**. Onaysız bir varsayıma dayanan sonuç koşullu olarak yazılır.
 
-Skill'ler tek bir analiz zincirinin halkalarıdır; aynı çalışma klasörünü, varsayım kaydını ve eğitim penceresini paylaşır: `sector-analysis` → `data-quality-audit` → `data-prep` → `feature-engineering` → `forecast-baseline`, oyuncu düzeyinde `market-share` (ayrıntı: `skills/_shared/references/workflow.md`; O'Reilly ve serbest erişimli kitaplar dahil kaynakça: `skills/_shared/references/literature.md`).
+Skill'ler tek bir analiz zincirinin halkalarıdır; aynı çalışma klasörünü, varsayım kaydını ve eğitim penceresini paylaşır: `sector-analysis` → `data-quality-audit` → `data-prep` → `feature-engineering`, oyuncu düzeyinde `market-share` (ayrıntı: `skills/_shared/references/workflow.md`; O'Reilly ve serbest erişimli kitaplar dahil kaynakça: `skills/_shared/references/literature.md`).
 
 ### Metodoloji belgeleri (`skills/_shared/references/`)
 
 | Belge | İçerik |
 |---|---|
-| `analysis-playbook.md` | Dağılım teşhisi (ADF ve KPSS birlikte, heavy tail, volatilite rejimi, mevsimsellik); yüksek enflasyona özgü kurallar (log-fark, YoY baz etkisi, reel faiz, efektif politika duruşu, olay takvimi); leakage kontrol listesi; rolling-origin değerlendirme ve baseline'lar |
+| `analysis-playbook.md` | Dağılım teşhisi (ADF ve KPSS birlikte, heavy tail, volatilite rejimi, mevsimsellik); yüksek enflasyona özgü kurallar (log-fark, YoY baz etkisi, reel faiz, efektif politika duruşu, olay takvimi); leakage kontrol listesi |
 | `assumptions-guide.md` | Analiz öncesinde sorulacak sorular, varsayım kaydı, veri/varsayım/model/yorum etiketleri, senaryo ve duyarlılık analizi, ölçülü olasılık dili, abartıya karşı kontrol listesi |
 | `sector-assumptions.md` | Bankacılık, sigorta, telekom, otomotiv ve akaryakıt için belirleyiciler, açıkça yazılması gereken varsayımlar ve birincil kontrol kaynakları. Regülasyon rakamları sabit olarak gömülmez |
 
@@ -99,7 +98,7 @@ pip install "git+https://github.com/vykarakaya26/ml_booster_mcp.git"
 claude mcp add mlbooster -- mlbooster-mcp
 ```
 
-Araçlar: `list_sectors`, `list_sources`, `show_map`, `search_series`, `discover_series`, `set_feature_series`, `fetch_series`, `build_panel`, `audit_panel`, `run_backtest`, `prepare_panel`, `engineer_features`, `analyze_market_share`, `analyze_source_market_share`, `health`, `check_updates`.
+Araçlar: `list_sectors`, `list_sources`, `show_map`, `search_series`, `discover_series`, `set_feature_series`, `fetch_series`, `build_panel`, `audit_panel`, `prepare_panel`, `engineer_features`, `analyze_market_share`, `analyze_source_market_share`, `health`, `check_updates`.
 
 Seri kodlarını keşfetmek için TCMB'nin resmi EVDS-MCP sunucusu da eklenebilir:
 `claude mcp add --transport http evds https://mcp.tcmb.gov.tr/tcmb-mcp/evds/mcp`
@@ -116,10 +115,8 @@ mlbooster fetch --series TP.TUKFIY2025.GENEL --start 2015-01 --formula 3
 mlbooster build-panel --sector otomotiv --out otomotiv.csv  # .parquet veya .csv
 mlbooster build-panel --sector makro_genel --freq W --out makro_haftalik.csv  # haftalık (Cuma) panel
 mlbooster audit --sector otomotiv --json audit.json
-mlbooster backtest --sector bankacilik --target aofm --anchor aofm_son --json bt.json  # quantile ve kombinasyon modelleri dahil
 mlbooster prep --sector makro_genel --target tufe_yoy --train-end 2022-12 --out hazir.csv --json prep.json
 mlbooster features --sector makro_genel --target tufe_yoy --train-end 2022-12 --selected-out secilen.csv --json features.json
-mlbooster backtest --sector makro_genel --target tufe_yoy --panel-file secilen.csv --eval-start 2022-12  # seçim sonrası dönemde ölç
 mlbooster market-share --input pay.csv --focus "Marka X" --unit adet --sector otomotiv --json share.json
 mlbooster market-share --source bddk --series BDDK.AKTIF --start 2019-01 --focus Katılım  # banka grubu payları (BDDK)
 mlbooster health
@@ -136,7 +133,6 @@ mlbooster web                                             # yerel web paneli: ht
 | 1. Sektör ve kaynaklar | Okunur feature adları, dönüşüm, birim, kaynak ve yayın gecikmesi; eksik seri kodları için "Yapılması gerekenler" |
 | 2. Feature paneli | Frekans seçimi (aylık, haftalık, iş günü), son değer ve önceki döneme göre farkı veren seri kartları, CSV/Parquet indirme |
 | 3. Veri kalitesi | Feature bazında durum, outlier ve structural break işaretli grafik, her bulgu için "Öneri" |
-| 4. Baseline karşılaştırması | Hedef, anchor, horizon ve model seçimi; naive'e göre iyileşme, rejimlere göre karşılaştırma, model kartı |
 | Pazar payı ve rakipler | CSV/JSON tablo yükleme ya da yapıştırma (örnek veri hazır) veya "Kaynaktan çek" ile oyuncu kırılımlı katalog serileri (BDDK, TBB, TSB, BTK, ODMD, EPDK; dönem üst çubuktan), odak oyuncu seçimi; paylar, HHI ve CR3/CR5, pay kazanan ve kaybeden oyuncular, substitution correlation ile rakip seti, segment bazında shift-share |
 | Kaynak durumu | Provider canary testleri |
 
