@@ -249,6 +249,20 @@ def test_brand_report_shows_computed_and_published_side_by_side(tmp_path, catalo
     assert "Hesaplanan pay ile karşılaştırma" in html and "Çelişen bulgular" in html and "Olası neden" in html
 
 
+def test_brand_report_of_a_group_shows_the_sum_with_its_members_and_documents(tmp_path, catalog_repo):
+    out, path = _brand_analysis(tmp_path, catalog_repo, "Tofaş", start=date(2022, 1, 1), end=date(2025, 12, 31))
+    out["group"]["members"][0]["note"] = EVIL
+    out["group"]["members"][1]["url"] = "javascript:alert(1)"
+    path.write_text(json.dumps(out, ensure_ascii=False), encoding="utf-8")
+    target = tmp_path / "report.html"
+    _run(SKILLS / "market-share/scripts/render_brand_report.py", "--analysis", str(path), "--out", str(target))
+    html = target.read_text(encoding="utf-8")
+    _assert_safe(html)
+    assert html.index("<h2>Marka özeti</h2>") < html.index("grup bileşimi</h2>") < html.index("<h2>Sektör ve konum</h2>")
+    assert "üye markaların toplamı" in html and "başlangıcı doğrulanamadı" in html and "2025-05-01 tarihinden itibaren" in html
+    assert "javascript:" not in html
+
+
 def test_brand_report_refuses_an_unclear_name(tmp_path, catalog_repo):
     _, path = _brand_analysis(tmp_path, catalog_repo, "Anadolu")
     done = subprocess.run([sys.executable, str(SKILLS / "market-share/scripts/render_brand_report.py"), "--analysis", str(path), "--out", str(tmp_path / "r.html")],

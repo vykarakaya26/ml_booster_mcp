@@ -7,7 +7,7 @@ from datetime import UTC, date, datetime
 import numpy as np
 import pandas as pd
 
-from mlbooster.application.dto import FetchRequest, PanelResult
+from mlbooster.application.dto import FetchRequest, PanelResult, ResearchEvent, ResearchOutcome, RunnerReadiness
 from mlbooster.application.errors import ProviderNotImplemented, ProviderUnavailable
 from mlbooster.application.use_cases.brand import AnalyzeBrand, BuildBrandFeatures, ResolveBrand, StoreEntityDirectory
 from mlbooster.application.use_cases.market_share import AnalyzeMarketShare, SourceShareTable
@@ -320,3 +320,28 @@ class StaticSearchTerms:
             "otomotiv": SectorSearchTerms(generic=("sıfır araba", "ötv"), brands=("Togg", "Tesla", "Renault")),
             "perakende": SectorSearchTerms(generic=("aktüel",), brands=("Migros", "BİM")),
         }
+
+
+class FakeResearchRunner:
+    """Stands in for Claude Code: emits events, records through `record`, and waits for `release` if one is given."""
+
+    def __init__(self, ready=None, events=("started", "search", "page", "record"), outcome=None, record=None, release=None):
+        self.ready = ready or RunnerReadiness(True, executable="claude", plugin_dir="/plugin")
+        self.events, self.record, self.release, self.calls = events, record, release, []
+        self.outcome = outcome or ResearchOutcome("finished", "Arama tamamlandı.", "Rapor")
+
+    def readiness(self):
+        return self.ready
+
+    def run(self, brand, sector, on_event, cancel):
+        self.calls.append((brand, sector))
+        for kind in self.events:
+            on_event(ResearchEvent(kind))
+        if self.record:
+            self.record()
+        if self.release is not None:
+            while not (self.release.is_set() or cancel.is_set()):
+                cancel.wait(0.01)
+            if cancel.is_set():
+                return ResearchOutcome("cancelled", "Arama durduruldu.")
+        return self.outcome

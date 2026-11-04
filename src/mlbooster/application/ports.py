@@ -2,13 +2,15 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from datetime import date, datetime
 from pathlib import Path
+from threading import Event
 from typing import Protocol
 
 import pandas as pd
 
-from mlbooster.application.dto import FetchRequest
+from mlbooster.application.dto import FetchRequest, ResearchEvent, ResearchOutcome, RunnerReadiness
 from mlbooster.domain.model import Catalog, HealthResult, MacroFeature, SeedSeries, ShareEvidence, Source
 from mlbooster.domain.services.brand_resolution import EntityScan
 
@@ -109,6 +111,16 @@ class EvidenceStore(Protocol):
     def rejection(self, evidence_id: str) -> str | None:
         """The reason a claim was rejected earlier; None if it was not."""
         ...
+
+
+class ResearchRunner(Protocol):
+    """Runs the evidence search agent outside the package. The package itself has no LLM."""
+
+    def readiness(self) -> RunnerReadiness:
+        """Local check that spends nothing."""
+        ...
+
+    def run(self, brand: str, sector: str | None, on_event: Callable[[ResearchEvent], None], cancel: Event) -> ResearchOutcome: ...
 
 
 class DocumentReader(Protocol):

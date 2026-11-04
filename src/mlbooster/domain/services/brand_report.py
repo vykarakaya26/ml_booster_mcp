@@ -150,6 +150,10 @@ def headline(brand: str, sector: str, primary: dict) -> str:
     return text
 
 
+def group_headline(group: str, sector: str, primary: dict, members: int) -> str:
+    return headline(group, sector, primary) + f" Bu pay kaynakta yayımlanmaz; {members} üye markanın toplamıdır."
+
+
 def source_note(source, is_proxy: bool) -> dict:
     """Attribution and licence of a source, as the report must show them."""
     return {

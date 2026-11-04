@@ -26,11 +26,12 @@ EXPORT_COLUMNS = ("brand", "date", "period", "published", "value", "value_high",
 def _sector_of(catalog: Catalog, brand: str) -> str | None:
     """Where a known brand belongs: its catalog sector, or the sector whose market share list holds its source."""
     entry = next((e for e in catalog.brands.entries if e.name == brand), None)
-    if entry is None:
+    group = next((g for g in catalog.brands.groups if g.name == brand), None)
+    if entry is None and group is None:
         return None
-    if entry.sector:
+    if entry is not None and entry.sector:
         return entry.sector
-    sources = {t.source for t in entry.targets}
+    sources = {group.source} if group else {t.source for t in entry.targets}
     return next((s.id for s in catalog.sectors.values() for share in s.market_share_sources if share.series and share.source in sources), None)
 
 

@@ -27,6 +27,7 @@ from mlbooster.application.use_cases.health import CheckForUpdates, RunHealthChe
 from mlbooster.application.use_cases.market_share import AnalyzeMarketShare, SourceShareTable
 from mlbooster.application.use_cases.modeling import EngineerFeatures, PreparePanel
 from mlbooster.application.use_cases.panel import BuildPanel
+from mlbooster.application.use_cases.research import WebResearch
 from mlbooster.application.use_cases.search_interest import (
     SearchInterest,
     SearchTermCatalog,
@@ -70,5 +71,6 @@ __all__ = [
     "StoreEntityDirectory",
     "TrendsLookup",
     "TrendsMirrorControl",
+    "WebResearch",
     "search_section",
 ]
