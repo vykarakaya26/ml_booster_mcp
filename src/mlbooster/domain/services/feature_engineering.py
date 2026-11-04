@@ -367,6 +367,6 @@ def engineer(panel: pd.DataFrame, recipes: Iterable[FeatureRecipe], cfg: Feature
     notes.append(
         f"{len(screening)} aday tarandı. Çoklu karşılaştırma Benjamini–Hochberg (q ≤ {tr_num(FDR_Q, 'g')}) ile, "
         "otokorelasyon ise etkin örneklem büyüklüğüyle düzeltildi. Tarama ilişkiyi gösterir, nedenselliği göstermez; "
-        "nihai değerlendirme backtest ile yapılmalıdır."
+        "seçim bir ön eleme olarak değerlendirilmelidir."
     )
     return FeatureResult(features, specs, skipped, screening, selected, cut.date(), label_name, notes, mode)

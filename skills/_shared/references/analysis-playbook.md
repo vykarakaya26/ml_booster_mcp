@@ -1,4 +1,4 @@
-# Analiz rehberi: dağılım teşhisi, ön işleme, değerlendirme
+# Analiz rehberi: dağılım teşhisi ve ön işleme
 
 Türkiye makro/sektör aylık panelleri için. `[sezgisel]` işaretli eşikler yaygın uygulamadır, standart
 değildir; raporda "eşik" değil "uyarı" diye geç. Kaynaklar satır içinde verilmiştir.
@@ -53,19 +53,18 @@ MacKinnon (2010) sonlu örneklem kritik değerleri. KPSS kritik değerleri: %10 
   anlamına geliyor ([Tradingpedia, 2026-10-15](https://www.tradingpedia.com/2026/10/15/commerzbank-warns-of-ongoing-devaluation-risks-for-lira/)).
   2026 Mart'taki piyasa stresinde (İran savaşı) kurda sıçrama görülmedi; maliyet rezervlerden karşılandı ve haftalık repo
   ihaleleri durduruldu. Modelleme sonuçları:
-  1. Rejim içinde saf random walk uygun bir benchmark değildir; yaklaşık sabit hızlı değer kaybı (naive
-     log-fark ya da `drift_recent`) daha iyi uyar. mlbooster denetimi bunu `managed_path` olarak işaretler.
-  2. Kalan volatilite düşüktür; normal dağılım varsayımlı aralıklar kuyruklarda gereğinden dardır.
+  1. Rejim içinde yaklaşık sabit hızlı bir değer kaybı vardır; son dönem değişimi uzun dönem ortalamasından daha
+     temsil edicidir. mlbooster denetimi bunu `managed_path` olarak işaretler.
+  2. Kalan volatilite düşüktür; normal dağılım varsayımı kuyruk riskini olduğundan düşük gösterir.
   3. Kuyruk riskini sıçrama/rejim değişimi olarak ele al. Kalibrasyon kümesi: 2018-08, 2021-12,
      2023-06, 2025-03. Rezerv erimesi sıçrama olasılığını artırır; haftalık rezerv serisini
      (`TP.AB.TOPLAM`) izle.
-  4. Üst quantile'ları horizon'la birlikte merkezden daha hızlı genişleyen quantile forecast'ları kullan (`qr`).
 - **Olay takvimi** (rejim dummy'si; adım = rejim, dürtü = tek ay sıçrama): 2014-01 olağanüstü faiz
   artırımı · 2018-08 kur krizi · 2020-03 COVID · 2021-09/12 faiz indirimleri, kur şoku, KKM · 2023-06
   normalleşme · 2024-03 sıkılaştırma zirvesi · 2025-03 piyasa stresi · 2026-01 TÜFE 2025=100 baz değişikliği.
 - **Ocak etkisi**: asgari ücret, yeniden değerleme oranıyla endekslenen vergi/harçlar ve idari fiyatlar
   Ocak MoM'unu politika takvimine bağlar. Bu "mevsimsellik" yıldan yıla değişkendir.
-- **Winsorize ya da koruma.** Değerlendirme **hedefini asla winsorize etme**; kullanıcı açısından asıl
+- **Winsorize ya da koruma.** **Hedefi asla winsorize etme**; kullanıcı açısından asıl
   önemli olan şoklardır. Feature'ları winsorize edeceksen eşikleri her eğitim penceresinde yeniden öğren ve sonuçları
   winsorize edilmiş ve edilmemiş haliyle raporla. Silmek yerine dummy ya da robust loss tercih et.
 
@@ -86,29 +85,9 @@ MacKinnon (2010) sonlu örneklem kritik değerleri. KPSS kritik değerleri: %10 
 ### Leakage kontrol listesi (her madde metodolojik hata sayılır)
 - Scaler, λ ya da PCA tüm örneklemde fit edilmiş.
 - İki taraflı filtreler (HP, STL, X-13) tüm örneklemde koşulmuş.
-- Tahmin sınırını aşan enterpolasyon.
+- Eğitim penceresi sonunu aşan enterpolasyon.
 - Ortalanmış (centered) rolling window.
 - Test döneminde feature seçimi ya da hiperparametre ayarı.
 - Revize veriyle "gerçek zamanlı" performans iddiası.
 - Horizon'la çakışan YoY hedef feature'ı.
 - Publication lag'in göz ardı edilmesi.
-
-## 4. Değerlendirme
-- **Rolling origin** (genişleyen pencere, adım 1). Horizon'ları (1, 3, 6, 12) ayrı raporla
-  ([FPP3 §5.10](https://otexts.com/fpp3/tscv.html)). Structural break içeren makro panelde k-fold yerine rolling origin
-  kullan ([Bergmeir vd. 2018](https://ideas.repec.org/a/eee/csdana/v120y2018icp70-83.html)). En az ~60
-  aylık eğitim `[sezgisel]`; sonuçları rejime göre alt dönemlerde de göster: 2021 öncesi, 2021–23, 2024+.
-- **Benchmark'lar (her zaman):**
-  - naive, seasonal naive, drift.
-  - Enflasyon için **Atkeson–Ohanian**: son 12 ay ortalaması (`mean12`). Geçilmesi zor bir benchmark'tır
-    ([Stock & Watson](https://scholar.harvard.edu/sites/scholar.harvard.edu/files/stock/files/forecastinginflation.pdf)).
-  - **Aylık ortalama hedefler** için ay sonu değeri (`--anchor <hedef>_son`). Ortalaması alınmış bir random
-    walk'un farkları pozitif otokorelasyonludur; bu yüzden düz naive zayıf bir benchmark'tır.
-- **Metrikler.** MAE ve RMSE; MASE < 1 naive'den iyi demektir ([FPP3 §5.8](https://otexts.com/fpp3/accuracy.html)).
-  Sıfıra yakın oranlarda MAPE ve sMAPE kullanma.
-- **İyileşme iddiası.** Diebold–Mariano testi (HAC, h−1 gecikme, HLN düzeltmesi;
-  [statsmodels](https://www.statsmodels.org/dev/generated/statsmodels.tsa.stattools.diebold_mariano_test.html))
-  yalnızca benchmark'a karşı ve horizon başına yapılır. İç içe modellerde DM'nin boyutu bozulur.
-- **Aralıklar.** Horizon başına backtest hatalarının quantile'larından ampirik bant çıkar (Fed yaklaşımı,
-  [Reifschneider & Tulip 2017](https://www.federalreserve.gov/econres/feds/gauging-the-uncertainty-of-the-economic-outlook-using-historical-forecasting-errors-the-federal-reserves-approach.htm)).
-  Mevcut rejim backtest örnekleminden farklıysa bandı genişlet ya da işaretle.

@@ -1,7 +1,7 @@
 // ML Booster local panel. No external libraries; the DOM is filled via textContent only (never innerHTML).
 // Layout rule: summary first (finding sentence + KPI cards), then details; every view ends with a source/period stamp.
 import { lineChart, barChart } from "./charts.js";
-import { GLOSSARY, MODEL_INFO } from "./glossary.js";
+import { GLOSSARY } from "./glossary.js";
 
 const TOKEN = document.querySelector('meta[name="mlb-token"]').content;
 const $ = (sel) => document.querySelector(sel);
@@ -184,12 +184,10 @@ function downloadBlob(blob, name) {
 
 function renderGlossary(filter = "") {
   const q = filter.toLocaleLowerCase("tr");
-  const entries = [
-    ...Object.entries(GLOSSARY).map(([k, g]) => [k, g.term, g.text]),
-    ...Object.entries(MODEL_INFO).map(([k, [name, text]]) => [`model:${k}`, `${name} — model`, text]),
-  ].filter(([, t, x]) => !q || t.toLocaleLowerCase("tr").includes(q) || x.toLocaleLowerCase("tr").includes(q))
+  const entries = Object.entries(GLOSSARY).map(([k, g]) => [k, g.term, g.text])
+    .filter(([, t, x]) => !q || t.toLocaleLowerCase("tr").includes(q) || x.toLocaleLowerCase("tr").includes(q))
     .sort((a, b) => a[1].localeCompare(b[1], "tr", { sensitivity: "base" }));
-  $("#glossary-list").replaceChildren(...entries.map(([k, t, x]) => h("div", { id: `g-${k.replace(":", "-")}` }, h("dt", {}, t), h("dd", {}, x))));
+  $("#glossary-list").replaceChildren(...entries.map(([k, t, x]) => h("div", { id: `g-${k}` }, h("dt", {}, t), h("dd", {}, x))));
 }
 
 function openGlossary(key) {
@@ -205,7 +203,7 @@ function openGlossary(key) {
 
 // --- durum ------------------------------------------------------------------------------------------------
 
-const state = { meta: null, sectors: [], maps: new Map(), panels: new Map(), backtests: new Map(), audits: new Map(), share: null, shareSeries: null };
+const state = { meta: null, sectors: [], maps: new Map(), panels: new Map(), audits: new Map(), share: null, shareSeries: null };
 
 const PREFS_KEY = "mlbooster-panel";
 function loadPrefs() { try { return JSON.parse(localStorage.getItem(PREFS_KEY)) || {}; } catch { return {}; } }
@@ -263,15 +261,14 @@ views.genel = async (root) => {
     h("section", { class: "hero" },
       h("span", { class: "eyebrow" }, "ML Booster Map"),
       h("h1", {}, "Bir sektör seçin; kaynağı belgelenmiş, ML'e hazır aylık paneli oluşturun"),
-      h("p", {}, "ML Booster; TCMB EVDS, TÜİK, BDDK, TBB, TSB, BTK, ODMD, EPDK, BKM, EPİAŞ, BIS ve OECD gibi ücretsiz kamu kaynaklarından sektörle ilgili feature'ları çeker ve point-in-time aylık bir panelde birleştirir. Ardından veri kalitesini denetler, bir ML modelinin geçmesi gereken baseline'ı backtest ile ölçer ve beş sektörde (bankacılık, sigorta, telekom, otomotiv, akaryakıt) pazar payını doğrudan kaynaktan hesaplar. Tüm işlemler bu bilgisayarda yapılır."),
+      h("p", {}, "ML Booster; TCMB EVDS, TÜİK, BDDK, TBB, TSB, BTK, ODMD, EPDK, BKM, EPİAŞ, BIS ve OECD gibi ücretsiz kamu kaynaklarından sektörle ilgili feature'ları çeker ve point-in-time aylık bir panelde birleştirir. Ardından veri kalitesini denetler, ML'e hazır feature'ları dışa aktarır ve beş sektörde (bankacılık, sigorta, telekom, otomotiv, akaryakıt) pazar payını doğrudan kaynaktan hesaplar. Tüm işlemler bu bilgisayarda yapılır."),
       h("div", { class: "button-row" },
         h("button", { type: "button", onclick: () => go($("#sector").value) }, `${sectorName()} ile başla`),
         h("button", { type: "button", class: "ghost", onclick: () => openGlossary() }, "Terim sözlüğü"))),
     h("div", { class: "steps" },
       [["1", "Sektör ve kaynaklar", "Sektör için hangi ücretsiz verilerin bulunduğu ve hangilerinin kullanıma hazır olduğu.", "Çıktı: veri kaynağı haritası", "harita"],
         ["2", "Feature paneli", "Feature'lar yayımlandıkları aya yazılır (point-in-time) ve ortak bir takvimde birleştirilir.", "Çıktı: CSV ya da Parquet panel", "panel"],
-        ["3", "Veri kalitesi", "Stale seriler, missing value'lar, outlier'lar ve structural break'ler denetlenir.", "Çıktı: önem sırasına göre bulgular", "kalite"],
-        ["4", "Baseline karşılaştırması", "Basit tahmin yöntemleri backtest ile sınanır; ML modelinin geçmesi gereken hata düzeyi belirlenir.", "Çıktı: model karşılaştırması", "model"]]
+        ["3", "Veri kalitesi", "Stale seriler, missing value'lar, outlier'lar ve structural break'ler denetlenir.", "Çıktı: önem sırasına göre bulgular", "kalite"]]
         .map(([n, t, p, o, v]) => h("a", { class: "step", href: `#${v}` }, h("span", { class: "num" }, n), h("h3", {}, t), h("p", {}, p), h("span", { class: "out" }, o)))),
     h("div", { class: "card" },
       h("div", { class: "card-head" }, h("div", {}, h("h2", {}, "Sektörler"), h("p", {}, `${state.sectors.length} sektörde toplam ${total} feature hazır. Bir sektör seçerek başlayın.`))),
@@ -285,7 +282,7 @@ views.genel = async (root) => {
           h("small", {}, `${s.ready} / ${s.features} feature hazır · ${s.sources} kaynak`));
       }))),
     h("div", { class: "trust" },
-      h("div", {}, h("strong", {}, "Look-ahead bias'a karşı koruma"), h("p", {}, "Her değer, gerçekte yayımlandığı aya yazılır; model o tarihte bilinmeyen bilgiyle eğitilmez.")),
+      h("div", {}, h("strong", {}, "Look-ahead bias'a karşı koruma"), h("p", {}, "Her değer, gerçekte yayımlandığı aya yazılır; panel o tarihte bilinmeyen bilgi içermez.")),
       h("div", {}, h("strong", {}, "İzlenebilir kaynak"), h("p", {}, "Her feature kurum, seri kodu ve yayın gecikmesiyle birlikte gösterilir; lisans notları haritada yer alır.")),
       h("div", {}, h("strong", {}, "Yerel ve açık kaynak"), h("p", {}, "Veriler bu bilgisayarda işlenir, API anahtarı dışarı gönderilmez. Kod GitHub'da açıktır."))),
   );
@@ -456,7 +453,7 @@ const CHECKS = {
   empty: ["Boş seri", null, "Seri kodunu ve tarih aralığını kontrol edin."],
   heavy_tails: ["Heavy tail", "heavy_tail", "Şok dönemleri belirgin; robust (medyan tabanlı) ölçüler ya da winsorizing kullanmayı değerlendirin."],
   nonstationary: ["Non-stationary", "stationarity", "Modelde düzey yerine fark ya da yıllık değişim kullanmayı değerlendirin."],
-  managed_path: ["Kontrollü seyir", null, "Benchmark olarak drift (son 6 ay) kullanın; geçmiş volatilite ani sıçrama riskini olduğundan düşük gösterebilir."],
+  managed_path: ["Kontrollü seyir", null, "Geçmiş volatilite ani sıçrama riskini olduğundan düşük gösterebilir; feature'ı yorumlarken geçmiş structural break dönemlerini de dikkate alın."],
 };
 const SEVERITY = { high: ["crit", "Kritik"], medium: ["warn", "Uyarı"], info: ["none", "Bilgi"] };
 const STATIONARITY = { stationary: "Stationary", unit_root: "Non-stationary (unit root)", break_suspected: "Structural break şüphesi", inconclusive: "Belirsiz" };
@@ -583,167 +580,6 @@ views.kalite = async (root) => {
   const cached = state.audits.get(scopeKey());
   if (cached) render(cached);
   else out.append(emptyState("Denetim henüz çalıştırılmadı", "\"Denetimi başlat\" düğmesine basın. Panel gerekirse otomatik oluşturulur."));
-};
-
-views.model = async (root) => {
-  const sector = $("#sector").value;
-  const m = await sectorMap(sector);
-  const info = m.feature_info;
-  const prefs = loadPrefs();
-  const features = m.macro_features.filter((f) => f.status === "ready").map((f) => f.name);
-  if (!features.length) {
-    fill(root, viewHead("Adım 4", "Baseline karşılaştırması"), emptyState("Bu sektörde hazır feature yok", "Önce 1. adımda eksik seri kodlarını tamamlayın."));
-    return;
-  }
-  const option = (f, sel) => h("option", { value: f, selected: f === sel }, `${labelOf(m, f)} · ${info[f]?.transform_label || ""}`);
-  const target = h("select", { "aria-label": "Hedef feature" }, features.map((f) => option(f, prefs[`target:${sector}`])));
-  const anchor = h("select", { "aria-label": "Anchor" }, h("option", { value: "" }, "Yok"), features.map((f) => option(f, prefs[`anchor:${sector}`])));
-  const horizon = h("input", { type: "number", min: 1, max: 24, value: prefs.horizon || 1, style: "width:90px" });
-  const minTrain = h("input", { type: "number", min: 12, max: 240, value: prefs.min_train || 48, style: "width:100px" });
-  const exog = h("input", { type: "checkbox", checked: prefs.exogenous !== false });
-  const chosen = new Set(prefs.models || state.meta.models);
-  const modelChecks = h("div", { class: "check-grid" }, state.meta.models.map((mm) =>
-    h("label", { class: "check" },
-      h("input", { type: "checkbox", checked: chosen.has(mm), onchange: (e) => (e.target.checked ? chosen.add(mm) : chosen.delete(mm)) }),
-      h("span", {}, MODEL_INFO[mm]?.[0] || mm, h("small", {}, MODEL_INFO[mm]?.[1] || "")))));
-  const run = h("button", { type: "button" }, "Backtest'i başlat");
-  const out = h("div", { class: "stack" });
-  const mname = (mm) => MODEL_INFO[mm]?.[0] || mm;
-
-  const render = (r) => {
-    const ti = info[r.config.target];
-    const unitWord = ti?.transform === "log_diff" ? "puan (log değişim × 100)" : ti?.unit?.startsWith("yüzde") || ti?.transform === "yoy_pct" ? "puan" : ti?.unit || "";
-    const errText = (v) => (ti?.transform === "log_diff" ? num(v * 100, 2) : num(v, 3));
-    const metrics = [...r.metrics].sort((a, b) => (a.mae ?? Infinity) - (b.mae ?? Infinity));
-    const best = metrics.find((x) => x.model === r.best_model) || metrics[0];
-    const naive = metrics.find((x) => x.model === "naive");
-    const gain = best && naive && naive.mae ? 1 - best.mae / naive.mae : null;
-    const pick = h("select", { "aria-label": "Grafikteki model" }, metrics.map((x) => h("option", { value: x.model, selected: x.model === r.best_model }, mname(x.model))));
-    const compare = h("select", { "aria-label": "Karşılaştırma modeli" }, h("option", { value: "" }, "Yok"), metrics.map((x) => h("option", { value: x.model, selected: x.model === "naive" && x.model !== r.best_model }, mname(x.model))));
-    const chartBox = h("div");
-    const draw = () => {
-      const byModel = (mm) => new Map(r.predictions.filter((p) => p.model === mm).map((p) => [p.date, p]));
-      const main = byModel(pick.value);
-      const firstPred = r.predictions.length ? r.predictions.map((p) => p.date).sort()[0] : null;
-      const cut = firstPred ? Math.max(0, r.history.dates.findIndex((d) => d >= firstPred) - 36) : 0;
-      const dates = r.history.dates.slice(cut);
-      const series = [
-        { name: "Gerçekleşen", values: r.history.values.slice(cut), color: "var(--ink-2)" },
-        { name: `${mname(pick.value)} tahmini`, values: dates.map((d) => main.get(d)?.y_pred ?? null), color: "var(--series-1)" },
-      ];
-      if (compare.value && compare.value !== pick.value) {
-        const other = byModel(compare.value);
-        series.push({ name: `${mname(compare.value)} tahmini`, values: dates.map((d) => other.get(d)?.y_pred ?? null), color: "var(--series-2)", dash: "5 4" });
-      }
-      const band = { name: "%80 tahmin aralığı", lower: dates.map((d) => main.get(d)?.lower ?? null), upper: dates.map((d) => main.get(d)?.upper ?? null), color: "var(--series-1)" };
-      chartBox.replaceChildren(lineChart({ dates, series, band: band.lower.some((v) => v !== null) ? band : null, height: 320, format: (x) => valueText(ti, x) }));
-    };
-    pick.addEventListener("change", draw);
-    compare.addEventListener("change", draw);
-    draw();
-
-    const verdict = gain === null ? null : gain > 0.02
-      ? [h("strong", {}, `${mname(r.best_model)}, naive forecast'a göre MAE'yi %${nf(1).format(gain * 100)} azaltıyor.`), ` MAE ${errText(best.mae)}, naive forecast'ın MAE'si ${errText(naive.mae)} ${unitWord}.`]
-      : [h("strong", {}, "Hiçbir model naive forecast'ı belirgin biçimde geçemedi."), " Bu hedef için son gözlenen değer güçlü bir baseline'dır; bir ML modelinin de buna yakın sonuç vermesi olağandır."];
-    const cov = best?.coverage80;
-    const covNote = cov === null || cov === undefined ? null : Math.abs(cov - 0.8) <= 0.07 ? "%80 hedefine yakın" : cov < 0.8 ? "aralıklar gereğinden dar" : "aralıklar gereğinden geniş";
-    const regimeRows = r.regime_metrics.filter((x) => x.model === r.best_model || x.model === "naive");
-    const regimes = [...new Set(regimeRows.map((x) => x.regime))].map((reg) => {
-      const b = regimeRows.find((x) => x.regime === reg && x.model === r.best_model);
-      const n = regimeRows.find((x) => x.regime === reg && x.model === "naive");
-      return { regime: reg, n: b?.n ?? n?.n, best: b?.mae, naive: n?.mae, gain: b && n && n.mae ? 1 - b.mae / n.mae : null };
-    });
-    const winsAll = regimes.length && regimes.every((x) => x.gain === null || x.gain > 0);
-
-    fill(out,
-      summary(verdict,
-        `Backtest ${r.common_origins} origin üzerinden yapıldı; her origin'de model yalnızca o tarihte yayımlanmış veriyle kuruldu.`,
-        regimes.length ? (winsAll ? "Baseline modelin üstünlüğü üç rejimin hepsinde korunuyor; sonuç tek bir döneme bağlı değil." : "Baseline modelin üstünlüğü her rejimde korunmuyor; sonuçları rejim tablosuyla birlikte yorumlayın.") : null,
-        "Bir ML modelinin katkısından söz edebilmek için bu baseline'dan düşük hata üretmesi gerekir."),
-      h("div", { class: "tiles" },
-        tile("Baseline model", mname(r.best_model), (MODEL_INFO[r.best_model]?.[1] || "").replace(/\s*\([^)]*\)/g, "").split(/\.\s/)[0], "Hesap"),
-        tile("Naive'e göre iyileşme", gain === null ? "—" : `%${nf(1).format(gain * 100)}`, "MAE'deki azalma", "Hesap"),
-        tile("MAE", best ? errText(best.mae) : "—", unitWord, "Hesap"),
-        tile("Coverage (%80 aralık)", cov === null || cov === undefined ? "—" : ratioPct(cov, 0), covNote || "aralık üretilmedi", "Hesap")),
-      h("section", { class: "card" },
-        h("div", { class: "card-head" },
-          h("div", {}, h("h2", {}, `${ti?.label || r.config.target}: gerçekleşen ve tahmin`), h("p", {}, `${ti?.transform_label || ""} · ${r.config.horizon} dönem ileri tahmin`)),
-          h("div", { class: "controls" }, h("label", { class: "field" }, h("span", {}, "Model"), pick), h("label", { class: "field" }, h("span", {}, "Karşılaştırma"), compare))),
-        chartBox,
-        h("p", { class: "caption" }, "Gri çizgi gerçekleşen değerdir. Gölgeli alan, modelin geçmiş hatalarından kurulan %80 tahmin aralığıdır; gerçekleşen değerin yaklaşık %80 olasılıkla bu alanda kalması beklenir.")),
-      h("div", { class: "grid-2" },
-        h("section", { class: "card" },
-          h("div", { class: "card-head" }, h("div", {}, h("h2", {}, term("naive_beat", "Naive'e göre göreli MAE")), h("p", {}, "Her modelin MAE'si naive forecast'ın MAE'sine bölünmüştür. 1'in solunda kalan model naive'den iyidir; vurgulanan çubuk baseline modeldir."))),
-          naive && naive.mae
-            ? barChart(metrics.filter((x) => x.mae !== null).map((x) => ({ label: mname(x.model), value: x.mae / naive.mae, highlight: x.model === r.best_model, note: `MAE ${errText(x.mae)}` })),
-              { format: (v) => nf(2).format(v), ref: { value: 1, label: "naive" }, cap: 2.5 })
-            : h("p", { class: "muted" }, "Karşılaştırma için Naive modelini de seçin."),
-          h("p", { class: "caption" }, "Kesikli çizgi naive düzeyidir (1,0). Örneğin 0,44, MAE'nin naive'in %44'ü kadar olduğunu gösterir. 2,5'i aşan çubuklar kesilerek gösterilir.")),
-        h("section", { class: "card" },
-          h("div", { class: "card-head" }, h("div", {}, h("h2", {}, term("regime", "Rejimlere göre MAE")), h("p", {}, "Baseline model ile naive'in her rejimdeki MAE'si."))),
-          regimes.length ? table([
-            { label: "Rejim", key: "regime" },
-            { label: term("origin"), key: "n", num: true },
-            { label: mname(r.best_model), num: true, render: (x) => errText(x.best) },
-            { label: "Naive", num: true, render: (x) => errText(x.naive) },
-            { label: "İyileşme", num: true, render: (x) => (x.gain === null ? "—" : `${x.gain >= 0 ? "" : "−"}%${nf(1).format(Math.abs(x.gain) * 100)}`) },
-          ], regimes) : h("p", { class: "muted" }, "Rejim ayrımı için yeterli gözlem yok."))),
-      h("details", { class: "card" }, h("summary", {}, "Tüm modellerin metrikleri"),
-        table([
-          { label: "Model", render: (x) => h("span", {}, mname(x.model), h("span", { class: "code" }, x.model)) },
-          { label: term("origin"), key: "n", num: true },
-          { label: term("mae", "MAE"), num: true, render: (x) => errText(x.mae) },
-          { label: term("rmse", "RMSE"), num: true, render: (x) => errText(x.rmse) },
-          { label: term("mase", "MASE"), num: true, render: (x) => num(x.mase, 3) },
-          { label: term("smape", "sMAPE"), num: true, render: (x) => num(x.smape, 2) },
-          { label: term("coverage", "Coverage"), num: true, render: (x) => ratioPct(x.coverage80, 0) },
-          { label: term("width", "Aralık genişliği"), num: true, render: (x) => errText(x.width80) },
-          { label: term("pinball", "Pinball loss"), num: true, render: (x) => num(x.pinball, 3) },
-        ], metrics, { rowClass: (x) => (x.model === r.best_model ? "best" : null) })),
-      h("details", { class: "card" }, h("summary", {}, "Model kartı ve yöntem"),
-        h("ul", {},
-          h("li", {}, h("strong", {}, "Hedef: "), `${ti?.label || r.config.target} (${ti?.transform_label || ""}, ${r.config.target})`),
-          h("li", {}, h("strong", {}, "Horizon: "), `${r.config.horizon} dönem ileri`),
-          h("li", {}, h("strong", {}, "Yöntem: "), `Rolling-origin backtest; ilk tahminden önce en az ${r.config.min_train} dönemlik eğitim, toplam ${r.common_origins} ortak origin.`),
-          h("li", {}, h("strong", {}, "Look-ahead koruması: "), "Her origin'de yalnızca o tarihte yayımlanmış veri kullanıldı (yayın gecikmeleri panelde uygulanır)."),
-          r.config.anchor ? h("li", {}, h("strong", {}, "Anchor: "), `${labelOf(m, r.config.anchor)} (${r.config.anchor})`) : null,
-          h("li", {}, h("strong", {}, "Açıklayıcı feature'lar: "), r.features_used.length ? r.features_used.map((f) => labelOf(m, f)).join(", ") : "kullanılmadı"),
-          h("li", {}, h("strong", {}, "Sınırlamalar: "), "Sonuçlar geçmiş dönemlere aittir; structural break sonrasında hata dağılımı değişebilir. Bu bir forecast değil, karşılaştırma için kullanılan baseline'dır."))),
-      stampBar({ sources: sourcesOf(m), generated: stampTime(r.generated_at), period: r.history.dates.length ? `${monthName(r.history.dates[0])} – ${monthName(r.history.dates.at(-1))}` : "—" }),
-    );
-  };
-
-  run.addEventListener("click", () => busy(run, "Backtest çalışıyor", async () => {
-    const body = {
-      ...scope(), target: target.value, anchor: anchor.value || undefined,
-      horizon: Number(horizon.value), min_train: Number(minTrain.value), exogenous: exog.checked,
-      models: state.meta.models.filter((mm) => chosen.has(mm)),
-    };
-    if (!body.models.length) throw new Error("En az bir model seçin.");
-    if (!body.models.includes("naive")) body.models.unshift("naive"); // the benchmark is always compared with naive
-    savePrefs({ [`target:${sector}`]: body.target, [`anchor:${sector}`]: anchor.value, horizon: body.horizon, min_train: body.min_train, exogenous: body.exogenous, models: body.models });
-    const r = await postJSON("/api/backtest", body);
-    state.backtests.set(sector, r);
-    render(r);
-  }, out));
-
-  fill(root,
-    viewHead("Adım 4", `${m.sector.name}: baseline karşılaştırması`, "Basit tahmin yöntemleri rolling-origin backtest ile sınanır. En düşük hatayı veren yöntem, geliştireceğiniz ML modelinin geçmesi gereken baseline'dır."),
-    h("section", { class: "card" },
-      h("div", { class: "controls" },
-        h("label", { class: "field" }, h("span", {}, "Hedef feature"), target),
-        h("label", { class: "field" }, h("span", {}, term("anchor", "Anchor (isteğe bağlı)")), anchor),
-        h("label", { class: "field" }, h("span", {}, term("horizon", "Horizon (dönem)")), horizon),
-        h("label", { class: "field" }, h("span", {}, term("min_train", "Minimum eğitim (dönem)")), minTrain)),
-      h("label", { class: "check" }, exog, h("span", {}, "Diğer feature'ları regresyon modellerine ekle", h("small", {}, "Ridge ve quantile regression, hedefin lag'lerine ek olarak paneldeki diğer feature'ların lag'lerini de kullanır."))),
-      h("details", { class: "about" }, h("summary", {}, `Backtest'e girecek modeller (${chosen.size} seçili)`), h("div", {}, modelChecks,
-        h("div", { class: "button-row" }, h("button", { type: "button", class: "ghost small", onclick: () => { state.meta.models.forEach((mm) => chosen.add(mm)); modelChecks.querySelectorAll("input").forEach((i) => (i.checked = true)); } }, "Tümünü seç")))),
-      h("div", { class: "button-row" }, run)),
-    out,
-  );
-  const cached = state.backtests.get(sector);
-  if (cached) render(cached);
-  else out.append(emptyState("Backtest henüz çalıştırılmadı", "Hedef feature'ı seçip \"Backtest'i başlat\" düğmesine basın. Aylık ortalama bir feature'ı tahmin ediyorsanız aynı serinin ay sonu sürümünü anchor olarak seçmek baseline'ı belirgin biçimde iyileştirir."));
 };
 
 views.saglik = async (root) => {

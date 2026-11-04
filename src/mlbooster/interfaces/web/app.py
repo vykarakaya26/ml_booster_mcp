@@ -39,7 +39,6 @@ from mlbooster import __version__
 from mlbooster.application.use_cases.panel import DEFAULT_START
 from mlbooster.bootstrap import Container, build_container
 from mlbooster.domain.errors import DomainError, InvalidInput
-from mlbooster.domain.services.backtest import MODELS, BacktestConfig
 from mlbooster.domain.services.market_share import ShareConfig
 from mlbooster.domain.validation import slug
 from mlbooster.interfaces.presenters import (
@@ -50,7 +49,6 @@ from mlbooster.interfaces.presenters import (
     STATUS_LABELS,
     TREND_LABELS,
     VERIFICATION_LABELS,
-    backtest_dict,
     health_dict,
     quality_dict,
     sector_map_dict,
@@ -65,7 +63,6 @@ TOKEN_HEADER = "x-mlb-token"
 MAX_BODY_BYTES = 64 * 1024
 MAX_TABLE_BODY_BYTES = 8 * 1024 * 1024  # market share table sent as text (the reader allows at most 200,000 rows)
 TABLE_FORMATS = ("csv", "json")
-MAX_PREDICTION_DATES = 120
 PANEL_FREQS = ("M", "W", "B")
 SOURCE_SHARE_START = date(2015, 1, 1)  # monthly bulletins answer one month per request; the first pull stays short
 
@@ -200,16 +197,6 @@ def _bool(data: dict, key: str, default: bool) -> bool:
     return value
 
 
-def _models(data: dict) -> tuple[str, ...]:
-    value = data.get("models") or list(MODELS)
-    if not isinstance(value, list) or not all(isinstance(m, str) for m in value):
-        raise InvalidInput("'models' bir metin listesi olmalı.")
-    unknown = sorted(set(value) - set(MODELS))
-    if unknown:
-        raise InvalidInput(f"Tanımsız model: {', '.join(unknown)}")
-    return tuple(dict.fromkeys(value))
-
-
 def _panel_args(data: dict) -> tuple[str, date, date | None, str]:
     sector = slug(_str(data, "sector", required=True), "sektör")
     freq = _str(data, "freq", "M")
@@ -282,7 +269,6 @@ def create_app(container_factory: Callable[[], Container] = build_container, tok
             c = container()
             return {
                 "version": __version__,
-                "models": list(MODELS),
                 "providers": sorted(c.ready_providers()),
                 "default_start": DEFAULT_START.isoformat(),
             }
@@ -372,30 +358,6 @@ def create_app(container_factory: Callable[[], Container] = build_container, tok
 
         return await call(run)
 
-    async def backtest(request: Request) -> dict:
-        data = await _body(request)
-        sector, start, end, _ = _panel_args(data)
-        config = BacktestConfig(
-            target=_str(data, "target", required=True),
-            horizon=_int(data, "horizon", 1, 1, 24),
-            min_train=_int(data, "min_train", 48, 12, 240),
-            models=_models(data),
-            exogenous=_bool(data, "exogenous", True),
-            anchor=_str(data, "anchor"),
-        )
-
-        def run():
-            result, panel_result = container().run_backtest(sector, config, start, end)
-            out = backtest_dict(result, sector, max_predictions=MAX_PREDICTION_DATES) | {"generated_at": _now()}
-            target = panel_result.panel[config.target] if config.target in panel_result.panel else pd.Series()
-            out["history"] = {
-                "dates": [d.date().isoformat() for d in pd.to_datetime(target.index)],
-                "values": [_num(float(v)) for v in target.to_numpy()],
-            }
-            return out
-
-        return await call(run)
-
     async def market_share(request: Request) -> dict:
         data = await _body(request, MAX_TABLE_BODY_BYTES)
         text = data.get("text")
@@ -458,7 +420,6 @@ def create_app(container_factory: Callable[[], Container] = build_container, tok
         Route("/api/panel", endpoint(panel), methods=["POST"]),
         Route("/api/panel/export", endpoint(panel_export), methods=["POST"]),
         Route("/api/audit", endpoint(audit), methods=["POST"]),
-        Route("/api/backtest", endpoint(backtest), methods=["POST"]),
         Route("/api/market-share", endpoint(market_share), methods=["POST"]),
         Route("/api/market-share/source", endpoint(market_share_source), methods=["POST"]),
         Route("/api/share-series", endpoint(share_series)),

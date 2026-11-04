@@ -78,7 +78,7 @@ Her ifade dört dayanaktan birine bağlanır ve bu dayanak metinde görünür (a
 - **Veri**: yayımlanmış gözlem; ay ve kaynakla.
 - **Varsayım**: `(A2)` gibi bir kimlikle. Onaylanmamış ya da güncelliğini yitirmiş bir varsayıma dayanan
   sonuç koşullu yazılır.
-- **Model**: forecast ya da backtest sonucu; yöntem, örneklem ve belirsizlikle.
+- **Model**: istatistiksel hesap (ör. structural break testi, korelasyon); yöntem ve örneklemle.
 - **Yorum**: analistin çıkarımı; güven düzeyiyle ("muhtemel, orta güven"). Nedensellik iddia edilmez.
 Bulguyu zayıflatan kanıtı da yaz: dönem seçimi, kısa rejim örneklemi, baz etkisi, nominal yanılsama.
 Belirsizliği gizlemek okuru yanıltır; doğru ölçüde vermek kararı güçlendirir.

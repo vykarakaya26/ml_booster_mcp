@@ -22,9 +22,9 @@ adapter: tsb
 priority: 8
 # remote: "PRIM_URETIMLERI_SIRALAMA/<SHEET>[.YTD]". SHEET is the sheet name as an ASCII key (Trafik → TRAFIK,
 # Hastalık-Sağlık → HASTALIK_SAGLIK, Genel Toplam → GENEL_TOPLAM, Dev.Dest.Tarım Sigortaları →
-# DEV_DEST_TARIM_SIGORTALARI). Without .YTD: monthly premium (difference of the cumulative figures, flow; for panels and
-# forecasting); with .YTD: cumulative premium from 1 January as published (its shares equal TSB's "Pazar Payı %"; use
-# these for market share: monthly company figures turn negative around cancellations, revisions and mergers).
+# DEV_DEST_TARIM_SIGORTALARI). Without .YTD: monthly premium (difference of the cumulative figures, flow; for panels);
+# with .YTD: cumulative premium from 1 January as published (its shares equal TSB's "Pazar Payı %"; use these for market
+# share: monthly company figures turn negative around cancellations, revisions and mergers).
 series:
   - {code: TSB.PRIM.TOPLAM, name: "Toplam prim üretimi (hayat ve hayat dışı), şirket bazında, aylık (TL)", freq: M, kind: flow, unit: TRY, currency: TRY, remote: "PRIM_URETIMLERI_SIRALAMA/GENEL_TOPLAM", canary: true}
   - {code: TSB.PRIM.HAYATDISI, name: "Hayat dışı prim üretimi, şirket bazında, aylık (TL)", freq: M, kind: flow, unit: TRY, currency: TRY, remote: "PRIM_URETIMLERI_SIRALAMA/HAYATDISI"}

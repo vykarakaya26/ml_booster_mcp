@@ -48,8 +48,7 @@ kullanılabilir.
 
 Puan = |r| × istikrar. Elenen her adayın gerekçesi `features.json` → `screening[].reason` alanında yer alır.
 
-## 4. Değerlendirme
-Seçimin değeri, seçim penceresinden sonraki dönemde ölçülür:
-`backtest --panel-file features_selected.csv --eval-start <eğitim sonu>`. Sektör paneli ve naive model de aynı
-`--eval-start` ile koşulur. Ridge, seçilen feature'ların lag'lerini hedefin değişimine karşı modelleyerek seçimi
-doğrudan sınar.
+## 4. Seçimden sonra
+Seçim bir ön elemedir ve ilişkiyi gösterir. Eğitim penceresinden sonraki dönem seçimde kullanılmaz; `features_selected.csv`
+ile kurulan bir modeli bu dönemde sınamak kullanıcıya aittir. Forecast ve model karşılaştırması bu ürünün kapsamı
+dışındadır.

@@ -7,18 +7,16 @@ biçimde sunmak ise analizi güçlendirir.
 ## 1. Analizden önce sor (tek seferde en fazla 3–4 soru)
 İstekten çıkarılabilenleri sorma. Yalnızca sonucu değiştirecek eksikleri sor ve seçenekli sun.
 
-1. **Karar ve kullanım.** Bu analiz hangi kararı besliyor (fiyatlama, bütçe, karşılık, hedge, model
-   seçimi)? Fazla ya da eksik tahminin maliyeti simetrik mi? Asimetrikse quantile loss (pinball loss) kullanılır.
+1. **Karar ve kullanım.** Bu analiz hangi kararı besliyor (fiyatlama, bütçe, karşılık, hedge, kurulacak model)?
 2. **Hedef.** Tam olarak hangi seri? Seviye mi değişim mi? Ay ortalaması mı dönem sonu mu? Nominal mi
    reel mi (deflatör ne)?
-3. **Horizon ve yenileme.** Kaç ay ileri? Ne sıklıkla güncellenecek?
+3. **Horizon ve yenileme.** Feature'lar hedefin kaç ay sonrasına göre seçilecek? Ne sıklıkla güncellenecek?
 4. **Senaryo girdileri** (kullanıcının sahip olduğu patikalar): politika faizi/AOFM, USD/TRY ve EUR/TRY,
    enflasyon beklentisi (kullanıcının kendisi ya da PKA), Brent ve ürün fiyatları, asgari ücret ve idari
    fiyatlar, vergi (ÖTV, KDV, ÖİV), makroihtiyati ayarlar.
 5. **Sektöre özgü varsayımlar.** `sector-assumptions.md` dosyasındaki seçeneklerden. Bilinen tek seferlik
    olayları da sor (planlı tarife artışı, düzenleme değişikliği).
-6. **Çıktı biçimi ve kabul edilebilir belirsizlik.** Nokta, aralık, senaryo ya da olasılık?
-7. **Sonucu değiştirecek kanıt.** Hangi bulgunun değerlendirmeyi değiştireceğini baştan belirle.
+6. **Sonucu değiştirecek kanıt.** Hangi bulgunun değerlendirmeyi değiştireceğini baştan belirle.
 
 Kullanıcı yanıt vermezse ya da "sen karar ver" derse sektör varsayılanlarıyla devam et ve onları
 `confirmed: false` olarak kaydet. Asla kullanıcı adına onaylanmış gibi yazma.
@@ -45,13 +43,13 @@ onaylamasını iste.
 ## 3. Raporda ifadeleri etiketle
 - **Veri**: yayımlanmış gözlem, EVDS kodu ya da ay ile. Örnek: "TÜFE yıllık %31,5 (2026-09 satırı)".
 - **Varsayım (A#)**: "A2 geçerliyse…". Onaysız varsayıma dayanan sonuç koşullu yazılır.
-- **Model**: tahmin ya da backtest sonucu; yöntem, örneklem ve belirsizlikle birlikte.
+- **Model**: istatistiksel hesap (ör. feature taraması, substitution correlation); yöntem ve örneklemle birlikte.
 - **Yorum**: analistin çıkarımı, güven düzeyiyle. Örnek: "muhtemelen (orta güven)".
 
 Bölüm sırası (merkez bankası pratiğine yakın):
 1. Veri ve kalite notları
 2. Varsayımlar
-3. Horizon başına sonuçlar ve benchmark'lar
+3. Bulgular
 4. Senaryolar ve duyarlılık
 5. Riskler ve sonucu çürütebilecek gelişmeler
 6. Sınırlar
@@ -59,12 +57,8 @@ Bölüm sırası (merkez bankası pratiğine yakın):
 ## 4. Senaryo ve duyarlılık
 - Üç ila beş **iç tutarlı** senaryo kur: baz, olumsuz kur, dezenflasyon, politika şoku. Bir kur şoku,
   TÜFE'ye geçişkenliği ve politika tepkisiyle birlikte düşünülür.
-- Senaryo tahmin aralıkları, girdinin kendi belirsizliğini içermez; bu yüzden **dardır**. Bunu açıkça
-  yaz ([FPP3 §7.6](https://otexts.com/fpp3/forecasting-regression.html)).
 - **Duyarlılık.** Varsayımları tek tek makul aralıkta oynat. Çıktıya etkisine göre sırala ve bu sırayı
   kayda `impact` olarak yaz.
-- **Belirsizlik gösterimi.** Varsayılan, horizon başına backtest hata bandıdır. Rejim değiştiyse bandı
-  genişlet ve bunu belirt (BoE fan chart, IMF WEO 50/70/90 bantları, Fed RMSE bantları).
 
 ## 5. Ölçülü dil
 Olasılık sözcüklerini tutarlı kullan ve olasılık ile güveni ayrı söyle:
@@ -81,19 +75,16 @@ Olasılık sözcüklerini tutarlı kullan ve olasılık ile güveni ayrı söyle
 
 Ölçek ICD-203 tarzıdır; kaynak ikincildir.
 
-Belirsizlik yüksekken ihtiyatlı ol (Armstrong vd.,
-["Golden Rule"](https://faculty.wharton.upenn.edu/wp-content/uploads/2016/10/Golden-Rule-of-Forcasting_Be-Conservative_2.pdf));
-ancak bu ilkeyi mekanik biçimde uygulama.
+Belirsizlik yüksekken ihtiyatlı ol; ancak bu ilkeyi mekanik biçimde uygulama.
 
 ## 6. Abartıya karşı kontrol listesi
 - **Nedensellik yok.** Korelasyondan ya da Granger testinden sonra "etkiler" ifadesini kullanma;
   "ilişkili" ya da "örneklem içinde k ay öncü" gibi ifadeler kullan.
 - **Spurious regression.** Non-stationary düzeylerle kurulan regresyonu cointegration testi olmadan yorumlama.
-- **Çoklu deneme.** Denenen tüm spesifikasyonların sayısını raporla; final testi bir kez yap.
+- **Çoklu deneme.** Denenen tüm spesifikasyonların sayısını raporla.
 - **Dönem seçimi.** Başlangıç tarihini sonuçlara bakarak seçme. Tam dönemi ve rejim alt dönemlerini göster.
 - **Nominal yanılsama.** Nominal TL büyümesine reel karşılığı olmadan "büyüme" ifadesini kullanma.
 - **Baz etkisi.** Mekanik YoY düşüşünü politikaya bağlama.
 - **Küçük rejim örneklemi.** Bir rejimde 36 aydan az gözleme dayanan sonucu "gösterge niteliğinde" diye
   etiketle `[sezgisel]`.
-- **İyileşme iddiası.** Yalnızca benchmark'a karşı, horizon başına ve mümkünse DM testiyle yap.
-- **Gelecek değer.** Kullanıcı açıkça senaryo istemedikçe nokta tahmin ya da yatırım tavsiyesi verme.
+- **Gelecek değer.** Nokta tahmin ya da yatırım tavsiyesi verme; forecast bu ürünün kapsamı dışındadır.

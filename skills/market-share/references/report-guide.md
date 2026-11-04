@@ -38,10 +38,9 @@ Coverage, eksik dönemler, tanım değişiklikleri, birleşmeler.
 Rapor kurumsal bir araştırma notu üslubuyla yazılır: nesnel, ölçülü, kesin tanımlı ve kaynaklı. Metin, Türk bir
 veri bilimcinin doğal olarak yazacağı akıcı Türkçedir; çeviri kokan, kalıp cümleler kurulmaz.
 
-**Teknik terimler İngilizce kalır ve Türkçeleştirilmez.** feature, feature engineering, backtest, baseline,
-forecast, look-ahead, leakage, outlier, winsorize, scaling, imputation, lag, rolling mean, EWM, coverage, HHI,
-CR-k, shift-share, MAE, RMSE gibi terimler için uydurma Türkçe karşılık kullanılmaz. Ek gerekiyorsa kesme işaretiyle
-bağlanır: "feature'lar", "backtest'te", "outlier'ları", "HHI'ye". Alanın gündelik sözcükleri ise Türkçedir: pazar
+**Teknik terimler İngilizce kalır ve Türkçeleştirilmez.** feature, feature engineering, look-ahead, leakage,
+outlier, winsorize, scaling, imputation, lag, rolling mean, EWM, coverage, HHI, CR-k, shift-share gibi terimler için uydurma Türkçe karşılık kullanılmaz. Ek gerekiyorsa kesme işaretiyle
+bağlanır: "feature'lar", "outlier'ları", "HHI'ye". Alanın gündelik sözcükleri ise Türkçedir: pazar
 payı, oyuncu, sektör, segment, dönem, enflasyon, kur, faiz, varsayım, bulgu. Kurum ve veri seti adları (TCMB, EVDS,
 TÜİK, ODMD, TSB, BTK, EPDK, KAP) olduğu gibi yazılır.
 
@@ -55,8 +54,8 @@ TÜİK, ODMD, TSB, BTK, EPDK, KAP) olduğu gibi yazılır.
 | "Muhtemelen kampanya yüzünden" | "Artış kampanya döneminde gerçekleşmiştir (yorum, düşük güven); kampanya etkisi ayrıştırılamamıştır." |
 | "Pay %2,5 arttı" (pay farkı için) | "Pay 2,5 puan artarak %24,0'dan %26,5'e yükseldi." |
 | "Aykırı değerler kırpıldı", "kaydırma-pay etkisi" | "Outlier'lar winsorize edildi", "shift-share ayrıştırmasında pay etkisi" |
-| "Öznitelik mühendisliği", "geriye dönük sınama" | "Feature engineering", "backtest" |
-| "Seçilen feature'ların performansa katkısı görülmüştür" (çeviri kokan) | "Seçilen feature'lar MAE'yi 0,12 puan düşürdü." |
+| "Öznitelik mühendisliği" | "Feature engineering" |
+| "Pazar yoğunlaşmasında bir artış görülmüştür" (çeviri kokan) | "HHI bir yılda 120 puan arttı." |
 
 Kurallar:
 - Her sayıya dönem ve birim eklenir; yüzde (%) ile yüzde puan (puan) karıştırılmaz.

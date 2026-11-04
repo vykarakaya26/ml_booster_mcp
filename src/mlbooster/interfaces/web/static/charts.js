@@ -1,4 +1,4 @@
-// Dependency-free charts: SVG line (crosshair + tooltip, interval band, markers, event lines) and HTML bars.
+// Dependency-free charts: SVG line (crosshair + tooltip, markers, event lines) and HTML bars.
 // One y axis only; series on different scales go into separate charts (small multiples).
 const NS = "http://www.w3.org/2000/svg";
 const nf = new Intl.NumberFormat("tr-TR", { maximumFractionDigits: 3 });
@@ -97,7 +97,7 @@ export function lineChart(opts) {
   return wrap;
 }
 
-function buildLineChart({ dates, series, band = null, markers = null, events = [], height = 260, compact = false, format = fmtNum }, W) {
+function buildLineChart({ dates, series, markers = null, events = [], height = 260, compact = false, format = fmtNum }, W) {
   const H = height;
   const m = compact ? { t: 8, r: 8, b: 20, l: 44 } : { t: events.length ? 34 : 12, r: 16, b: 26, l: 56 };
   const iw = W - m.l - m.r;
@@ -106,7 +106,6 @@ function buildLineChart({ dates, series, band = null, markers = null, events = [
 
   const all = [];
   for (const sr of series) for (const v of sr.values) if (v !== null && Number.isFinite(v)) all.push(v);
-  if (band) for (const v of [...band.lower, ...band.upper]) if (v !== null && Number.isFinite(v)) all.push(v);
   if (!n || !all.length) return [div("muted small", "Veri yok.")];
   let lo = Math.min(...all);
   let hi = Math.max(...all);
@@ -138,21 +137,6 @@ function buildLineChart({ dates, series, band = null, markers = null, events = [
     svg.append(t);
   });
   svg.append(s("line", { class: "baseline", x1: m.l, x2: W - m.r, y1: m.t + ih, y2: m.t + ih }));
-
-  if (band) {
-    // interval band, broken at gaps
-    let seg = [];
-    const flush = () => {
-      if (seg.length > 1) {
-        const top = seg.map((i) => `${x(i)},${y(band.upper[i])}`);
-        const bottom = seg.slice().reverse().map((i) => `${x(i)},${y(band.lower[i])}`);
-        svg.append(s("polygon", { class: "band", points: [...top, ...bottom].join(" "), style: `fill:${band.color}` }));
-      }
-      seg = [];
-    };
-    for (let i = 0; i < n; i++) (band.lower[i] !== null && band.upper[i] !== null ? seg.push(i) : flush());
-    flush();
-  }
 
   // event labels alternate between two rows; long ones are shortened (full name in the tooltip)
   events.forEach((ev, k) => {
@@ -214,7 +198,6 @@ function buildLineChart({ dates, series, band = null, markers = null, events = [
       dots[k].setAttribute("cx", x(i)); dots[k].setAttribute("cy", y(v)); dots[k].setAttribute("visibility", "visible");
       rows.push([sr.color, sr.name, format(v)]);
     });
-    if (band && band.lower[i] !== null) rows.push([band.color, band.name, `${format(band.lower[i])} – ${format(band.upper[i])}`]);
     if (markers && markers.dates.includes(dates[i])) rows.push([markers.color, markers.name, "evet"]);
     showTip(evt, monthLabel(dates[i]), rows);
   });
@@ -225,29 +208,19 @@ function buildLineChart({ dates, series, band = null, markers = null, events = [
   });
 
   const items = series.length > 1 ? series.map((sr) => ({ name: sr.name, color: sr.color })) : [];
-  if (band) items.push({ name: band.name, color: band.color, kind: "band" });
   if (markers) items.push({ name: markers.name, color: markers.color, kind: "dot" });
   return items.length ? [legend(items), svg] : [svg];
 }
 
-export function barChart(items, { format = fmtNum, ref = null, cap = null } = {}) {
+export function barChart(items, { format = fmtNum } = {}) {
   // HTML bars instead of SVG so text keeps its size in narrow cards.
-  // ref: {value, label} → dashed reference line at the same position on every row (e.g. naive level = 1).
   const wrap = div("bars");
   if (!items.length) { wrap.append(div("muted small", "Veri yok.")); return wrap; }
-  // cap: bars above this value are cut at the axis end (the real value stays printed) so small differences remain readable
-  let max = Math.max(...items.map((d) => d.value), ref ? ref.value * 1.15 : 0, 0) || 1;
-  if (cap) max = Math.min(max, cap);
+  const max = Math.max(...items.map((d) => d.value), 0) || 1;
   for (const d of items) {
-    const capped = d.value > max;
-    const fill = div("bar-fill" + (d.highlight ? " highlight" : "") + (capped ? " capped" : ""));
-    fill.style.width = `${Math.max(1, (Math.min(d.value, max) / max) * 100)}%`;
+    const fill = div("bar-fill" + (d.highlight ? " highlight" : ""));
+    fill.style.width = `${Math.max(1, (d.value / max) * 100)}%`;
     const track = div("bar-track", fill);
-    if (ref) {
-      const line = div("bar-ref");
-      line.style.left = `${(ref.value / max) * 100}%`;
-      track.append(line);
-    }
     const row = div("bar-row", div("bar-label", d.label), track, div("bar-value", format(d.value)));
     const color = d.highlight ? "var(--series-1)" : "var(--axis)";
     const rows = [[color, d.label, format(d.value)]];

@@ -1,12 +1,14 @@
 # Bütünsel analiz akışı: skill'ler birlikte nasıl çalışır
 
-Altı skill tek bir analiz zincirinin halkalarıdır. Her biri tek başına da çalışır. Birlikte kullanıldıklarında aynı
+Beş skill tek bir analiz zincirinin halkalarıdır. Her biri tek başına da çalışır. Birlikte kullanıldıklarında aynı
 çalışma klasörünü (`mlbooster-reports/<sektör>-<tarih>/`), aynı varsayım kaydını (`assumptions.json`) ve aynı eğitim
-penceresi sonunu paylaşırlar. Böylece veri haritasından modele kadar her karar izlenebilir ve leakage'sız kalır.
+penceresi sonunu paylaşırlar. Böylece veri haritasından feature setine kadar her karar izlenebilir ve leakage'sız kalır.
+
+Zincir ML'e hazır feature'larda biter. Forecast, model eğitimi ve model karşılaştırması bu ürünün kapsamı dışındadır.
 
 ```
-sector-analysis ──► evds-series-discovery ──► data-quality-audit ──► data-prep ──► feature-engineering ──► forecast-baseline
-  (harita, panel)     (eksik seri kodları)       (veri sorunları)      (dağılım)     (feature üretimi)      (benchmark, katkı)
+sector-analysis ──► evds-series-discovery ──► data-quality-audit ──► data-prep ──► feature-engineering
+  (harita, panel)     (eksik seri kodları)       (veri sorunları)      (dağılım)     (feature üretimi)
         │
         └──► market-share (oyuncu düzeyi: pay, yoğunlaşma, rakipler; pazar büyümesi makro panelle ilişkilendirilir)
 ```
@@ -18,12 +20,11 @@ sector-analysis ──► evds-series-discovery ──► data-quality-audit ─
 | 3 | `data-quality-audit` | Sektör paneli | `audit.json`, kalite raporu | Structural break ve outlier dönemleri, güncelliğini yitirmiş seriler |
 | 4 | `data-prep` | Panel, hedef, eğitim sonu, model ailesi | `prepared.csv`, `prep.json` | Dağılıma göre hazırlanmış panel |
 | 5 | `feature-engineering` | Panel (ön işlemeyle), hedef, horizon, eğitim sonu | `features_selected.csv`, `features.json` | Seçilen feature'lar |
-| 6 | `forecast-baseline` | Panel ya da `features_selected.csv`, `--eval-start` | `bt.json`, backtest raporu | Benchmark ve feature'ların katkısı |
 | — | `market-share` | Oyuncu bazlı tablo, sektör | `share.json`, rekabet raporu | Pazar büyümesinin makro sürücüleri, rakip seti |
 
 ## Ortak kurallar
-1. **Tek eğitim penceresi:** `prep --train-end`, `features --train-end` ve `backtest --eval-start` aynı tarihtir.
-   Ön işleme parametreleri ve feature selection bu tarihe kadar öğrenilir; performans yalnızca sonrasında ölçülür.
+1. **Tek eğitim penceresi:** `prep --train-end` ve `features --train-end` aynı tarihtir. Ön işleme parametreleri ve
+   feature selection bu tarihe kadar öğrenilir; sonraki dönem kullanıcının kendi modelini sınaması için ayrılır.
 2. **Tek varsayım kaydı:** her skill aynı `assumptions.json` dosyasına ekleme yapar; kimlikler (A1, A2, …) çakışmaz.
 3. **Dayanak etiketleri:** her ifade veri, varsayım, model ya da yorum olarak etiketlenir
    (`assumptions-guide.md`).
@@ -34,8 +35,7 @@ sector-analysis ──► evds-series-discovery ──► data-quality-audit ─
 ## Tipik istekler ve izlenecek yol
 | İstek | Yol |
 |---|---|
-| "Otomotiv sektörü için uçtan uca analiz ve model önerisi" | 1 → 3 → 4 → 5 → 6, ardından gerekiyorsa `market-share` |
-| "Enflasyonu tahmin etmek için hangi feature'ları kullanmalıyım?" | 4 → 5 → 6 (makro_genel) |
+| "Otomotiv sektörü için uçtan uca analiz ve ML'e hazır veri" | 1 → 3 → 4 → 5, ardından gerekiyorsa `market-share` |
+| "Enflasyon modelim için hangi feature'ları kullanmalıyım?" | 4 → 5 (makro_genel) |
 | "Panelim modele hazır mı?" | 3 → 4 |
 | "Marka X'in pazar payı ve rakipleri" | `market-share`, `--sector` ile makro sürücüler |
-| "Modelim naive'den iyi mi?" | 6 (gerekirse 5'in çıktısıyla) |

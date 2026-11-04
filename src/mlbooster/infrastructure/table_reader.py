@@ -43,21 +43,6 @@ class LocalTableReader:
         text = text.removeprefix("\ufeff")
         return _json(text, "Tablo") if fmt == "json" else _csv(text, "Tablo")
 
-    def read_panel(self, path: Path) -> pd.DataFrame:
-        frame = self.read(path)
-        if frame.empty or frame.shape[1] < 2:
-            raise InvalidInput(f"{Path(path).name}: ilk kolonu tarih olan geniş bir panel bekleniyor")
-        first = frame.columns[0]
-        try:
-            index = pd.to_datetime(frame[first], format="mixed")
-        except (ValueError, TypeError):
-            raise InvalidInput(f"{Path(path).name}: ilk kolon ({first}) tarih olarak okunamadı") from None
-        panel = frame.drop(columns=[first]).apply(pd.to_numeric, errors="coerce")
-        panel.index = pd.DatetimeIndex(index, name="date")
-        if panel.index.has_duplicates:
-            raise InvalidInput(f"{Path(path).name}: aynı tarih birden fazla satırda geçiyor")
-        return panel.sort_index()
-
 
 def _csv(text: str, name: str) -> pd.DataFrame:
     try:
