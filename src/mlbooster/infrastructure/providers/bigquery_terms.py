@@ -13,6 +13,8 @@ from datetime import date, timedelta
 import pandas as pd
 
 from mlbooster.application.errors import UnexpectedResponse
+from mlbooster.domain.model import Source
+from mlbooster.infrastructure.http_client import SecureHttpClient
 from mlbooster.infrastructure.providers.bigquery_rest import BigQueryClient, Param, QueryResult
 from mlbooster.infrastructure.providers.bigquery_trends import (
     COUNTRY,
@@ -21,6 +23,7 @@ from mlbooster.infrastructure.providers.bigquery_trends import (
     TABLES,
     BigQueryTrendsProvider,
 )
+from mlbooster.infrastructure.secret_store import EnvSecretProvider
 
 MAX_DAYS_PER_QUERY = 7
 ROW_COLUMNS = ["term", "refresh_date", "week", "region_code", "region_name", "score"]
@@ -40,6 +43,11 @@ FROM (
 GROUP BY GROUPING SETS ((term, refresh_date, week), (term, refresh_date, week, region_code, region_name))
 HAVING GROUPING(region_code) = 1 OR COUNTIF(raw_score IS NOT NULL) > 0
 """
+
+
+def open_term_lookup(source: Source) -> BigQueryTermLookup:
+    http = SecureHttpClient(rps=source.rate_limit.rps, max_bytes=source.max_response_mb * 1024 * 1024)
+    return BigQueryTermLookup(source, http=http, secrets=EnvSecretProvider())
 
 
 class _Metered:

@@ -417,24 +417,26 @@ def create_app(container_factory: Callable[[], Container] = build_container, tok
         query, choice, start, end = _brand_args(data)
         refresh = _bool(data, "refresh", False)
         trend_years = _int(data, "trend_years", 3, 1, 10)
+        search_interest = _bool(data, "search_interest", False)  # BigQuery queries: only on an explicit request
 
         def run():
-            result = container().analyze_brand(query, choice, start, end, refresh, trend_years)
+            result = container().analyze_brand(query, choice, start, end, refresh, trend_years, search_interest)
             for summary in result.get("series", []):
                 summary["unit"] = UNITS.get(summary["unit"], summary["unit"])
             return result | {"generated_at": _now(), "labels": labels}
 
         return await call(run)
 
-    def _brand_panel(query, choice, start, end, save):
-        result = container().brand_features(query, choice, start, end, save=save)
+    def _brand_panel(query, choice, start, end, save, search_interest=False):
+        result = container().brand_features(query, choice, start, end, save=save, search_interest=search_interest)
         if isinstance(result, dict):  # the text does not lead to one brand
             raise InvalidInput(result["message"])
         return result
 
     async def brand_features(request: Request) -> dict:
-        args = _brand_args(await _body(request))
-        return await call(lambda: brand_features_dict(_brand_panel(*args, save=True)) | {"generated_at": _now()})
+        data = await _body(request)
+        args, search_interest = _brand_args(data), _bool(data, "search_interest", False)
+        return await call(lambda: brand_features_dict(_brand_panel(*args, save=True, search_interest=search_interest)) | {"generated_at": _now()})
 
     async def brand_export(request: Request) -> Response:
         data = await _body(request)
@@ -442,9 +444,10 @@ def create_app(container_factory: Callable[[], Container] = build_container, tok
         fmt = _str(data, "format", "csv")
         if fmt not in {"csv", "parquet"}:
             raise InvalidInput("Biçim csv ya da parquet olmalı.")
+        search_interest = _bool(data, "search_interest", False)
 
         def run():
-            result = _brand_panel(*args, save=False)
+            result = _brand_panel(*args, save=False, search_interest=search_interest)
             buf = io.BytesIO()
             if fmt == "csv":
                 buf.write(result.storable.to_csv(date_format="%Y-%m-%d").encode("utf-8"))

@@ -25,7 +25,7 @@ def test_mcp_tools_registered_with_annotations():
         "list_sectors", "list_sources", "show_map", "discover_series", "fetch_series", "build_panel", "health",
         "search_series", "set_feature_series", "audit_panel", "check_updates",
         "analyze_market_share", "analyze_source_market_share", "prepare_panel", "engineer_features",
-        "analyze_brand", "build_brand_features",
+        "analyze_brand", "build_brand_features", "analyze_search_interest",
         "evidence_policy", "read_evidence_pdf", "record_share_evidence", "list_share_evidence", "reject_share_evidence",
     }  # fmt: skip
     assert tools["show_map"].annotations.read_only_hint is True

@@ -50,6 +50,8 @@ class YamlSearchTerms:
 
     def load(self) -> dict[str, SectorSearchTerms]:
         if self._cache is None:
+            if not self._path.exists():  # a user catalog directory may not carry this file
+                return {}
             try:
                 schema = _SearchTermsSchema.model_validate(_read_yaml(self._path))
             except ValidationError as exc:

@@ -203,6 +203,33 @@ def evidence_section(ev: dict) -> str:
     return H.section("Yayımlanmış pay bulguları", body, "evidence")
 
 
+def search_section(s: dict) -> str:
+    """Google Trends block: search interest, apart from computed shares and published findings."""
+    body = f"<p><strong>{H.esc(s['note'])}</strong></p>"
+    if s["status"] != "done":
+        return H.section("Arama ilgisi", body + f"<p>{H.esc(s['message'])}</p>", "search")
+    c = s["coverage"]
+    body += f"<p>Google Trends Türkiye Top 25 ve Rising listeleri, {H.esc(c['first_day'])} – {H.esc(c['last_day'])} ({num(c['list_days'], 0)} günlük liste). {H.esc(c['note'])}</p>"
+    rows = []
+    for t in s["terms"]:
+        interest = t.get("interest") or {}
+        terms = ", ".join((t["terms"] + t["related_terms"])[:3]) or "—"
+        rows.append((H.esc(t["mode_label"]), H.esc(t["label"]), H.esc(t["status_label"]), num(t["list_days"], 0),
+                     "—" if t["best_rank"] is None else num(t["best_rank"], 0), H.esc(terms),
+                     "—" if interest.get("momentum") is None else f"{num(interest['momentum'], 2)} kat"))  # fmt: skip
+    body += H.table(["Tür", "Terim", "Durum", "Liste günü", "En iyi sıra", "Listedeki terimler", "Kendi geçmişine göre"], rows, numeric=[3, 4, 6], raw=range(7))
+    body += "<p class=\"muted\">Son sütun: son dört hafta ÷ önceki bir yıl; yalnızca terimin kendi geçmişiyle karşılaştırılır. Listede olmamak terimin aranmadığı anlamına gelmez.</p>"
+    ranked = [x for x in s["ranking"] if x["rank"] is not None]
+    if ranked:
+        body += "<h3>Rakipler arasında listelerde görünme</h3><ol>" + "".join(f"<li>{H.esc(x['label'])}: {num(x['list_days'], 0)} gün, en iyi sıra {num(x['best_rank'], 0)}</li>" for x in ranked) + "</ol>"
+    if s["provinces"]:
+        p = s["provinces"]
+        body += f"<h3>İllere yayılım</h3><p>{num(p['provinces_with_data'], 0)} ilde veri var. {H.esc(p['note'])}</p>"
+    body += f"<h3>Arama payı neden yok?</h3><p>{H.esc(s['withheld']['arama_payi'])}</p>"
+    body += f"<p class=\"muted\">{H.esc(s['attribution'])}. BigQuery: {num(s['cost']['gib'], 2)} GiB, {num(s['cost']['queries'], 0)} sorgu.</p>"
+    return H.section("Arama ilgisi", body, "search")
+
+
 METHOD = """
 <ul>
 <li><strong>Marka eşleştirme:</strong> ad, oyuncu düzeyinde veri veren kaynaklardaki adlarla karşılaştırılır. Yalnızca katalogdaki bir
@@ -216,6 +243,8 @@ karması örtüşmesiyle çıkarılır; korelasyon nedensellik göstermez.</li>
 sonraki revizyonlar geçmiş satırlarda görünür.</li>
 <li><strong>Yayımlanmış pay bulguları:</strong> kaynak politikasına uyan sayfalardan elle doğrulanarak derlenir. Hesaplanmış pay değildir; rakamlar
 ortalanmaz, çelişkiler olduğu gibi gösterilir ve hiçbir hesaba ya da feature'a girmez.</li>
+<li><strong>Arama ilgisi:</strong> Google Trends'in Türkiye listelerine giren terimlerden gelir ve pazar payı değildir. Skorlar her terim ve il için ayrı
+ölçeklendiğinden arama payı hesaplanmaz; liste günü, liste sırası ve terimin kendi geçmişiyle karşılaştırması verilir. Eksik terim doldurulmaz.</li>
 </ul>
 """
 
@@ -228,6 +257,8 @@ def limits_page(r: dict) -> str:
     found = bool(ev and (ev["current"] or ev["historical"]))
     sections = [evidence_section(ev)] if found else []  # what was published comes before what could not be computed
     sections.append(H.section("Sonuç", body, "result"))
+    if r.get("search_interest"):
+        sections.append(search_section(r["search_interest"]))
     items = "".join(f"<li>{H.esc(a['message'])}" + (f" Seri kodu: <code>{H.esc(a['series'])}</code>." if a.get("series") else "") + "</li>" for a in r["available"])
     sections.append(H.section("Bunun yerine kullanılabilecekler", f"<ul>{items}</ul>", "available"))
     subtitle = "Oyuncu düzeyinde veri yok; pay hesaplanmadı, yayımlanmış bulgular derlendi" if found else "Oyuncu düzeyinde veri yok; pazar payı hesaplanmadı"
@@ -253,6 +284,9 @@ def build(r: dict, documented: dict | None, narrative: str | None, assumptions: 
     if r.get("evidence"):
         sections.append(evidence_section(r["evidence"]))
         nav.append(("evidence", "Bulgular"))
+    if r.get("search_interest"):
+        sections.append(search_section(r["search_interest"]))
+        nav.append(("search", "Arama ilgisi"))
     sections.append(sources_section(r))
     nav.append(("sources", "Kaynaklar"))
     if assumptions:

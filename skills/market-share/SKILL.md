@@ -58,6 +58,16 @@ BDDK (banka grupları), TSB (sigorta şirketleri), EPDK (akaryakıt ve LPG lisan
   varsa bulgularla başlar, sınırları belirtir ve hesaplanmış pay içermez.
 - **`no_data`**: Oyuncu kaynakta var, ancak dönemde pay hesaplanamıyor; `skipped_series` nedenini verir.
 
+### Arama ilgisi (isteğe bağlı)
+
+`search_interest` bloğu varsayılan olarak `status: not_run` döner; BigQuery sorgusu kullanıcının Google Cloud projesine işlendiği için
+kullanıcı istemeden çalıştırma. İstenirse `"$MLB" brand "<ad>" --search-interest` kullan (feature paneli için `--features` ile birlikte).
+- `terms` her terim için `found`, `related` (terimin kendisi yok, adı geçen başka terimler var) ya da `not_found` verir. Listede olmamak
+  terimin aranmadığı anlamına gelmez; eksik terimi doldurma ve yorumlama.
+- `withheld.arama_payi`: arama payı **hesaplanmaz**, çünkü skorlar her terim ve il için ayrı ölçeklenir. Skorları birbirine oranlama, iller
+  arasında karşılaştırma. Karşılaştırma için liste günü, liste sırası ve `interest.momentum` (terimin kendi geçmişine göre) kullanılır.
+- Rapor bu bölümü hesaplanmış paylardan ve yayımlanmış bulgulardan ayrı gösterir; her zaman "arama ilgisi; pazar payı değildir" diye yaz.
+
 ### Yayımlanmış bulgular
 Kaynaklarda oyuncu düzeyinde veri yoksa ya da kullanıcı hesaplanan payı yayımlanmış rakamlarla karşılaştırmak istiyorsa
 `share-research` agent'ını çalıştır (Agent aracı; `ml-booster:share-research`). Agent `evidence_policy` kurallarıyla arar, rakamı sayfada

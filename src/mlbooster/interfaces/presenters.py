@@ -8,6 +8,7 @@ import math
 from dataclasses import asdict
 
 from mlbooster.domain.model import HealthResult, Source
+from mlbooster.domain.numfmt import tr_num
 from mlbooster.domain.services.quality import QualityReport
 from mlbooster.domain.services.sector_map import SectorMap
 
@@ -216,7 +217,7 @@ def brand_features_dict(result, tail: int = 6) -> dict:
     for s in result.specs:
         families[s.family] = families.get(s.family, 0) + 1
     panel = result.panel
-    own = [s for s in result.specs if s.family == "brand" or (s.family == "base" and s.name.startswith("marka_pay_"))]
+    own = [s for s in result.specs if s.family in {"brand", "search_interest"} or (s.family == "base" and s.name.startswith("marka_pay_"))]
     rows = panel[[s.name for s in own]].tail(tail).round(4).reset_index()
     return {
         "brand": result.brand,
@@ -242,6 +243,27 @@ def _evidence_line(e: dict) -> list[str]:
     flags = " · ikinci el" if e["second_hand"] else ""
     origin = f" · özgün kaynak: {e['original_source']} ({e['original_date'] or 'tarih yok'})" if e["original_source"] else ""
     return [f"  {e['claim_text']} · {e['period']} · {scope} · {e['tier_label']} · {e['publisher']}{origin}{flags}", f"    {e['url']}  [{e['id']}]"]
+
+
+def search_lines(section: dict) -> list[str]:
+    """Text form of the search-interest block. The heading keeps it apart from shares and published findings."""
+    lines = [f"Arama ilgisi ({section['note']})"]
+    if section["status"] != "done":
+        return [*lines, f"  {section['message']}"]
+    coverage = section["coverage"]
+    lines.append(f"  Kapsam: {coverage['first_day']} – {coverage['last_day']}, {coverage['list_days']} günlük liste.")
+    for t in section["terms"]:
+        if t["status"] == "not_found":
+            continue
+        detail = f"{t['list_days']} gün, en iyi sıra {t['best_rank']}" if t["list_days"] else ", ".join(t["related_terms"][:3])
+        lines.append(f"  {t['mode_label']:<9} {t['label']:<24} {t['status_label']}: {detail}")
+    missing = [t["label"] for t in section["terms"] if t["status"] == "not_found"]
+    if missing:
+        lines.append(f"  Listede yok: {', '.join(missing)}.")
+    lines.append(f"  {section['withheld']['arama_payi']}")
+    cost = section["cost"]
+    lines.append(f"  BigQuery: {tr_num(cost['gib'], '.2f')} GiB, {cost['queries']} sorgu. {section['attribution']}.")
+    return lines
 
 
 def evidence_lines(section: dict, historical: bool = False) -> list[str]:

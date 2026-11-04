@@ -13,7 +13,7 @@ from typing import Protocol
 import pandas as pd
 
 from mlbooster.application.ports import CatalogRepository
-from mlbooster.domain.errors import InvalidInput
+from mlbooster.domain.errors import DomainError, InvalidInput
 from mlbooster.domain.model import BrandEntry, Catalog
 from mlbooster.domain.services.search_share import (
     ARAMA_PAYI_WITHHELD,
@@ -22,7 +22,9 @@ from mlbooster.domain.services.search_share import (
     FEATURE_COLUMNS,
     FOUND,
     GENERIC,
+    NOT_FOUND,
     PROXY_NOTE,
+    RELATED,
     SectorSearchTerms,
     TermSet,
     interest_summary,
@@ -41,6 +43,14 @@ from mlbooster.domain.validation import slug
 SOURCE_ID = "bq_trends"
 MAX_NAME_LENGTH = 80
 MAX_COMPETITORS = 20
+MONTHS_SHOWN = 6
+STATUS_LABELS = {FOUND: "bulundu", RELATED: "yalnızca ilişkili terim", NOT_FOUND: "listede yok"}
+MODE_LABELS = {BRAND: "Marka", COMPETITOR: "Rakip", GENERIC: "Kategori"}
+NOT_RUN_MESSAGE = (
+    "Arama ilgisi çalıştırılmadı. İsteğe bağlıdır: BigQuery sorgusu çalıştırır, Google Cloud projenize işlenir (ilk "
+    "çalıştırma yaklaşık 10 GiB; aylık 1 TiB ücretsizdir) ve analizi uzatır. Çalıştırmak için CLI'da --search-interest, "
+    "MCP'de search_interest=true, panelde \"Arama ilgisini getir\" düğmesi kullanılır."
+)
 
 
 class TrendsLookup(Protocol):
@@ -74,6 +84,39 @@ def _entry(catalog: Catalog, name: str) -> BrandEntry | None:
 def _spellings(catalog: Catalog, name: str) -> tuple[str, ...]:
     entry = _entry(catalog, name)
     return (name, entry.name, *entry.aliases) if entry else (name,)
+
+
+def search_not_run() -> dict:
+    """Block of a report whose search interest was not asked for: nothing was queried."""
+    return {"status": "not_run", "is_proxy": True, "note": PROXY_NOTE, "message": NOT_RUN_MESSAGE}
+
+
+def search_section(result: dict) -> dict:
+    """JSON form of a SearchInterest result, for reports, the panel and MCP."""
+    features: pd.DataFrame = result["features"]
+    rows = features.tail(MONTHS_SHOWN).round(3).astype(object).where(features.tail(MONTHS_SHOWN).notna(), None)
+    return {
+        **{k: v for k, v in result.items() if k not in {"features", "feature_notes", "terms", "cost"}},
+        "status": "done",
+        "terms": [{**t, "status_label": STATUS_LABELS[t["status"]], "mode_label": MODE_LABELS[t["mode"]]} for t in result["terms"]],
+        "withheld": {"arama_payi": result["scale"]["reason"]},
+        "monthly": {
+            "columns": [{"name": n, "description": d} for n, d in result["feature_notes"].items()],
+            "rows": [{"date": i.date().isoformat(), **row} for i, row in zip(rows.index, rows.to_dict("records"), strict=True)],
+        },
+        "cost": {**result["cost"], "gib": round(result["cost"]["bytes_billed"] / 1024**3, 2)},
+    }
+
+
+def run_search(search: Callable[[], SearchInterest] | None, brand: str, sector: str | None, competitors: list[str] | None = None) -> dict:
+    """The search block of a brand analysis. A missing Google setup never stops the analysis: it is reported."""
+    try:
+        if search is None:
+            raise InvalidInput("Arama ilgisi bu kurulumda kullanılamıyor")
+        names = [c for c in competitors or [] if len(c.strip()) <= MAX_NAME_LENGTH][:MAX_COMPETITORS]
+        return search_section(search()(brand, sector, names if competitors else None))
+    except DomainError as exc:
+        return {"status": "unavailable", "is_proxy": True, "note": PROXY_NOTE, "message": f"Arama ilgisi alınamadı: {exc}"}
 
 
 class SearchInterest:
@@ -122,6 +165,7 @@ class SearchInterest:
         days = sorted(set(listing["refresh_date"]))
         return {
             "brand": brand, "sector": sector_id, "is_proxy": True, "note": PROXY_NOTE,
+            "attribution": f"Kaynak: {catalog.source(SOURCE_ID).owner} — {catalog.source(SOURCE_ID).name}",
             "coverage": {
                 "first_day": days[0].isoformat() if days else None, "last_day": days[-1].isoformat() if days else None,
                 "list_days": len(days),
