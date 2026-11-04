@@ -13,6 +13,8 @@ market_share_sources:
   - source: epdk
     metric: "lisans sahibi bazında yurt içi satış tonu payı: toplam, benzin, motorin (EPDK.PETROL.*); dağıtıcı bazında LPG satış payı: toplam, otogaz, tüplü, dökme (EPDK.LPG.*)"
     series: [EPDK.PETROL.TOPLAM, EPDK.PETROL.BENZIN, EPDK.PETROL.MOTORIN, EPDK.LPG.TOPLAM, EPDK.LPG.OTOGAZ, EPDK.LPG.TUPLU, EPDK.LPG.DOKME]
+    entities_from: [EPDK.PETROL.TOPLAM, EPDK.LPG.TOPLAM]
+    segments: [EPDK.PETROL.BENZIN, EPDK.PETROL.MOTORIN, EPDK.LPG.OTOGAZ, EPDK.LPG.TUPLU, EPDK.LPG.DOKME]
 ml_use_cases: ["Hacim tahmini", "Marj modeli"]
 feature_recipes:
   - {name: ufe_tufe_farki, op: spread, inputs: [ufe_yoy, tufe_yoy], note: "Üretici ve tüketici enflasyonu arasındaki fark; maliyet baskısının fiyatlara yansıması"}

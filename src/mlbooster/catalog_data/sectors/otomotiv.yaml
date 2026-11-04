@@ -16,6 +16,7 @@ market_share_sources:
   - source: odmd
     metric: "marka bazında satış adedi payı: otomobil, hafif ticari, toplam; yerli/ithal kırılımı (aylık)"
     series: [ODMD.TOPLAM, ODMD.OTOMOBIL, ODMD.HAFIF_TICARI, ODMD.OTOMOBIL.YERLI, ODMD.OTOMOBIL.ITHAL, ODMD.TOPLAM.YERLI]
+    segments: [ODMD.OTOMOBIL, ODMD.HAFIF_TICARI]
 ml_use_cases: ["Talep ve satış tahmini", "Fiyat esnekliği"]
 feature_recipes:
   - {name: kur_sepeti_logdiff, op: mean, inputs: [usdtry_logdiff, eurtry_logdiff], note: "Eşit ağırlıklı USD/EUR sepeti; ithal araç ve parça maliyetini temsil eder"}

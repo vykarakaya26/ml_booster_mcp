@@ -19,6 +19,9 @@ from mlbooster.domain.model import (
     Aggregation,
     AuthKind,
     AuthSpec,
+    BrandEntry,
+    BrandLexicon,
+    BrandTarget,
     Catalog,
     FeatureRecipe,
     Frequency,
@@ -209,11 +212,20 @@ class ShareSchema(_Strict):
     is_proxy: bool = False
     notes: str | None = None
     series: list[str] = Field(default_factory=list)
+    entities_from: list[str] = Field(default_factory=list)
+    segments: list[str] = Field(default_factory=list)
+    history_years: int | None = Field(default=None, ge=1, le=30)
 
-    @field_validator("series")
+    @field_validator("series", "entities_from", "segments")
     @classmethod
     def _series(cls, v: list[str]) -> list[str]:
         return [series_code(code) for code in v]
+
+    def to_domain(self) -> ShareSource:
+        return ShareSource(
+            self.source, self.metric, self.is_proxy, self.notes, tuple(self.series), tuple(self.entities_from),
+            tuple(self.segments), self.history_years,
+        )  # fmt: skip
 
 
 class RecipeSchema(_Strict):
@@ -270,7 +282,7 @@ class SectorSchema(_Strict):
             name=self.name,
             macro_features=tuple(f.to_domain() for f in self.macro_features),
             sector_sources=tuple(self.sector_sources),
-            market_share_sources=tuple(ShareSource(**{**m.model_dump(), "series": tuple(m.series)}) for m in self.market_share_sources),
+            market_share_sources=tuple(m.to_domain() for m in self.market_share_sources),
             ml_use_cases=tuple(self.ml_use_cases),
             feature_recipes=self._recipes(),
             events=tuple(e.to_domain() for e in self.events),
@@ -287,6 +299,45 @@ class SectorSchema(_Strict):
                 raise InconsistentCatalog(f"{self.id}/{r.name}: tarif adı bir makro feature adıyla çakışıyor")
             out.append(r.to_domain())
         return tuple(out)
+
+
+class BrandTargetSchema(_Strict):
+    source: str
+    entities: list[str] = Field(min_length=1)
+
+    @field_validator("entities")
+    @classmethod
+    def _entities(cls, v: list[str]) -> list[str]:
+        return [series_code(code) for code in v]
+
+
+class BrandEntrySchema(_Strict):
+    name: str = Field(min_length=2, max_length=80)
+    aliases: list[str] = Field(default_factory=list)
+    targets: list[BrandTargetSchema] = Field(default_factory=list)
+    sector: str | None = None
+    note: str | None = None
+
+    def to_domain(self) -> BrandEntry:
+        if not self.targets and self.sector is None:
+            raise InconsistentCatalog(f"{self.name}: marka kaydında targets ya da sector olmalıdır")
+        targets = tuple(BrandTarget(t.source, tuple(t.entities)) for t in self.targets)
+        return BrandEntry(self.name, tuple(self.aliases), targets, self.sector, self.note)
+
+
+class BrandsSchema(_Strict):
+    """catalog_data/brands.yaml: name knowledge used to resolve brands against the entity-level sources."""
+
+    legal_tokens: list[str] = Field(default_factory=list)
+    generic_tokens: list[str] = Field(default_factory=list)
+    sector_keywords: dict[str, list[str]] = Field(default_factory=dict)
+    brands: list[BrandEntrySchema] = Field(default_factory=list)
+
+    def to_domain(self) -> BrandLexicon:
+        return BrandLexicon(
+            tuple(b.to_domain() for b in self.brands), frozenset(self.legal_tokens), frozenset(self.generic_tokens),
+            tuple((sector, tuple(words)) for sector, words in self.sector_keywords.items()),
+        )  # fmt: skip
 
 
 def _read_yaml(path: Path) -> dict:
@@ -341,6 +392,8 @@ class YamlCatalogRepository:
             sources = [SourceSchema.model_validate(_read_yaml(p)).to_domain() for p in self._files("sources")]
             sectors = [SectorSchema.model_validate(_read_yaml(p)).to_domain() for p in self._files("sectors")]
             overrides = self._read_overrides()
+            brands_path = self._root / "brands.yaml"
+            brands = BrandsSchema.model_validate(_read_yaml(brands_path)).to_domain() if brands_path.exists() else BrandLexicon()
         except ValidationError as exc:
             raise InconsistentCatalog(f"Katalog schema hatası: {exc}") from None
         source_map = {s.id: s for s in sources}
@@ -371,7 +424,7 @@ class YamlCatalogRepository:
                 replace(f, series=mapping[f.name]) if f.name in mapping else f for f in sector.macro_features
             )
             sector_map[sector_id] = replace(sector, macro_features=features)
-        return Catalog(sources=source_map, sectors=sector_map)
+        return Catalog(sources=source_map, sectors=sector_map, brands=brands)
 
     def _read_overrides(self) -> OverridesSchema:
         if self._overrides_path is None or not self._overrides_path.exists():

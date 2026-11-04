@@ -207,3 +207,30 @@ def features_dict(result, sector_id: str, max_screening: int = 150, skipped_pane
                    "rows": len(result.features)},  # fmt: skip
         "notes": result.notes,
     }
+
+
+def brand_features_dict(result, tail: int = 6) -> dict:
+    """Summary of a brand feature panel; the rows stay in the Parquet file."""
+    families: dict[str, int] = {}
+    for s in result.specs:
+        families[s.family] = families.get(s.family, 0) + 1
+    panel = result.panel
+    own = [s for s in result.specs if s.family == "brand" or (s.family == "base" and s.name.startswith("marka_pay_"))]
+    rows = panel[[s.name for s in own]].tail(tail).round(4).reset_index()
+    return {
+        "brand": result.brand,
+        "path": result.location,
+        "months": int(panel.shape[0]),
+        "columns": int(panel.shape[1]),
+        "first": panel.index[0].date().isoformat(),
+        "last": panel.index[-1].date().isoformat(),
+        "families": families,
+        "brand_columns": [{"name": s.name, "family": s.family, "description": s.description} for s in own],
+        "macro_columns": sum(s.family == "base" and not s.name.startswith("marka_") for s in result.specs),
+        "skipped": result.skipped,
+        "withheld": result.withheld,
+        "notes": result.notes,
+        "sources": result.sources,
+        "is_proxy": result.is_proxy,
+        "tail": [_deep(r) for r in rows.astype({"date": str}).to_dict(orient="records")],
+    }

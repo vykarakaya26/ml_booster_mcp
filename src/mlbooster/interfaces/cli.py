@@ -27,6 +27,7 @@ from mlbooster.interfaces.presenters import (
     HHI_CLASS_LABELS,
     SEVERITY_LABELS,
     TREND_LABELS,
+    brand_features_dict,
     features_dict,
     prep_dict,
     quality_dict,
@@ -420,6 +421,92 @@ def market_share(
                    else f"{p['rank']:>3}. {p['entity']:<28} {share:>7}  {horizon}")  # fmt: skip
     for i in result["issues"]:
         typer.secho(f"{SEVERITY_LABELS.get(i['severity'], i['severity']):<7} {i['message']}", fg=typer.colors.YELLOW if i["severity"] != "info" else typer.colors.BLUE)
+
+
+def _echo_candidates(out: dict) -> None:
+    typer.echo(out["message"])
+    for m in out["matches"]:
+        typer.echo(f"  {m['id']:<32} {m['name']} · {m['sector']}")
+    if out["total"] > len(out["matches"]):
+        typer.echo(f"  … toplam {out['total']} aday; adı daraltın.")
+    typer.echo('Seçim için: mlbooster brand "<ad>" --choice <aday kimliği>')
+
+
+def _echo_limits(out: dict) -> None:
+    typer.echo(out["message"])
+    for s in out["sector_candidates"]:
+        typer.echo(f"Sektör adayı: {s['name']} ({s['sector']}). {s['reason']}.")
+    for m in out["others"]:
+        typer.echo(f"Benzer ad: {m['name']} ({m['id']})")
+    typer.echo("Kullanılabilecekler:")
+    for a in out["available"]:
+        typer.echo(f"  - {a['message']}" + (f" Seri: {a['series']}" if a.get("series") else ""))
+
+
+def _echo_brand(out: dict, top: int = 5) -> None:
+    typer.echo(out["headline"])
+    typer.echo(f"Sektör: {out['sector']['name']} · dönem {out['period']['first']} – {out['period']['last']}")
+    for s in out["series"]:
+        d = "—" if s["d_year_pp"] is None else f"{tr_num(s['d_year_pp'], '+.2f')} puan"
+        typer.echo(f"  {s['series']:<28} %{tr_num(s['share'], '.2f'):>6}  {s['rank']}/{s['players']}  son 1 yıl {d} · "
+                   f"{TREND_LABELS.get(s['trend'], s['trend'])}")  # fmt: skip
+    conc = out["concentration"]
+    typer.echo(f"HHI {tr_num(conc['hhi'], ',.0f')} ({HHI_CLASS_LABELS.get(conc['class'], conc['class'])}) · CR3 %{tr_num(conc['cr3'], '.1f')} · "
+               f"CR5 %{tr_num(conc['cr5'], '.1f')}")  # fmt: skip
+    typer.echo("Rakipler:")
+    for c in out["competitors"][:top]:
+        share = "—" if c["share"] is None else f"%{tr_num(c['share'], '.1f')}"
+        typer.echo(f"  {c['entity']:<36} {share:>6}  {len(c['series'])} seride; ör. {c['reasons'][0]['reason']}")
+    if out["others"]:
+        typer.echo("Benzer adlar: " + ", ".join(f"{m['name']} ({m['id']})" for m in out["others"]))
+    for i in out["issues"]:
+        if i["severity"] != "info":
+            typer.secho(f"{SEVERITY_LABELS.get(i['severity'], i['severity']):<7} {i['message']}", fg=typer.colors.YELLOW)
+    for src in out["sources"]:
+        typer.echo(f"{src['attribution']}. Lisans: {src['license']}")
+
+
+@app.command()
+def brand(
+    name: Annotated[str, typer.Argument(help="Marka ya da şirket adı (ör. Togg, Garanti, Anadolu Sigorta)")],
+    choice: Annotated[str | None, typer.Option(help="Birden fazla aday çıktığında seçilen aday kimliği (ör. tsb:1005)")] = None,
+    start: Annotated[str | None, typer.Option(help="Başlangıç, YYYY-AA[-GG]; varsayılan son beş yıl (BTK'da üç yıl)")] = None,
+    end: Annotated[str | None, typer.Option(help="Bitiş, YYYY-AA[-GG]; varsayılan bugün")] = None,
+    refresh: Annotated[bool, typer.Option(help="Yerel cache'i yok sayıp veriyi yeniden çek")] = False,
+    trend_years: Annotated[int, typer.Option(help="Trend penceresi (yıl)")] = 3,
+    features: Annotated[bool, typer.Option("--features", help="Marka feature panelini de üret ve yerel veri dizinine yaz")] = False,
+    out: Annotated[Path | None, typer.Option(help="--features ile: paneli ayrıca bu dosyaya yaz (.parquet/.csv)")] = None,
+    check_trends: Annotated[bool, typer.Option("--check-trends", help="Marka bulunmazsa terimi Google Trends listesinde ara (BigQuery sorgusu çalıştırır)")] = False,
+    json_out: Annotated[Path | None, typer.Option("--json", help="Sonucu bu JSON dosyasına yaz")] = None,
+):
+    """Marka ya da şirket adından pazar payı raporu: adı oyuncu düzeyinde kaynaklarda arar; sektörü, sırayı, payı, rakipleri
+    ve yoğunlaşmayı çıkarır. Birden fazla aday varsa seçim ister; ad bulunamazsa pay üretmez, kullanılabilecek veriyi bildirir."""
+    try:
+        if out is not None:
+            container().export_table.check(out)
+        typer.echo("Kaynaklar taranıyor (yerel cache kullanılır; ilk arama birkaç dakika sürebilir)", err=True)
+        result = container().analyze_brand(name, choice, _date(start), _period_end(end), refresh, trend_years)
+        if result["status"] == "not_found" and check_trends:
+            result = container().resolve_brand(name, check_trends=True)
+        if result["status"] == "resolved" and features:
+            built = container().brand_features(name, result["brand"]["id"], _date(start), _period_end(end))
+            result["features"] = brand_features_dict(built)
+            if out is not None:
+                result["features"]["export"] = container().export_table(built.storable, out)
+    except DomainError as exc:
+        _fail(exc)
+    if json_out is not None:
+        _write_json(result, json_out)
+    if result["status"] == "resolved":
+        _echo_brand(result)
+        if built_info := result.get("features"):
+            typer.echo(f"Feature paneli: {built_info['months']} ay × {built_info['columns']} kolon → {built_info.get('export') or built_info['path']}")
+    elif result["status"] == "ambiguous":
+        _echo_candidates(result)
+    elif result["status"] == "not_found":
+        _echo_limits(result)
+    else:
+        typer.echo(result["message"])
 
 
 @app.command()

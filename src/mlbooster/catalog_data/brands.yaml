@@ -1,0 +1,129 @@
+# Name knowledge used to resolve a brand against the entity-level sources (application/use_cases/brand.py).
+# Tokens are written folded (ASCII lower case). Entity ids must match the ids the source's provider returns.
+legal_tokens: [as, tas, tao, ao, ltd, sti, san, tic, sa, se, na, spa, plc, inc, llc, gmbh, ag]
+generic_tokens:
+  - ve
+  - anonim
+  - sirketi
+  - sirket
+  - turk
+  - turkiye
+  - turkey
+  - cumhuriyeti
+  - tc
+  - banka
+  - bankasi
+  - bank
+  - yatirim
+  - kalkinma
+  - sigorta
+  - sigortasi
+  - sigortacilik
+  - hayat
+  - emeklilik
+  - yasam
+  - saglik
+  - grup
+  - grubu
+  - holding
+  - petrol
+  - petrolculuk
+  - petrolleri
+  - akaryakit
+  - enerji
+  - gaz
+  - lpg
+  - likit
+  - dagitim
+  - otomotiv
+sector_keywords:
+  bankacilik: [banka, bankasi, bank, katilim]
+  sigorta: [sigorta, emeklilik, reasurans]
+  otomotiv: [otomotiv, oto, motor, motors, araba, arac]
+  akaryakit: [petrol, akaryakit, lpg, otogaz]
+  telekom: [telekom, iletisim, internet, mobil, gsm]
+  perakende: [market, marketleri, magaza, magazacilik, perakende, giyim, tekstil, kozmetik, eticaret, restoran, gida]
+  turizm: [turizm, otel, tur, seyahat, havayolu, havayollari]
+  konut: [konut, insaat, gayrimenkul, emlak, yapi]
+brands:
+  # Banks (TBB bank codes)
+  - {name: Ziraat Bankası, aliases: [Ziraat, Ziraat Bank, TC Ziraat], targets: [{source: tbb, entities: ["3"]}]}
+  - {name: Halkbank, aliases: [Halk Bankası, Halk Bank, Halk], targets: [{source: tbb, entities: ["5"]}]}
+  - {name: VakıfBank, aliases: [Vakıf Bank, Vakıflar Bankası, Vakıf Bankası, Vakıf], targets: [{source: tbb, entities: ["6"]}]}
+  - {name: Akbank, aliases: [Ak Bank], targets: [{source: tbb, entities: ["8"]}]}
+  - {name: Türkiye İş Bankası, aliases: [İş Bankası, İşbank, İş Bank, Isbank], targets: [{source: tbb, entities: ["32"]}]}
+  - {name: Garanti BBVA, aliases: [Garanti, Garanti Bankası, Garanti Bank, BBVA], targets: [{source: tbb, entities: ["30"]}]}
+  - {name: Yapı Kredi, aliases: [Yapı Kredi Bankası, YKB, Yapıkredi], targets: [{source: tbb, entities: ["37"]}]}
+  - {name: QNB, aliases: [QNB Finansbank, Finansbank, QNB Bank], targets: [{source: tbb, entities: ["15"]}]}
+  - {name: TEB, aliases: [Türk Ekonomi Bankası], targets: [{source: tbb, entities: ["28"]}]}
+  - {name: TSKB, aliases: [Türkiye Sınai Kalkınma Bankası, Sınai Kalkınma], targets: [{source: tbb, entities: ["68"]}]}
+  - {name: Takasbank, aliases: [İstanbul Takas ve Saklama Bankası], targets: [{source: tbb, entities: ["88"]}]}
+  - {name: Eximbank, aliases: [Türk Eximbank, Exim], targets: [{source: tbb, entities: ["59"]}]}
+  - {name: Odeabank, aliases: [Odea, Odea Bank], targets: [{source: tbb, entities: ["105"]}]}
+  # Insurers (TSB company codes)
+  - {name: Anadolu Sigorta, aliases: [Anadolu Anonim Türk Sigorta], targets: [{source: tsb, entities: ["1005"]}]}
+  - {name: Anadolu Hayat Emeklilik, aliases: [Anadolu Hayat, Anadolu Emeklilik], targets: [{source: tsb, entities: ["3004"]}]}
+  - {name: Ankara Sigorta, aliases: [Ankara Anonim Türk Sigorta], targets: [{source: tsb, entities: ["1006"]}]}
+  # Car makers (ODMD brand keys)
+  - {name: Volkswagen, aliases: [VW, Folksvagen, Wolksvagen], targets: [{source: odmd, entities: [VOLKSWAGEN]}]}
+  - {name: Mercedes-Benz, aliases: [Mercedes, Benz], targets: [{source: odmd, entities: [MERCEDES_BENZ]}]}
+  - {name: Alfa Romeo, aliases: [Alfa], targets: [{source: odmd, entities: [ALFA_ROMEO]}]}
+  - {name: Land Rover, aliases: [Range Rover, LandRover], targets: [{source: odmd, entities: [LAND_ROVER]}]}
+  - {name: KG Mobility, aliases: [KGM, SsangYong, Ssang Yong], targets: [{source: odmd, entities: [KG_MOBILITY_SSANGYONG]}]}
+  - {name: Omoda & Jaecoo, aliases: [Omoda, Jaecoo], targets: [{source: odmd, entities: [OMODA_JAECOO]}]}
+  - {name: Fiat, aliases: [Tofaş], targets: [{source: odmd, entities: [FIAT]}]}
+  - {name: Ford, aliases: [Ford Otosan, Otosan], targets: [{source: odmd, entities: [FORD]}]}
+  # Fuel and LPG (EPDK holder keys)
+  - {name: Petrol Ofisi, aliases: [PO, POAŞ, Petrol Ofisi AŞ], targets: [{source: epdk, entities: [PETROL_OFISI]}]}
+  - {name: Shell, aliases: [Shell Turcas, Shell & Turcas, Turcas], targets: [{source: epdk, entities: [SHELL_TURCAS]}]}
+  - {name: Opet, aliases: [Opet Petrolcülük], targets: [{source: epdk, entities: [OPET_PETROLCULUK]}]}
+  - {name: Güzel Enerji, aliases: [Total, TotalEnergies, M Oil], targets: [{source: epdk, entities: [GUZEL_ENERJI]}]}
+  - {name: SOCAR, aliases: [Socar Türkiye], targets: [{source: epdk, entities: [SOCAR_TURKEY]}]}
+  # Telecom (BTK operator keys; one company reports under different names in mobile, revenue and fixed broadband tables)
+  - {name: Turkcell, aliases: [Turkcell Superonline, Superonline, Türkcell], targets: [{source: btk, entities: [TURKCELL, SUPERONLINE]}]}
+  - {name: Türk Telekom, aliases: [TT, Turk Telekom, Türk Telekomünikasyon], targets: [{source: btk, entities: [TURK_TELEKOM, TT_MOBIL, TTNET]}]}
+  - {name: TT Mobil, aliases: [Avea], targets: [{source: btk, entities: [TT_MOBIL]}]}
+  - {name: Vodafone, aliases: [Vodafone Türkiye, Vodafone Net], targets: [{source: btk, entities: [VODAFONE, VODAFONE_NET]}]}
+  - {name: Türksat, aliases: [Kablonet, Türksat Kablo], targets: [{source: btk, entities: [TURKSAT]}]}
+  # Groups: every member is offered as a candidate
+  - name: Koç Grubu
+    aliases: [Koç, Koç Holding]
+    targets:
+      - {source: tbb, entities: ["37"]}
+      - {source: epdk, entities: [AYGAZ]}
+      - {source: epdk, entities: [TUPRAS]}
+      - {source: odmd, entities: [FORD]}
+      - {source: odmd, entities: [FIAT]}
+  - name: Sabancı Grubu
+    aliases: [Sabancı, Sabancı Holding]
+    targets:
+      - {source: tbb, entities: ["8"]}
+      - {source: tsb, entities: ["1003"]}
+      - {source: tsb, entities: ["3006"]}
+  # Known brands without an entity-level source
+  - {name: Kuveyt Türk, aliases: [Kuveyt Türk Katılım], sector: bankacilik, note: "TBB mali tabloları katılım bankalarını içermiyor; BDDK serilerinde yalnızca Katılım grubu toplamı var."}
+  - {name: Albaraka Türk, aliases: [Albaraka], sector: bankacilik, note: "TBB mali tabloları katılım bankalarını içermiyor; BDDK serilerinde yalnızca Katılım grubu toplamı var."}
+  - {name: Türkiye Finans, aliases: [Türkiye Finans Katılım], sector: bankacilik, note: "TBB mali tabloları katılım bankalarını içermiyor; BDDK serilerinde yalnızca Katılım grubu toplamı var."}
+  - {name: Ziraat Katılım, sector: bankacilik, note: "TBB mali tabloları katılım bankalarını içermiyor; BDDK serilerinde yalnızca Katılım grubu toplamı var."}
+  - {name: Vakıf Katılım, sector: bankacilik, note: "TBB mali tabloları katılım bankalarını içermiyor; BDDK serilerinde yalnızca Katılım grubu toplamı var."}
+  - {name: Emlak Katılım, sector: bankacilik, note: "TBB mali tabloları katılım bankalarını içermiyor; BDDK serilerinde yalnızca Katılım grubu toplamı var."}
+  - {name: Migros, aliases: [Migros Ticaret], sector: perakende}
+  - {name: BİM, aliases: [BİM Mağazalar], sector: perakende}
+  - {name: A101, sector: perakende}
+  - {name: ŞOK Market, aliases: [ŞOK, Şok Marketler], sector: perakende}
+  - {name: CarrefourSA, aliases: [Carrefour], sector: perakende}
+  - {name: Hepsiburada, sector: perakende}
+  - {name: Trendyol, sector: perakende}
+  - {name: Getir, sector: perakende}
+  - {name: LC Waikiki, aliases: [LCW], sector: perakende}
+  - {name: Mavi, aliases: [Mavi Jeans], sector: perakende}
+  - {name: Koton, sector: perakende}
+  - {name: Boyner, sector: perakende}
+  - {name: Teknosa, sector: perakende}
+  - {name: MediaMarkt, aliases: [Media Markt], sector: perakende}
+  - {name: Türk Hava Yolları, aliases: [THY, Turkish Airlines], sector: turizm}
+  - {name: Pegasus, aliases: [Pegasus Hava Yolları], sector: turizm}
+  - {name: AJet, sector: turizm}
+  - {name: ETS Tur, aliases: [ETS], sector: turizm}
+  - {name: Emlak Konut, aliases: [Emlak Konut GYO], sector: konut}
+  - {name: TOKİ, sector: konut}

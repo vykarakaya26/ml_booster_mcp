@@ -1,9 +1,10 @@
 ---
 name: market-share
-description: Türkiye'de bir sektör ya da şirket için pazar payı ve rakip analizi yapar. Pazar payı verisini derler ya da kullanıcının tablosunu alır; payları, yoğunlaşmayı (HHI, CR3/CR5), oyuncu bazında pay kazanç ve kayıplarını, segment kırılımını (shift-share) ve pazar büyümesinin makro sürücülerini hesaplar. Rakip setini hem veriden (substitution correlation, segment örtüşmesi) hem nitel ölçütlerle belirler; kaynaklı, bütünsel bir HTML rapor teslim eder. Kullanıcı "pazar payı", "rakip analizi", "rekabet analizi", "kim kimden pay alıyor", "rakiplerimiz kim", "pazar yoğunlaşması", "HHI", "pazar konumu" gibi bir şey istediğinde ya da bir şirketi rakipleriyle kıyaslamak istediğinde, skill adını anmasa bile bunu kullan. Makro feature paneli ya da sektör veri haritası için kullanma (sector-analysis); ücretli pazar araştırması verisi (Nielsen, Euromonitor) toplamak için kullanma. Also: "market share / competitor analysis Turkey", "who is taking share", "market concentration HHI".
+description: Türkiye'de bir marka, şirket ya da sektör için pazar payı ve rakip analizi yapar. Marka adından sektörü, payı ve rakipleri kaynaklardan çıkarır ya da kullanıcının tablosunu alır; payları, yoğunlaşmayı (HHI, CR3/CR5), oyuncu bazında pay kazanç ve kayıplarını, segment kırılımını (shift-share) ve pazar büyümesinin makro sürücülerini hesaplar. Rakip setini hem veriden (substitution correlation, segment örtüşmesi) hem nitel ölçütlerle belirler; kaynaklı, bütünsel bir HTML rapor teslim eder. Kullanıcı "pazar payı", "rakip analizi", "rekabet analizi", "kim kimden pay alıyor", "rakiplerimiz kim", "pazar yoğunlaşması", "HHI", "pazar konumu" gibi bir şey istediğinde ya da bir şirketi rakipleriyle kıyaslamak istediğinde, skill adını anmasa bile bunu kullan. Makro feature paneli ya da sektör veri haritası için kullanma (sector-analysis); ücretli pazar araştırması verisi (Nielsen, Euromonitor) toplamak için kullanma. Also: "market share / competitor analysis Turkey", "who is taking share", "market concentration HHI".
 allowed-tools:
   - Bash(${CLAUDE_SKILL_DIR}/../_shared/bin/mlb *)
   - Bash(python3 ${CLAUDE_SKILL_DIR}/scripts/render_share_report.py *)
+  - Bash(python3 ${CLAUDE_SKILL_DIR}/scripts/render_brand_report.py *)
 ---
 
 # Pazar payı ve rakip analizi
@@ -15,10 +16,12 @@ kurumun kapsamına, pazar tanımına ve ölçü birimine çok duyarlıdır. Bu �
 yanıltıcı olur.
 
 ## Araçlar
-- **CLI**: `MLB="${CLAUDE_SKILL_DIR}/../_shared/bin/mlb"`; analiz komutu `"$MLB" market-share`.
-- **MCP**: `analyze_market_share` aracı satırları doğrudan alır; sohbet içindeki hızlı sorular için uygundur.
-  Rapor üretirken dosya yazan CLI tercih edilir.
-- **Rapor**: `python3 "${CLAUDE_SKILL_DIR}/scripts/render_share_report.py"` (yalnızca standart kütüphane).
+- **CLI**: `MLB="${CLAUDE_SKILL_DIR}/../_shared/bin/mlb"`; marka adıyla `"$MLB" brand "<ad>"`, tabloyla ya da katalog
+  serisiyle `"$MLB" market-share`.
+- **MCP**: `analyze_brand` marka adıyla, `build_brand_features` marka feature paneli için, `analyze_market_share`
+  doğrudan satırlarla çalışır; sohbet içindeki hızlı sorular için uygundur. Rapor üretirken dosya yazan CLI tercih edilir.
+- **Rapor**: `python3 "${CLAUDE_SKILL_DIR}/scripts/render_brand_report.py"` (marka akışı),
+  `python3 "${CLAUDE_SKILL_DIR}/scripts/render_share_report.py"` (tablo akışı); ikisi de yalnızca standart kütüphane kullanır.
 
 ## Dil
 Kullanıcıya görünen bütün metinleri (`narrative.md`, `assumptions.json` açıklamaları, `competitors.json` kanıtları,
@@ -27,7 +30,44 @@ Türkçe. Teknik terimler İngilizce kalır ve Türkçeleştirilmez (HHI, CR-k, 
 gerekiyorsa kesme işaretiyle bağlanır ("HHI'ye", "coverage'ı"). Sayılar Türkçe biçimde yazılır
 (%26,5; 1.448; +2,5 puan).
 
-## Akış
+## Hangi akış
+Kullanıcı bir marka ya da şirket adı veriyorsa **marka akışı** ile başla; tablo istemek gerekmez. Kullanıcının kendi tablosu
+varsa, pazar tanımı kaynakların kapsamı dışındaysa ya da marka akışı sonuç vermediyse **tablo akışına** (aşağıdaki 1–6)
+geç. Forecast bu skill'in kapsamı dışındadır.
+
+## Marka akışı
+```bash
+OUT="mlbooster-reports/marka-$(date +%Y%m%d)"; mkdir -p "$OUT"
+"$MLB" brand "<marka ya da şirket adı>" --features --json "$OUT/brand.json"
+```
+Ad, oyuncu düzeyinde veri veren kaynaklarda aranır: ODMD (otomotiv markaları), TBB (bankalar, katılım bankaları hariç),
+BDDK (banka grupları), TSB (sigorta şirketleri), EPDK (akaryakıt ve LPG lisans sahipleri), BTK (telekom işletmecileri).
+İlk çalıştırma kaynakları okuduğu için birkaç dakika sürebilir. Sonucu `status` alanına göre yorumla:
+- **`resolved`**: `headline`, `position`, `series`, `concentration`, `competitors`, `movers`, `segments`, `features` ve
+  `sources` alanları hazırdır. `others` listesindeki benzer adları kullanıcıya bildir.
+- **`ambiguous`**: `matches` adaylarını kullanıcıya göster ve seçimini sor (AskUserQuestion varsa onu kullan). Tahmin etme.
+  Seçimden sonra `"$MLB" brand "<ad>" --choice <aday id> --features --json "$OUT/brand.json"` ile devam et. Grup adlarında
+  (Koç, Sabancı) her üye ayrı adaydır; birden fazlası isteniyorsa her biri için ayrı rapor üret.
+- **`not_found`**: Pay yoktur ve **pay tahmini yazılmaz**. `message`, `sector_candidates` ve `available` alanlarını aktar:
+  sektör makro paneli (`sector-analysis`), Google Trends terimi (`--check-trends` BigQuery sorgusu çalıştırır; değer pazar
+  payı değil, arama ilgisidir ve proxy'dir), kullanıcının kendi tablosu. Bu durumda da rapor üretilebilir; rapor sınırları
+  belirtir ve pay içermez.
+- **`no_data`**: Oyuncu kaynakta var, ancak dönemde pay hesaplanamıyor; `skipped_series` nedenini verir.
+
+Rakip seti `competitors` alanında gerekçeleriyle gelir. Nitel değerlendirme gerekiyorsa `competitors.json` hazırla
+(4. adım, `entity` adları `brand.json` ile aynı olmalıdır) ve `narrative.md` dosyasını `references/report-guide.md` yapısına göre
+yaz (5. adım). Ardından:
+```bash
+python3 "${CLAUDE_SKILL_DIR}/scripts/render_brand_report.py" --analysis "$OUT/brand.json" \
+  --competitors "$OUT/competitors.json" --narrative "$OUT/narrative.md" --out "$OUT/report.html"
+```
+`--competitors` ve `--narrative` isteğe bağlıdır. Rapor marka özetiyle başlar; sektör, rakipler, pay geçmişi, yoğunlaşma, segmentler,
+feature'lar ve kaynaklar sırayla gelir. `features` bölümündeki panel ML'e hazırdır: pay, pay değişimi, sıra, lider farkı,
+pazara göre büyüme, rakip payı ve sektörün makro feature'ları; her satır o ayın sonuna kadar yayımlanmış veriyi içerir.
+`sources` içindeki lisans notunu rapor dışına çıkan her alıntıda koru: ODMD, BTK, TBB, BDDK ve TSB verisi ticari kullanım
+için kaynağın yazılı iznini gerektirir.
+
+## Tablo akışı
 
 ### 1. Kapsamı belirle → `$OUT/assumptions.json`
 ```bash

@@ -1,4 +1,11 @@
 from mlbooster.application.use_cases.analysis import AuditPanel
+from mlbooster.application.use_cases.brand import (
+    AnalyzeBrand,
+    BrandFeatures,
+    BuildBrandFeatures,
+    ResolveBrand,
+    StoreEntityDirectory,
+)
 from mlbooster.application.use_cases.catalog import (
     GetSectorMap,
     ListReadyProviders,
@@ -15,8 +22,11 @@ from mlbooster.application.use_cases.panel import BuildPanel
 from mlbooster.application.use_cases.series import DiscoverSeries, FetchSeries
 
 __all__ = [
+    "AnalyzeBrand",
     "AnalyzeMarketShare",
     "AuditPanel",
+    "BrandFeatures",
+    "BuildBrandFeatures",
     "BuildPanel",
     "CheckForUpdates",
     "DiscoverSeries",
@@ -29,8 +39,10 @@ __all__ = [
     "ListShareSeries",
     "ListSources",
     "PreparePanel",
+    "ResolveBrand",
     "RunHealthChecks",
     "SearchSeries",
     "SetFeatureSeries",
     "SourceShareTable",
+    "StoreEntityDirectory",
 ]

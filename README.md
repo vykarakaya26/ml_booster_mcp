@@ -65,7 +65,7 @@ Ek olarak:
 | `sector-analysis` | Kaynak haritasını, feature panelini ve kalite özetini yorumlu bir HTML raporda birleştirir | "Otomotiv sektörü için veri analizi ve rapor hazırla" |
 | `evds-series-discovery` | EVDS'de güncel seri kodunu bulur, canlı doğrular ve feature'a bağlar | "Bankacılıkta kredi faizi feature'ı eksik, EVDS'den bul" |
 | `data-quality-audit` | Stale seri, eksik gözlem, outlier, structural break ve collinearity denetimi yapar (HTML) | "Sigorta panelindeki verilerin kalitesini denetle" |
-| `market-share` | Pazar payı ve rekabet analizi: paylar (aylık akımda son 12 ay tabanı), yoğunlaşma (HHI aralığı, CR3/CR5, istikrarsızlık endeksi), oyuncu bazında trend, veriye dayalı rakip seti (substitution correlation, segment örtüşmesi) ve nitel rakip değerlendirmesi, shift-share ayrıştırması, pazar büyümesinin makro sürücüleri (HTML). Girdi kolonları `entity, date, value[, segment]`; pazar toplamı `TOPLAM` satırlarıyla verilir (`TOTAL` da kabul edilir) | "Elimdeki ODMD verisiyle Marka X'in pazar payını ve rakiplerini analiz et" |
+| `market-share` | Marka ya da şirket adından sektör, sıra, pay, rakip ve yoğunlaşma raporu; ayrıca kullanıcının tablosuyla pazar payı analizi: paylar (aylık akımda son 12 ay tabanı), yoğunlaşma (HHI aralığı, CR3/CR5, istikrarsızlık endeksi), oyuncu bazında trend, veriye dayalı rakip seti (substitution correlation, segment örtüşmesi) ve nitel rakip değerlendirmesi, shift-share ayrıştırması, pazar büyümesinin makro sürücüleri (HTML). Girdi kolonları `entity, date, value[, segment]`; pazar toplamı `TOPLAM` satırlarıyla verilir (`TOTAL` da kabul edilir) | "Elimdeki ODMD verisiyle Marka X'in pazar payını ve rakiplerini analiz et" |
 | `data-prep` | Dağılıma dayalı ön işleme: her feature için eğitim penceresinde ortalama/standart sapma ile medyan/MAD/IQR arasında seçim, nedensel Hampel filtresiyle outlier'ları winsorize etme ya da işaretleme, log/Yeo–Johnson, unit root varsa fark alma, standard/robust scaling; bütün parametreler yalnızca eğitim penceresinden tahmin edilir (HTML) | "Telekom panelini doğrusal model için hazırla; medyan mı ortalama mı karar ver" |
 | `feature-engineering` | Sektöre özgü otomatik feature üretimi (lag, rolling istatistik, momentum, z-score, reel faiz ve faiz farkı tarifleri, iş günü ve bayram takvimi, ÖTV/eşel mobil/deprem gibi olaylar) ve etkin örneklem + Benjamini–Hochberg ile leakage'sız seçim (HTML) | "Enflasyon modelim için 1 ay ilerisine göre feature üret ve seç" |
 
@@ -98,7 +98,7 @@ pip install "git+https://github.com/vykarakaya26/ml_booster_mcp.git"
 claude mcp add mlbooster -- mlbooster-mcp
 ```
 
-Araçlar: `list_sectors`, `list_sources`, `show_map`, `search_series`, `discover_series`, `set_feature_series`, `fetch_series`, `build_panel`, `audit_panel`, `prepare_panel`, `engineer_features`, `analyze_market_share`, `analyze_source_market_share`, `health`, `check_updates`.
+Araçlar: `list_sectors`, `list_sources`, `show_map`, `search_series`, `discover_series`, `set_feature_series`, `fetch_series`, `build_panel`, `audit_panel`, `prepare_panel`, `engineer_features`, `analyze_brand`, `build_brand_features`, `analyze_market_share`, `analyze_source_market_share`, `health`, `check_updates`.
 
 Seri kodlarını keşfetmek için TCMB'nin resmi EVDS-MCP sunucusu da eklenebilir:
 `claude mcp add --transport http evds https://mcp.tcmb.gov.tr/tcmb-mcp/evds/mcp`
@@ -117,6 +117,7 @@ mlbooster build-panel --sector makro_genel --freq W --out makro_haftalik.csv  # 
 mlbooster audit --sector otomotiv --json audit.json
 mlbooster prep --sector makro_genel --target tufe_yoy --train-end 2022-12 --out hazir.csv --json prep.json
 mlbooster features --sector makro_genel --target tufe_yoy --train-end 2022-12 --selected-out secilen.csv --json features.json
+mlbooster brand "Anadolu Sigorta" --features --json brand.json  # marka adından sektör, sıra, pay, rakip ve feature'lar
 mlbooster market-share --input pay.csv --focus "Marka X" --unit adet --sector otomotiv --json share.json
 mlbooster market-share --source bddk --series BDDK.AKTIF --start 2019-01 --focus Katılım  # banka grubu payları (BDDK)
 mlbooster health

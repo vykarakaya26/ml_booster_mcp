@@ -166,9 +166,59 @@ def test_market_share_report(tmp_path):
     assert "Doğrudan rakip" in html and "pay etkisi" in html and "data-chart=" in html
 
 
+def _brand_analysis(tmp_path, catalog_repo, query, **kwargs):
+    from fakes import BrandFactory, InMemoryObservationStore, InMemoryPanelStore
+    from mlbooster.bootstrap import Container
+    from mlbooster.interfaces.presenters import brand_features_dict
+
+    c = Container(catalog=catalog_repo, providers=BrandFactory(), observations=InMemoryObservationStore(),
+                  panels=InMemoryPanelStore(), overrides=catalog_repo)  # fmt: skip
+    out = c.analyze_brand(query, **kwargs)
+    if out["status"] == "resolved":
+        out["features"] = brand_features_dict(c.brand_features(query, out["brand"]["id"], kwargs.get("start"), kwargs.get("end")))
+    path = tmp_path / "brand.json"
+    path.write_text(json.dumps(out, ensure_ascii=False), encoding="utf-8")
+    return out, path
+
+
+def test_brand_report_starts_with_the_brand_and_shows_every_section(tmp_path, catalog_repo):
+    out, path = _brand_analysis(tmp_path, catalog_repo, "Togg", start=date(2022, 1, 1), end=date(2025, 12, 31))
+    out["competitors"][0]["reasons"].append({"series": EVIL, "reason": EVIL})
+    out["headline"] += EVIL
+    out["sources"][0]["license"] += EVIL
+    out["features"]["brand_columns"][0]["description"] += EVIL
+    path.write_text(json.dumps(out, ensure_ascii=False), encoding="utf-8")
+    comp = {"competitors": [{"entity": out["competitors"][0]["entity"], "tier": "direct", "evidence": EVIL, "confidence": "high"}]}
+    (tmp_path / "competitors.json").write_text(json.dumps(comp, ensure_ascii=False), encoding="utf-8")
+    (tmp_path / "narrative.md").write_text(f"## Ana bulgu\n{EVIL}", encoding="utf-8")
+    target = tmp_path / "report.html"
+    _run(SKILLS / "market-share/scripts/render_brand_report.py", "--analysis", str(path), "--competitors", str(tmp_path / "competitors.json"),
+         "--narrative", str(tmp_path / "narrative.md"), "--out", str(target))  # fmt: skip
+    html = target.read_text(encoding="utf-8")
+    _assert_safe(html)
+    order = [html.index(f"<h2>{h}</h2>") for h in ("Marka özeti", "Sektör ve konum", "Rakipler", "Pay geçmişi", "Yoğunlaşma", "Segmentler", "Feature&#x27;lar", "Kaynaklar ve lisans", "Yöntem")]
+    assert order == sorted(order)
+    assert "Doğrudan rakip" in html and "marka_pay" in html and "data-chart=" in html and "Kaynak: Otomotiv Distribütörleri" in html
+
+
+def test_brand_report_of_a_name_without_a_source_has_no_share(tmp_path, catalog_repo):
+    _, path = _brand_analysis(tmp_path, catalog_repo, "Migros")
+    target = tmp_path / "report.html"
+    _run(SKILLS / "market-share/scripts/render_brand_report.py", "--analysis", str(path), "--out", str(target))
+    html = target.read_text(encoding="utf-8")
+    assert "pazar payı hesaplanmadı" in html and "Perakende" in html and "BQT.ILGI.MIGROS" in html and "Marka özeti" not in html
+
+
+def test_brand_report_refuses_an_unclear_name(tmp_path, catalog_repo):
+    _, path = _brand_analysis(tmp_path, catalog_repo, "Anadolu")
+    done = subprocess.run([sys.executable, str(SKILLS / "market-share/scripts/render_brand_report.py"), "--analysis", str(path), "--out", str(tmp_path / "r.html")],
+                          capture_output=True, text=True)  # fmt: skip
+    assert done.returncode != 0 and "--choice" in done.stderr and not (tmp_path / "r.html").exists()
+
+
 def test_competitors_validation():
-    sys.path.insert(0, str(SKILLS / "market-share/scripts"))
-    from render_share_report import CompetitorsError, validate_competitors
+    sys.path.insert(0, str(SKILLS / "_shared"))
+    from mlb_report.share import CompetitorsError, validate_competitors
 
     validate_competitors(json.loads((SKILLS / "market-share/assets/competitors.example.json").read_text(encoding="utf-8")))
     for broken in (

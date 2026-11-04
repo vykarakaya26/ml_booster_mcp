@@ -2,12 +2,12 @@
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 
 import pandas as pd
 
 from mlbooster.application.dto import FetchRequest
-from mlbooster.application.errors import ProviderNotImplemented
+from mlbooster.application.errors import ProviderNotImplemented, ProviderUnavailable
 from mlbooster.domain.model import HealthResult, HealthStatus, Source
 from mlbooster.domain.observations import KEY_COLUMNS, empty_observations
 
@@ -140,3 +140,59 @@ class EntityFactory:
 
     def create(self, source):
         return EntityProvider(source, self.calls, **self.kwargs)
+
+
+# Brand flow: players of the entity-level sources; some series list only some of them.
+PLAYERS = {
+    "odmd": {"TOGG": ("TOGG", 20), "RENAULT": ("RENAULT", 50), "FIAT": ("FIAT", 30)},
+    "tbb": {"30": ("Türkiye Garanti Bankası A.Ş.", 40), "8": ("Akbank T.A.Ş.", 35), "3": ("Türkiye Cumhuriyeti Ziraat Bankası A.Ş.", 25)},
+    "tsb": {"1005": ("Anadolu Anonim Türk Sigorta Şirketi", 30), "3004": ("Anadolu Hayat Emeklilik AŞ", 30), "1020": ("Türkiye Sigorta AŞ", 40)},
+    "epdk": {"OPET_PETROLCULUK": ("OPET PETROLCÜLÜK", 30), "PETROL_OFISI": ("PETROL OFİSİ", 40), "SHELL_TURCAS": ("SHELL & TURCAS", 30)},
+    "btk": {"TURKCELL": ("Turkcell", 40), "VODAFONE": ("Vodafone", 30), "TT_MOBIL": ("TT Mobil", 30), "SUPERONLINE": ("Superonline", 15), "DIGER": ("Diğer", 5)},
+    "bddk": {"10003": ("Katılım", 10), "10009": ("Mevduat-Kamu", 90)},
+}
+FIRST = date(2018, 1, 1)  # sources have no rows before this date
+ONLY_IN = {"EPDK.LPG": {"PETROL_OFISI", "SHELL_TURCAS"}, "ODMD.HAFIF_TICARI": {"RENAULT", "FIAT"}, "BTK.SGB": {"SUPERONLINE", "DIGER"}}
+
+
+class BrandProvider:
+    def __init__(self, source, calls, proxy):
+        self.source, self.calls, self.proxy = source, calls, proxy
+
+    def fetch(self, request):
+        self.calls.append(request)
+        rows = []
+        for code in request.series_ids:
+            seed = self.source.seed(code)
+            rule = "QE" if seed.freq.value == "Q" else "ME"
+            allowed = next((v for k, v in ONLY_IN.items() if code.startswith(k)), None)
+            players = {k: v for k, v in PLAYERS[self.source.id].items() if allowed is None or k in allowed}
+            for i, day in enumerate(pd.date_range(max(request.period.start, FIRST), request.period.end, freq=rule)):
+                parts = {k: (name, base * (1 + i / (60 if k == next(iter(players)) else 200))) for k, (name, base) in players.items()}
+                total = sum(v for _, v in parts.values())
+                scale = 100 / total if seed.unit == "percent" else 1
+                rows.append((code, "", "Toplam", day.date(), total * scale))
+                rows += [(code, k, name, day.date(), v * scale) for k, (name, v) in parts.items()]
+        if not rows:
+            return empty_observations()
+        df = pd.DataFrame(rows, columns=["series_id", "entity_id", "entity_name", "date", "value"])
+        return df.assign(
+            source_id=self.source.id, dataset_id="x", metric="level", freq=[self.source.seed(c).freq.value for c in df["series_id"]],
+            unit=None, currency=None, is_proxy=self.proxy, vintage_ts=datetime.now(UTC), publication_lag_days=self.source.publication_lag_days,
+        )  # fmt: skip
+
+    def close(self):
+        pass
+
+
+class BrandFactory:
+    def __init__(self, proxy=False, down=()):
+        self.calls, self.proxy, self.down = [], proxy, set(down)
+
+    def available(self):
+        return set(PLAYERS)
+
+    def create(self, source):
+        if source.id in self.down or source.id not in PLAYERS:
+            raise ProviderUnavailable(f"{source.id} yanıt vermedi")
+        return BrandProvider(source, self.calls, self.proxy)
