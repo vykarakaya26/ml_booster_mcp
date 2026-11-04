@@ -98,7 +98,7 @@ pip install "git+https://github.com/vykarakaya26/ml_booster_mcp.git"
 claude mcp add mlbooster -- mlbooster-mcp
 ```
 
-Araçlar: `list_sectors`, `list_sources`, `show_map`, `search_series`, `discover_series`, `set_feature_series`, `fetch_series`, `build_panel`, `audit_panel`, `prepare_panel`, `engineer_features`, `analyze_market_share`, `analyze_source_market_share`, `health`, `check_updates`.
+Araçlar: `list_sectors`, `list_sources`, `show_map`, `search_series`, `discover_series`, `set_feature_series`, `fetch_series`, `build_panel`, `audit_panel`, `prepare_panel`, `engineer_features`, `analyze_market_share`, `analyze_source_market_share`, `analyze_brand`, `build_brand_features`, `health`, `check_updates`.
 
 Seri kodlarını keşfetmek için TCMB'nin resmi EVDS-MCP sunucusu da eklenebilir:
 `claude mcp add --transport http evds https://mcp.tcmb.gov.tr/tcmb-mcp/evds/mcp`
