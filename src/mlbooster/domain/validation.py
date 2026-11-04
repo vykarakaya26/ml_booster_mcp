@@ -8,6 +8,7 @@ injection risk and is rejected here.
 from __future__ import annotations
 
 import re
+import unicodedata
 from dataclasses import dataclass
 from datetime import date, timedelta
 
@@ -15,9 +16,11 @@ from mlbooster.domain.errors import InvalidInput
 
 _SERIES_CODE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.]{0,63}$")
 _SLUG = re.compile(r"^[a-z0-9][a-z0-9_]{0,31}$")
+_BRAND_CHOICE = re.compile(r"^[a-z0-9][a-z0-9_]{0,31}:[A-Za-z0-9_.]{1,64}(\+[A-Za-z0-9_.]{1,64}){0,7}$")
 
 MIN_DATE = date(1950, 1, 1)
 MAX_SERIES_PER_REQUEST = 50
+BRAND_MAX = 80
 
 
 def series_code(value: str) -> str:
@@ -49,6 +52,27 @@ def slug(value: str, what: str = "identifier") -> str:
     if not isinstance(value, str) or not _SLUG.fullmatch(value):
         label = _WHAT_LABELS.get(what, what)
         raise InvalidInput(f"Geçersiz {label}: {value!r} (izin verilenler: küçük harf, rakam, '_'; en fazla 32 karakter)")
+    return value
+
+
+def brand_query(value: str) -> str:
+    """Brand or company name typed by the user: only compared with catalog and entity names, never sent to a source."""
+    if not isinstance(value, str):
+        raise InvalidInput("Marka adı metin olmalıdır")
+    text = " ".join(unicodedata.normalize("NFC", value).split())
+    if any(unicodedata.category(c) == "Cc" for c in text):
+        raise InvalidInput("Marka adında kontrol karakteri olamaz")
+    if len(text) > BRAND_MAX:
+        raise InvalidInput(f"Marka adı en fazla {BRAND_MAX} karakter olabilir")
+    if sum(c.isalnum() for c in text) < 2:
+        raise InvalidInput("Marka adı en az iki harf ya da rakam içermelidir")
+    return text
+
+
+def brand_choice(value: str) -> str:
+    """Candidate id returned by the brand search: `<source>:<entity id>[+<entity id>...]`."""
+    if not isinstance(value, str) or not _BRAND_CHOICE.fullmatch(value):
+        raise InvalidInput(f"Geçersiz aday kimliği: {value!r} (beklenen biçim: kaynak:oyuncu_kimliği)")
     return value
 
 

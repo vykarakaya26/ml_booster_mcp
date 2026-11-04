@@ -10,6 +10,7 @@ import pandas as pd
 
 from mlbooster.application.dto import FetchRequest
 from mlbooster.domain.model import Catalog, HealthResult, MacroFeature, SeedSeries, Source
+from mlbooster.domain.services.brand_resolution import EntityScan
 
 
 class CatalogRepository(Protocol):
@@ -82,6 +83,12 @@ class ObservationStore(Protocol):
     def requested_start(self, source_id: str, series_id: str, metric: str) -> date | None:
         """Earliest start the provider was asked for, for this series and metric; None without a record.
         If the series' first observation is later than this date, the source has no earlier data."""
+        ...
+
+
+class EntityDirectory(Protocol):
+    def scan(self, refresh: bool = False) -> EntityScan:
+        """Players of the entity-level sources, and the sources that could not be read."""
         ...
 
 

@@ -11,6 +11,8 @@ market_share_sources:
   - source: btk
     metric: "mobil abone payı, işletmeci net satış gelirleri, sabit genişbant abone ve gelir payları (çeyreklik Pazar Verileri Raporu)"
     series: [BTK.MOBIL.ABONE.PAY, BTK.GELIR, BTK.SGB.ABONE.PAY, BTK.SGB.GELIR.PAY]
+    entities_from: [BTK.MOBIL.ABONE.PAY, BTK.GELIR, BTK.SGB.ABONE.PAY]
+    history_years: 3  # one 40-46 MB report per quarter
     notes: "Numara taşıma ve churn raporda yalnızca grafik olarak yayımlanıyor"
 ml_use_cases: ["ARPU tahmini", "Churn", "Abone büyümesi"]
 feature_recipes:
