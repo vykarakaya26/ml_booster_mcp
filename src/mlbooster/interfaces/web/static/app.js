@@ -797,7 +797,7 @@ views.pazar = async (root) => {
     if (r.status === "resolved") renderBrand(r);
     else if (r.status === "ambiguous") renderCandidates(r);
     else if (r.status === "not_found") renderLimits(r);
-    else fill(out, emptyState("Pay hesaplanamadı", r.message), evidenceCard(r.evidence), searchCard(r));
+    else fill(out, emptyState("Pay hesaplanamadı", r.message), evidenceCard(r.evidence, r.brand.name, r.brand.sector), searchCard(r));
   };
 
   // Google Trends block: opt-in (BigQuery queries), kept apart from computed shares and published findings
@@ -1007,10 +1007,11 @@ views.pazar = async (root) => {
     toTable.addEventListener("click", () => setMode("table"));
     const found = r.evidence && r.evidence.current.length + r.evidence.historical.length > 0;
     fill(out,
-      found ? evidenceCard(r.evidence) : null,
+      found ? evidenceCard(r.evidence, r.query, r.sector_candidates[0]?.sector) : null,
       searchCard(r),
       h("section", { class: "card" },
         h("div", { class: "card-head" }, h("div", {}, h("h2", {}, "Oyuncu düzeyinde veri yok"), h("p", {}, r.message))),
+        found ? null : webSearch(r.query, r.sector_candidates[0]?.sector),
         r.sector_candidates.length
           ? h("ul", {}, r.sector_candidates.map((s) => h("li", {}, h("strong", {}, `${s.name}: `), `${s.reason}.`)))
           : h("p", { class: "muted" }, "Addan sektör çıkarılamadı; sol menüden bir sektör seçerek makro feature panelini hazırlayabilirsiniz."),
@@ -1127,7 +1128,7 @@ views.pazar = async (root) => {
           { label: "Lider", render: (x) => (x.leader ? `${x.leader} (${sharePct(x.leader_share)})` : "—") },
         ], seg.segments),
         ss ? h("p", {}, term("shift_share", "Shift-share"), `: ${monthName(ss.from)} → ${monthName(ss.to)} arasında ${ppText(ss.total_pp, 2)}; ${ppText(ss.share_effect_pp, 2)} segment içi pay, ${ppText(ss.mix_effect_pp, 2)} segment karması etkisi.`) : null) : null,
-      evidenceCard(r.evidence),
+      evidenceCard(r.evidence, r.brand.name, r.brand.sector),
       searchCard(r),
       brandFeatures(r),
       r.issues.length ? h("section", { class: "card" },

@@ -522,6 +522,11 @@ def test_web_search_says_the_next_step_when_claude_is_missing(research_client):
     assert res.status_code == 400 and res.json()["error"] == "Claude Code bulunamadı. Kurun."
 
 
+def test_every_evidence_card_knows_the_brand_it_searches():
+    source = (STATIC_DIR / "app.js").read_text(encoding="utf-8")
+    assert not re.search(r"evidenceCard\(r\.evidence\)", source)
+
+
 def test_panel_never_starts_the_search_by_itself():
     source = (STATIC_DIR / "app.js").read_text(encoding="utf-8")
     assert source.count('"/api/research/start"') == 1 and 'run.addEventListener("click"' in source
