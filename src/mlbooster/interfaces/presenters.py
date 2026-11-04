@@ -251,7 +251,7 @@ def search_lines(section: dict) -> list[str]:
     if section["status"] != "done":
         return [*lines, f"  {section['message']}"]
     coverage = section["coverage"]
-    lines.append(f"  Kapsam: {coverage['first_day']} – {coverage['last_day']}, {coverage['list_days']} günlük liste.")
+    lines.append(f"  Kapsam: {coverage['first_day']} – {coverage['last_day']}, {coverage['list_days']} günlük liste. {section['data_source']['label']}")
     for t in section["terms"]:
         if t["status"] == "not_found":
             continue
@@ -263,6 +263,19 @@ def search_lines(section: dict) -> list[str]:
     lines.append(f"  {section['withheld']['arama_payi']}")
     cost = section["cost"]
     lines.append(f"  BigQuery: {tr_num(cost['gib'], '.2f')} GiB, {cost['queries']} sorgu. {section['attribution']}.")
+    return lines
+
+
+def mirror_lines(status: dict) -> list[str]:
+    """Text form of the local copy's status."""
+    if status["state"] == "on":
+        lines = [f"Yerel kopya açık: {status['days']} gün ({status['first_day']} – {status['last_day']}), {tr_num(status['disk_mb'], '.1f')} MB."]
+    else:
+        lines = ["Yerel kopya kapalı." + (" Tercihiniz kaydedildi." if status["state"] == "declined" else "")]
+        if status["days"]:
+            lines.append(f"Diskte yarım kalmış {status['days']} gün var ({tr_num(status['disk_mb'], '.1f')} MB).")
+    if offer := status.get("offer"):
+        lines.append(offer)
     return lines
 
 

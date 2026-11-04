@@ -15,7 +15,10 @@ rate_limit: {rps: 2, backoff: exponential, notes: "Tablolar refresh_date ile bö
 # listed day costs ~0.25 GiB); interest series always return their whole rescaled backfill. default_years: start
 # without --start.
 history: {default_years: 5, revision_days: 3}
-license: {attribution: required, notes: "Google Trends verisi BigQuery public dataset programı kapsamında 'olduğu gibi', garanti verilmeden sunulur; kullanım Google Hizmet Şartları'na tabidir. Açık bir lisans (ör. CC-BY) yayımlanmamıştır; ticari kullanım koşulları doğrulanmadı. Yayımlarken 'Kaynak: Google Trends' atfı verin. Sorgular kullanıcının kendi Google Cloud projesine faturalanır."}
+license: {attribution: required, notes: "Google Trends verisi BigQuery public dataset programı kapsamında 'olduğu gibi', garanti verilmeden sunulur; kullanım Google Hizmet Şartları'na tabidir. Açık bir lisans (ör. CC-BY) yayımlanmamıştır; ticari kullanım koşulları doğrulanmadı. Yayımlarken 'Kaynak: Google Trends' atfı verin. Sorgular kullanıcının kendi Google Cloud projesine faturalanır. İsteğe bağlı yerel kopya (2026-11-04 incelemesi): veri seti kaydında yalnızca 'olduğu gibi' uyarısı var, Google Trends SSS'si bilgilerin Google Hizmet Şartları'na tabi olarak ve Google'a atıfla kullanılabileceğini söylüyor; saklamayı yasaklayan bir hüküm bulunmadı, açık bir saklama izni de yok. Kopya kullanıcının kendi bilgisayarında kalır; yeniden dağıtmayın."}
+# The optional local mirror (storage/trends_mirror.py) is a per-user opt-in: only Türkiye rows and the columns in use.
+# Terms checked 2026-11-04: Marketplace listing google-trends-intl (as-is disclaimer only), support.google.com/trends/answer/4365538
+# (use subject to Google ToS, with attribution), policies.google.com/terms, docs public-data page: nothing forbids a copy.
 # Keep raw query responses out of bronze (their URL carries the user's project id); the silver store keeps the
 # observations, so the 30-day upstream window accumulates into a longer local history.
 storage: {raw: false, observations: true}

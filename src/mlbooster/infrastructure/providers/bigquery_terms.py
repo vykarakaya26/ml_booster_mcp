@@ -71,6 +71,9 @@ class BigQueryTermLookup(BigQueryTrendsProvider):
     def _bq(self) -> _Metered:
         return _Metered(super()._bq(), self)
 
+    def data_source(self) -> dict:
+        return {"mode": "bigquery", "label": "BigQuery'den canlı sorgu."}
+
     def listed_terms(self) -> pd.DataFrame:
         """DataFrame[table, refresh_date, term, rank]: every retained Türkiye list."""
         today = self._now()

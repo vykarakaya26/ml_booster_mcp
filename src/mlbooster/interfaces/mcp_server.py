@@ -340,6 +340,25 @@ def build_brand_features(query: str, choice: str | None = None, start: str | Non
 
 @server.tool(annotations=READ_REMOTE)
 @safe_tool
+def trends_mirror_status(offer: bool = False) -> dict:
+    """Google Trends tablolarının isteğe bağlı yerel kopyasının durumu: state on, off ya da declined; gün sayısı, disk.
+    offer=true kullanıcıya gösterilecek teklif metnini ekler (ücretsiz dry run ile ölçer, kopya başlatmaz). Kopyayı kapatıp
+    silmek CLI'dan (mlbooster trends-mirror disable) ya da panelden yapılır."""
+    return container().trends_mirror.status(offer)
+
+
+@server.tool(annotations=WRITES_LOCAL)
+@safe_tool
+def trends_mirror_update(enable: bool = False) -> dict:
+    """Google Trends yerel kopyasını açar (enable=true) ya da eksik günleri ekler. BigQuery sorgusu çalıştırır, ilk kopya
+    onlarca GiB okur ve kullanıcının Google Cloud kotasından düşer. Bu aracı KENDİLİĞİNDEN ÇAĞIRMA: önce trends_mirror_status
+    (offer=true) ile teklif metnini kullanıcıya göster ve açık onayını al. state declined ise yeniden teklif etme."""
+    control = container().trends_mirror
+    return control.enable() if enable else control.update()
+
+
+@server.tool(annotations=READ_REMOTE)
+@safe_tool
 def analyze_search_interest(brand: str, sector: str | None = None, competitors: list[str] | None = None) -> dict:
     """Marka, rakip ve kategori terimlerini Google Trends'in Türkiye Top 25 ve Rising listelerinde arar. Her terim için
     found, related ya da not_found döner; liste günü, liste sırası, rakipler arası sıra, il yayılımı ve aylık feature'lar

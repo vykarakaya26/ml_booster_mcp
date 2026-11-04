@@ -46,9 +46,13 @@ MAX_COMPETITORS = 20
 MONTHS_SHOWN = 6
 STATUS_LABELS = {FOUND: "bulundu", RELATED: "yalnızca ilişkili terim", NOT_FOUND: "listede yok"}
 MODE_LABELS = {BRAND: "Marka", COMPETITOR: "Rakip", GENERIC: "Kategori"}
+COVERAGE_NOTES = {
+    "bigquery": "Kaynak yalnızca son 30 güne yakın günlük listeyi tutar; terimler bu aralıkta aranmıştır.",
+    "local_copy": "Terimler yerel kopyadaki bütün günlük listelerde aranmıştır; geçmiş ilk kopyadan itibaren birikir.",
+}
 NOT_RUN_MESSAGE = (
     "Arama ilgisi çalıştırılmadı. İsteğe bağlıdır: BigQuery sorgusu çalıştırır, Google Cloud projenize işlenir (ilk "
-    "çalıştırma yaklaşık 10 GiB; aylık 1 TiB ücretsizdir) ve analizi uzatır. Çalıştırmak için CLI'da --search-interest, "
+    "çalıştırma yaklaşık 17 GiB; aylık 1 TiB ücretsizdir) ve analizi uzatır. Çalıştırmak için CLI'da --search-interest, "
     "MCP'de search_interest=true, panelde \"Arama ilgisini getir\" düğmesi kullanılır."
 )
 
@@ -63,6 +67,10 @@ class TrendsLookup(Protocol):
 
     def interest(self, table: str, terms: dict) -> pd.DataFrame:
         """DataFrame[term, refresh_date, week, region_code, region_name, score] for term → refresh day."""
+        ...
+
+    def data_source(self) -> dict:
+        """{'mode': 'bigquery' | 'local_copy', 'label': text for the output}"""
         ...
 
 
@@ -163,14 +171,16 @@ class SearchInterest:
             self._today(),
         )
         days = sorted(set(listing["refresh_date"]))
+        source = self._lookup.data_source()
         return {
             "brand": brand, "sector": sector_id, "is_proxy": True, "note": PROXY_NOTE,
             "attribution": f"Kaynak: {catalog.source(SOURCE_ID).owner} — {catalog.source(SOURCE_ID).name}",
             "coverage": {
                 "first_day": days[0].isoformat() if days else None, "last_day": days[-1].isoformat() if days else None,
                 "list_days": len(days),
-                "note": "Kaynak yalnızca son 30 güne yakın günlük listeyi tutar; terimler bu aralıkta aranmıştır.",
+                "note": COVERAGE_NOTES[source["mode"]],
             },
+            "data_source": source,
             "terms": reports,
             "ranking": list_ranking([brand_report, *rival_reports]),
             "provinces": province_summary(rows, brand_terms),

@@ -67,6 +67,13 @@ kullanıcı istemeden çalıştırma. İstenirse `"$MLB" brand "<ad>" --search-i
 - `withheld.arama_payi`: arama payı **hesaplanmaz**, çünkü skorlar her terim ve il için ayrı ölçeklenir. Skorları birbirine oranlama, iller
   arasında karşılaştırma. Karşılaştırma için liste günü, liste sırası ve `interest.momentum` (terimin kendi geçmişine göre) kullanılır.
 - Rapor bu bölümü hesaplanmış paylardan ve yayımlanmış bulgulardan ayrı gösterir; her zaman "arama ilgisi; pazar payı değildir" diye yaz.
+- `data_source` verinin canlı BigQuery'den mi, yerel kopyadan mı geldiğini söyler.
+
+**Yerel kopya (isteğe bağlı).** Türkiye satırlarını bilgisayara indirir; liste geçmişi 30 günle sınırlı kalmaz. Varsayılan olarak kapalıdır ve
+**kullanıcıya sormadan açma**. Arama ilgisi çalıştıktan sonra `trends_mirror_status` (MCP) ya da `"$MLB" trends-mirror status --offer` ile durumu
+gör; `state` `off` ise teklif metnini aynen aktar ve onay iste, `declined` ise yeniden teklif etme. Onay gelirse `trends_mirror_update` (enable=true)
+ya da `"$MLB" trends-mirror enable --yes` çalıştır. İlk kopya onlarca GiB okur ve kullanıcının Google Cloud kotasından düşer. Kapatıp silme
+`"$MLB" trends-mirror disable` ya da panelden yapılır.
 
 ### Yayımlanmış bulgular
 Kaynaklarda oyuncu düzeyinde veri yoksa ya da kullanıcı hesaplanan payı yayımlanmış rakamlarla karşılaştırmak istiyorsa

@@ -111,7 +111,13 @@ class BigQueryClient:
         columns: list[str] = []
         rows: list[list[str | None]] = []
         job = doc.get("jobReference") if isinstance(doc.get("jobReference"), dict) else {}
+        processed = billed = 0
+        cached = False
         for _ in range(MAX_PAGES):
+            # getQueryResults carries no totalBytesBilled: a slow or paged job has to fall back to the bytes processed.
+            processed = max(processed, _int(doc.get("totalBytesProcessed")))
+            billed = max(billed, _int(doc.get("totalBytesBilled")))
+            cached = cached or doc.get("cacheHit") is True
             if doc.get("jobComplete") is True:
                 if not columns:
                     columns = _columns(doc)
@@ -120,9 +126,7 @@ class BigQueryClient:
                     raise UnexpectedResponse("BigQuery sonucu beklenenden çok satır döndürdü")
                 token = doc.get("pageToken")
                 if not token:
-                    return QueryResult(
-                        columns, rows, _int(doc.get("totalBytesProcessed")), _int(doc.get("totalBytesBilled"))
-                    )
+                    return QueryResult(columns, rows, processed, billed or (0 if cached else processed))
             else:
                 token = None
             doc = self._results(job, token if isinstance(token, str) else None)

@@ -118,3 +118,24 @@ def test_search_terms_load_once(tmp_path):
     assert terms.load()["otomotiv"].brands == ("Togg",)
     path.unlink()
     assert terms.load()["otomotiv"].generic == ("sıfır araba",)
+
+
+def test_bytes_of_a_slow_job_come_from_the_bytes_processed(lookup):
+    pending = httpx.Response(200, json={"jobComplete": False, "jobReference": {"jobId": "job_1", "location": "US"}})
+    done = httpx.Response(200, json={
+        "jobComplete": True, "totalBytesProcessed": "5000", "schema": {"fields": [{"name": c} for c in ROW_COLUMNS]}, "rows": [],
+    })  # fmt: skip
+    lookup.mock.post(QUERY_URL).mock(return_value=pending)
+    lookup.mock.get(url__startswith=f"{QUERY_URL}/job_1").mock(return_value=done)
+    lookup.interest("top", {"togg": date(2026, 11, 1)})
+    assert lookup.bytes_billed == 5000
+
+
+def test_cached_job_bills_nothing(lookup):
+    done = httpx.Response(200, json={
+        "jobComplete": True, "cacheHit": True, "totalBytesProcessed": "0", "jobReference": {"jobId": "job_1"},
+        "schema": {"fields": [{"name": c} for c in ROW_COLUMNS]}, "rows": [],
+    })  # fmt: skip
+    lookup.mock.post(QUERY_URL).mock(return_value=done)
+    lookup.interest("top", {"togg": date(2026, 11, 1)})
+    assert lookup.bytes_billed == 0
