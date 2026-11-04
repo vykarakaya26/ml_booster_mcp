@@ -23,16 +23,17 @@ src/mlbooster/
                      # (single period-string parser), numfmt.py (Turkish number formatting for messages),
                      # observations.py (observation frame contract), services/ (frequency, deflation, features,
                      # chunking, sector_map, quality, distribution, preprocessing, feature_engineering,
-                     # calendar_tr, market_share, brand_resolution, brand_report, brand_features, evidence). Allowed: stdlib + pandas/numpy.
+                     # calendar_tr, market_share, brand_resolution, brand_report, brand_features, brand_groups, evidence). Allowed: stdlib + pandas/numpy.
                      # NO I/O.
   application/       # ports.py (Protocols), dto.py (FetchRequest: input validation gate), errors.py,
-                     # use_cases/ (catalog, series, discovery, panel, health, analysis, modeling, market_share, brand, evidence,
+                     # use_cases/ (catalog, series, discovery, panel, health, analysis, modeling, market_share, brand, evidence, research,
                      # files: ExportTable). Depends only on domain.
   infrastructure/    # port implementations: providers/ (evds3, sdmx, tuik, bddk, tbb, bkm, tsb, odmd, epdk, btk, epias,
                      # bigquery_trends + bigquery_terms + google_auth/bigquery_rest, registry), http_client.py (SecureHttpClient),
                      # catalog_yaml.py (pydantic → domain), secret_store.py, settings.py, storage/,
                      # update_check.py (GitHub tags), table_reader.py (user CSV/JSON input; CLI only),
-                     # document_reader.py (text layer of one allowed PDF; storage/ holds evidence_store.py)
+                     # document_reader.py (text layer of one allowed PDF; storage/ holds evidence_store.py),
+                     # claude_runner.py (the user's `claude` CLI for the web search)
   interfaces/        # cli.py (typer), mcp_server.py (MCPServer), presenters.py, web/ (Starlette JSON API + static
                      # JS/CSS, no build step; labels.py derives readable feature names) — call use cases only
                      # (tests/test_architecture.py forbids container().<port> access)
@@ -239,16 +240,25 @@ entity-level source gets `not_found`, the sector candidates and what is availabl
 `segments` (series of one unit that split the market), `history_years`. Brand features are monthly and point-in-time;
 the competitor set of a period comes from that period's ranking. Saved brand panels leave out columns built from a
 source with `storage.observations: false` (BKM).
+`groups:` in brands.yaml lists companies whose share is the sum of their brands in one source. Each member has a document
+URL and the day it was checked; `from`/`to` limit it, a missing `from` is applied to the whole period and the report says
+so. Before its date a member stays a separate player. A membership nobody could open is left out.
 
 ## Published share evidence
 The search runs only in the plugin agent `agents/share-research.md` (WebSearch, WebFetch and the evidence MCP tools; no
 shell, no local files). The package holds the rules (`evidence_sources.yaml`, `domain/services/evidence.py`), the records
 (`data_dir/evidence/share_evidence.duckdb`, one connection per call because CLI, MCP and panel are separate processes) and
-the presentation; it has no LLM and no search API, so CLI and panel only show records. The tier comes from the domain,
+the presentation; it has no LLM and no search API. CLI and panel start the agent only through the user's Claude Code (see Web search). The tier comes from the domain,
 never from the caller; unlisted domains are refused. A record is a compiled claim, not a computed share: it never enters
 the observation store, panels or features (tests/test_architecture.py), figures are never averaged and contradictions are
 shown as published. Rejected claims keep only their id and reason. `read_evidence_pdf` reads one PDF on an allowed domain
 and stores nothing. kap.org.tr: one disclosure link, no quote, never read by the tool.
+
+## Web search
+`ResearchRunner` runs the share-research agent through the user's installed `claude` CLI (`claude -p`), on the user's login:
+no API key, no SDK, not an MCP tool, never automatic (panel button "Web'de kaynak ara", `mlbooster brand --web-search`).
+`infrastructure/claude_runner.py` holds the flags, the environment filter and the first-event check; `ALLOWED_TOOLS` must
+equal the agent's `tools:` (tests/test_drift.py). A child that starts with an API key or an extra tool is stopped.
 
 ## Acceptance criteria (MVP)
 - 10 adapters (EVDS3 ✓, TÜİK ✓, BDDK ✓, TBB ✓, EPİAŞ ✓ code / healthcheck needs the user's account, EPDK ✓, BTK ✓, TSB ✓,
