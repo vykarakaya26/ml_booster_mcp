@@ -30,6 +30,7 @@ from mlb_report.share import (
     num,
     pct,
     pp,
+    safe_link,
     segment_section,
     signed,
     trend_badge,
@@ -164,6 +165,44 @@ def sources_section(r: dict) -> str:
     return H.section("Kaynaklar ve lisans", body, "sources")
 
 
+def _evidence_rows(items: list[dict]) -> str:
+    rows = []
+    for e in items:
+        scope = " · ".join(x for x in (e["basis_label"], e["segment"], None if e["geography"] == "Türkiye" else e["geography"]) if x)
+        tier = f"{e['tier_label']} · ikinci el" if e["second_hand"] else e["tier_label"]
+        publisher = safe_link(e["url"], e["publisher"])
+        if e["original_source"]:
+            publisher += H.esc(f" (özgün kaynak: {e['original_source']}, {e['original_date'] or 'tarih yok'})")
+        rows.append((H.esc(e["claim_text"]), H.esc(e["period"]), H.esc(scope), H.esc(tier), publisher, H.esc(e["quote"] or "—"),
+                     H.esc(e["published"]), H.esc(CONFIDENCE.get(e["confidence"], e["confidence"]))))  # fmt: skip
+    return H.table(["Bulgu", "Dönem", "Ölçü ve kapsam", "Kaynak türü", "Yayıncı", "Alıntı", "Yayım", "Güven"], rows, raw=range(8))
+
+
+def evidence_section(ev: dict) -> str:
+    """Findings copied from web pages. They are shown beside the computed shares, never merged with them."""
+    body = f"<p><strong>Bu bölüm {H.esc(ev['label'])}.</strong> Rakamlar web sayfalarından aktarılmıştır; hesaplanmış paylarla birleştirilmez, feature'lara girmez.</p>"
+    if ev["current"]:
+        body += _evidence_rows(ev["current"])
+    else:
+        body += "<p>Güncel bulgu yok.</p>"
+    if ev["single_source"]:
+        body += '<p class="muted">Bulgular tek bir bağımsız kaynağa dayanıyor.</p>'
+    if ev["contradictions"]:
+        body += "<h3>Çelişen bulgular</h3><ul>" + "".join(f"<li>{H.esc(c['message'])}</li>" for c in ev["contradictions"]) + "</ul>"
+    if ev["comparison"]:
+        rows = [(H.esc(f"{c['computed_text']} · {c['computed_period']}"), H.esc(c["series_name"]),
+                 H.esc(f"{c['evidence_text']} · {c['evidence_period']} · {c['evidence_basis']}"), safe_link(c["url"], c["publisher"]),
+                 pp(c["difference"], 1) if c["claim"] == "share" else f"{signed(c['difference'], 0)} sıra", H.esc(" ".join(c["reasons"])))
+                for c in ev["comparison"]]  # fmt: skip
+        body += "<h3>Hesaplanan pay ile karşılaştırma</h3>"
+        body += H.table(["Hesaplanan", "Seri", "Bulgu", "Yayıncı", "Fark", "Olası neden"], rows, numeric=[4], raw=range(6))
+    if ev["historical"]:
+        body += f"<h3>Eski bulgular</h3><p class=\"muted\">Dönemi {num(ev['max_age_days'], 0)} günden eski; güncel sayılmaz.</p>" + _evidence_rows(ev["historical"])
+    if ev["next_step"]:
+        body += f'<p class="muted">{H.esc(ev["next_step"])}</p>'
+    return H.section("Yayımlanmış pay bulguları", body, "evidence")
+
+
 METHOD = """
 <ul>
 <li><strong>Marka eşleştirme:</strong> ad, oyuncu düzeyinde veri veren kaynaklardaki adlarla karşılaştırılır. Yalnızca katalogdaki bir
@@ -175,6 +214,8 @@ seriler dönemliktir. Yüzde olarak yayımlanan seriler olduğu gibi kullanılı
 karması örtüşmesiyle çıkarılır; korelasyon nedensellik göstermez.</li>
 <li><strong>Feature'lar:</strong> her gözlem yayımlandığı aya yazılır (point-in-time). Rakip payı her dönemin kendi sıralamasından hesaplanır;
 sonraki revizyonlar geçmiş satırlarda görünür.</li>
+<li><strong>Yayımlanmış pay bulguları:</strong> kaynak politikasına uyan sayfalardan elle doğrulanarak derlenir. Hesaplanmış pay değildir; rakamlar
+ortalanmaz, çelişkiler olduğu gibi gösterilir ve hiçbir hesaba ya da feature'a girmez.</li>
 </ul>
 """
 
@@ -183,10 +224,14 @@ def limits_page(r: dict) -> str:
     body = f"<p><strong>{H.esc(r['message'])}</strong></p>"
     if r["sector_candidates"]:
         body += "<ul>" + "".join(f"<li>{H.esc(s['name'])}: {H.esc(s['reason'])}.</li>" for s in r["sector_candidates"]) + "</ul>"
-    sections = [H.section("Sonuç", body, "result")]
+    ev = r.get("evidence")
+    found = bool(ev and (ev["current"] or ev["historical"]))
+    sections = [evidence_section(ev)] if found else []  # what was published comes before what could not be computed
+    sections.append(H.section("Sonuç", body, "result"))
     items = "".join(f"<li>{H.esc(a['message'])}" + (f" Seri kodu: <code>{H.esc(a['series'])}</code>." if a.get("series") else "") + "</li>" for a in r["available"])
     sections.append(H.section("Bunun yerine kullanılabilecekler", f"<ul>{items}</ul>", "available"))
-    return H.page(f"{r['query']}: marka raporu", "Oyuncu düzeyinde veri yok; pazar payı hesaplanmadı", sections, "ML Booster kaynak kataloğu.")
+    subtitle = "Oyuncu düzeyinde veri yok; pay hesaplanmadı, yayımlanmış bulgular derlendi" if found else "Oyuncu düzeyinde veri yok; pazar payı hesaplanmadı"
+    return H.page(f"{r['query']}: marka raporu", subtitle, sections, "ML Booster kaynak kataloğu.")
 
 
 def build(r: dict, documented: dict | None, narrative: str | None, assumptions: dict | None, title: str | None) -> str:
@@ -205,6 +250,9 @@ def build(r: dict, documented: dict | None, narrative: str | None, assumptions: 
     if r.get("features"):
         sections.append(features_section(r["features"]))
         nav.append(("features", "Feature'lar"))
+    if r.get("evidence"):
+        sections.append(evidence_section(r["evidence"]))
+        nav.append(("evidence", "Bulgular"))
     sections.append(sources_section(r))
     nav.append(("sources", "Kaynaklar"))
     if assumptions:

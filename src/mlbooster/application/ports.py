@@ -9,7 +9,7 @@ from typing import Protocol
 import pandas as pd
 
 from mlbooster.application.dto import FetchRequest
-from mlbooster.domain.model import Catalog, HealthResult, MacroFeature, SeedSeries, Source
+from mlbooster.domain.model import Catalog, HealthResult, MacroFeature, SeedSeries, ShareEvidence, Source
 from mlbooster.domain.services.brand_resolution import EntityScan
 
 
@@ -89,6 +89,25 @@ class ObservationStore(Protocol):
 class EntityDirectory(Protocol):
     def scan(self, refresh: bool = False) -> EntityScan:
         """Players of the entity-level sources, and the sources that could not be read."""
+        ...
+
+
+class EvidenceStore(Protocol):
+    """Published share figures found on the web. Kept apart from the observation store: these are not observations."""
+
+    def add(self, evidence: ShareEvidence) -> bool:
+        """False if the same URL and claim is already stored."""
+        ...
+
+    def list(self, brand_keys: list[str] | None = None) -> list[ShareEvidence]: ...
+
+    def remove(self, evidence_id: str, reason: str, at: date) -> ShareEvidence | None:
+        """Deletes the record and remembers its id, so that the same wrong claim is not recorded again.
+        Returns the removed record; None if the id is unknown."""
+        ...
+
+    def rejection(self, evidence_id: str) -> str | None:
+        """The reason a claim was rejected earlier; None if it was not."""
         ...
 
 

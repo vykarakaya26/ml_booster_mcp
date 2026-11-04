@@ -24,6 +24,10 @@ _POSITION_FIELDS = ("share", "d_prev_pp", "d_year_pp", "rank_year_ago", "relativ
 _MONTHS = ("Ocak", "Şubat", "Mart", "Nisan", "Mayıs", "Haziran", "Temmuz", "Ağustos", "Eylül", "Ekim", "Kasım", "Aralık")
 
 
+def month_label(day: date) -> str:
+    return f"{_MONTHS[day.month - 1]} {day.year}"
+
+
 def _rivals(players: list[dict], focus: str, exclude: set[str]) -> list[dict]:
     """Active players ranked by share, without the source's residual row and the brand's sibling entities."""
     kept = [
@@ -137,9 +141,8 @@ def merged_issues(results: list[tuple[str, dict]]) -> list[dict]:
 
 def headline(brand: str, sector: str, primary: dict) -> str:
     basis = "son 12 ay" if primary["basis"] == "ttm" else "dönem"
-    last = date.fromisoformat(primary["last"])
     text = (
-        f"{brand}, {sector} sektöründe {primary['series']} serisinde {_MONTHS[last.month - 1]} {last.year} itibarıyla {basis} "
+        f"{brand}, {sector} sektöründe {primary['series']} serisinde {month_label(date.fromisoformat(primary['last']))} itibarıyla {basis} "
         f"bazında {tr_pct(primary['share'])} pay ile {primary['players']} aktif oyuncu arasında {primary['rank']}. sırada."
     )
     if primary.get("d_year_pp") is not None:

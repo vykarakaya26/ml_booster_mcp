@@ -2,11 +2,16 @@ import os
 import stat
 from datetime import UTC, date, datetime, timedelta
 
+import duckdb
 import pandas as pd
 import pytest
 
+from mlbooster.application.errors import ProviderUnavailable
 from mlbooster.domain.errors import InvalidInput
+from mlbooster.domain.model import ShareEvidence
 from mlbooster.domain.observations import OBSERVATION_COLUMNS
+from mlbooster.infrastructure.storage import evidence_store as module
+from mlbooster.infrastructure.storage.evidence_store import DuckDbEvidenceStore
 from mlbooster.infrastructure.storage.observation_store import ARROW_SCHEMA, ParquetObservationStore
 from mlbooster.infrastructure.storage.panel_store import ParquetPanelStore
 from mlbooster.infrastructure.storage.raw_store import RawStore
@@ -118,3 +123,44 @@ def test_raw_store_load_ignores_file_names_it_did_not_write(tmp_path):
     manifest = tmp_path / "btk" / "manifest.jsonl"
     manifest.write_text(manifest.read_text().replace('"file": "', '"file": "../secret.pdf#'))
     assert store.load("btk", "https://x/a.pdf") is None
+
+
+# --- evidence store ---------------------------------------------------------------------------------------------------
+
+
+def _evidence(**kwargs):
+    base = {"id": "0123456789abcdef", "brand": "Migros", "brand_key": "migros", "sector": "perakende", "claim": "share", "value": 24.5,
+            "value_high": None, "qualifier": "exact", "basis": "revenue", "geography": "Türkiye", "segment": None, "period": "2024",
+            "period_end": date(2024, 12, 31), "published": "2025-03", "publisher": "Migros'; DROP TABLE share_evidence; --", "tier": "company",
+            "url": "https://www.migroskurumsal.com/x?a=1", "quote": "pay %24,5", "retrieved": date(2026, 11, 4), "second_hand": False,
+            "original_source": None, "original_date": None, "confidence": "medium"}  # fmt: skip
+    return ShareEvidence(**{**base, **kwargs})
+
+
+def test_evidence_store_round_trip_dedupes_and_lives_in_a_private_directory(tmp_path):
+    root = tmp_path / "data" / "evidence"
+    store = DuckDbEvidenceStore(root)
+    assert store.list() == [] and store.rejection("0123456789abcdef") is None  # nothing is created by reading
+    assert not root.exists()
+    item = _evidence()
+    assert store.add(item) is True and store.add(item) is False
+    assert (root.stat().st_mode & 0o777) == 0o700
+    assert store.list(["migros"]) == [item] and store.list(["togg"]) == [] and store.list() == [item]
+    assert store.remove("ffffffffffffffff", "x", date(2026, 11, 4)) is None
+    assert store.remove(item.id, "Yanlış yıl", date(2026, 11, 4)) == item
+    assert store.list() == [] and store.rejection(item.id) == "Yanlış yıl"
+    assert store.add(_evidence(id="1123456789abcdef")) is True and len(store.list()) == 1
+
+
+def test_evidence_store_waits_for_another_writer_then_gives_a_safe_error(tmp_path, monkeypatch):
+    monkeypatch.setattr(module, "LOCK_WAIT_SECONDS", 0)
+    calls = []
+
+    def locked(path, read_only=False):
+        calls.append(path)
+        raise duckdb.IOException("Could not set lock on file /secret/path")
+
+    monkeypatch.setattr(module.duckdb, "connect", locked)
+    with pytest.raises(ProviderUnavailable) as exc:
+        module.DuckDbEvidenceStore(tmp_path).add(_evidence())
+    assert len(calls) == module.LOCK_RETRIES and "/secret" not in str(exc.value)

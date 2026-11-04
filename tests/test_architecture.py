@@ -63,7 +63,7 @@ def test_only_composition_root_wires_infrastructure_into_interfaces():
 
 # Container fields that hold ports. Interfaces call use cases only; reaching a port directly bypasses
 # the validation gate in the application layer (CLAUDE.md: "interfaces only call use cases").
-PORT_FIELDS = {"catalog", "providers", "observations", "panels", "overrides", "updates", "tables", "_tables"}
+PORT_FIELDS = {"catalog", "providers", "observations", "panels", "overrides", "updates", "tables", "_tables", "evidence_store", "_evidence"}
 
 
 def _port_accesses(path: Path) -> list[str]:
@@ -84,3 +84,12 @@ def _port_accesses(path: Path) -> list[str]:
 def test_interfaces_call_use_cases_not_ports():
     violations = [hit for f in _files("interfaces") for hit in _port_accesses(f)]
     assert not violations, "Interfaces must go through use cases:\n" + "\n".join(violations)
+
+
+def test_evidence_stays_out_of_the_observation_and_feature_path():
+    """Published figures are compiled claims: nothing that builds panels or features may even import them."""
+    feature_path = ["use_cases/panel.py", "use_cases/series.py", "use_cases/modeling.py", "use_cases/market_share.py"]
+    feature_path = [ROOT / "application" / p for p in feature_path]
+    feature_path += [ROOT / "domain" / "services" / f for f in ("brand_features.py", "feature_engineering.py", "market_share.py")]
+    offenders = [str(f.relative_to(ROOT)) for f in feature_path for name in _imports(f) if "evidence" in name]
+    assert not offenders, f"Evidence must not reach panels or features: {offenders}"

@@ -1,0 +1,129 @@
+# Source policy of the market share evidence search (domain/services/evidence.py). Published figures found on the web are
+# compiled here; the search itself runs in the Claude Code plugin (agents/share-research.md), never in the package.
+# A domain matches exactly or as a subdomain; anything not listed is refused. The tier always comes from this file, the
+# caller cannot choose it.
+current_max_age_days: 730  # older figures (period end) leave "current" but stay listed as historical
+contradiction_pp: 1.0  # two figures on one basis, scope and period further apart than this are reported as a contradiction
+quote_max_words: 15
+tiers:
+  - id: official
+    rank: 1
+    label: "Resmî kaynak"
+    reason: "Rekabet Kurumu kararları ve sektör raporları, düzenleyici kurumlar ve Resmî Gazete. Yayımlayan kurumun tarafı yoktur; pazar tanımı ve dönem genellikle açıktır."
+    max_confidence: high
+    domains:
+      - rekabet.gov.tr
+      - bddk.org.tr
+      - epdk.gov.tr
+      - btk.gov.tr
+      - spk.gov.tr
+      - tcmb.gov.tr
+      - tuik.gov.tr
+      - resmigazete.gov.tr
+      - seddk.gov.tr
+      - ticaret.gov.tr
+      - sanayi.gov.tr
+      - titck.gov.tr
+      - shgm.gov.tr
+      - dhmi.gov.tr
+  - id: company
+    rank: 2
+    label: "Şirket ya da dernek"
+    reason: "Şirketin faaliyet raporu ve yatırımcı sunumu, sektör derneğinin yayını. Birincil belgedir, ancak şirket beyanı tarafsız değildir; pazar tanımını şirket seçer."
+    max_confidence: medium
+    domains:  # sector associations: valid for any brand
+      - tbb.org.tr
+      - tkbb.org.tr
+      - tsb.org.tr
+      - odmd.org.tr
+      - osd.org.tr
+      - petder.org.tr
+      - tobb.org.tr
+      - tubisad.org.tr
+      - aifd.org.tr
+      - ieis.org.tr
+      - tursab.org.tr
+      - ampd.org
+  - id: press
+    rank: 3
+    label: "Basın"
+    reason: "Bilinen yayın organlarının haberi. Yalnızca özgün kaynağı ve tarihini adıyla belirten haberler kaydedilir; haber özgün kaynağın yerine geçmez."
+    max_confidence: medium
+    requires_original: true
+    domains:
+      - aa.com.tr
+      - bloomberght.com
+      - ekonomim.com
+      - dunya.com
+      - trthaber.com
+      - ntv.com.tr
+      - cnnturk.com
+      - haberturk.com
+      - hurriyet.com.tr
+      - forbes.com.tr
+      - fortuneturkey.com
+      - capital.com.tr
+      - ekonomist.com.tr
+      - marketingturkiye.com.tr
+      - perakende.org
+      - reuters.com
+      - bloomberg.com
+company_domains:  # own sites of known brands: valid for that brand only
+  Migros: [migroskurumsal.com, migros.com.tr]
+  BİM: [bim.com.tr]
+  ŞOK Market: [sokmarket.com.tr]
+  CarrefourSA: [carrefoursa.com]
+  Hepsiburada: [hepsiburada.com]
+  Mavi: [mavi.com]
+  Teknosa: [teknosa.com]
+  Boyner: [boyner.com.tr, boynergrup.com]
+  Togg: [togg.com.tr]
+  Türk Hava Yolları: [turkishairlines.com]
+  Pegasus: [flypgs.com]
+brand_domain_rule:  # own site of a brand that is not listed above: the registrable domain must start with the brand name
+  min_letters: 4
+  max_confidence: low
+  deny_words: [blog, haber, news, forum, sikayet, yorum, indirim, kampanya, firsat, wiki, rehber, nedir]
+restricted:
+  - domain: kap.org.tr
+    tier: company
+    path_pattern: "^/(tr|en)/(Bildirim|Disclosure)/[0-9]+/?$"
+    reason: "KAP'ın telif uyarısı içeriğin saklanmasını yasaklar. Yalnızca kullanıcının açabileceği tek bir bildirimin bağlantısı ve kısa atıflı iddia kaydedilir; alıntı saklanmaz, toplu okuma yapılmaz."
+refused:
+  - label: "Kullanıcı üretimi sayfalar"
+    reason: "Yazarı ve dayanağı doğrulanamaz; sayfa sonradan değişebilir."
+    domains: [eksisozluk.com, sikayetvar.com, reddit.com, quora.com, wikipedia.org, wikiwand.com, facebook.com, instagram.com, x.com, twitter.com, linkedin.com, youtube.com, tiktok.com, donanimhaber.com, technopat.net, r10.net]
+  - label: "Anonim bloglar ve belge paylaşım siteleri"
+    reason: "Rakamın özgün kaynağı belirsizdir; öğrenci ödevi, kopya rapor ve yapay zekâ ile üretilmiş içerik sık görülür."
+    domains: [medium.com, blogspot.com, wordpress.com, wixsite.com, substack.com, slideshare.net, scribd.com, studocu.com, academia.edu, coursehero.com]
+  - label: "SEO ve listicle siteleri"
+    reason: "Kaynaksız sayılar ve yapay zekâ ile üretilmiş listeler yayımlar."
+    domains: [sirketlistesi.com, enbuyukler.com, nedir.com, webtekno.com, shiftdelete.net]
+paid_research:
+  reason: "Ücretli araştırma içeriğine erişilmez. Bu kurumların bir Tier 1–3 sayfada herkese açık olarak alıntılanan rakamı, alıntılayan sayfa kaynak gösterilerek ikinci el (second-hand) işaretiyle kaydedilebilir."
+  names: [nielsen, nielseniq, euromonitor, iqvia, kantar, gfk, statista, mordor intelligence, ibisworld, gartner, idc]
+  domains: [nielsen.com, nielseniq.com, euromonitor.com, iqvia.com, kantar.com, kantarworldpanel.com, gfk.com, statista.com, mordorintelligence.com, ibisworld.com, gartner.com, idc.com]
+search:
+  max_searches: 8
+  max_fetches: 12
+  min_independent_sources: 2
+  queries:
+    tr:
+      - "{brand} pazar payı {year}"
+      - "{brand} {sector_tr} pazar payı yüzde"
+      - "{brand} Rekabet Kurulu kararı pazar payı"
+      - "{brand} faaliyet raporu pazar payı {year}"
+      - "{brand} yatırımcı sunumu pazar payı"
+    en:
+      - "{brand} market share Turkey {year}"
+      - "{brand} investor presentation market share Turkey"
+      - "{brand} {sector_en} Turkey market share annual report"
+  sector_terms:
+    otomotiv: {tr: otomobil satış, en: automotive}
+    bankacilik: {tr: bankacılık, en: banking}
+    sigorta: {tr: sigorta prim üretimi, en: insurance}
+    telekom: {tr: telekom abone, en: telecom}
+    akaryakit: {tr: akaryakıt dağıtım, en: fuel retail}
+    perakende: {tr: organize perakende, en: organized retail}
+    turizm: {tr: yolcu sayısı, en: airline passengers}
+    konut: {tr: konut satış, en: housing}

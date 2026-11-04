@@ -12,6 +12,7 @@ from functools import cached_property
 from mlbooster.application.ports import (
     CatalogOverrides,
     CatalogRepository,
+    EvidenceStore,
     ObservationStore,
     PanelStore,
     ProviderFactory,
@@ -27,14 +28,19 @@ from mlbooster.application.use_cases import (
     CheckForUpdates,
     DiscoverSeries,
     EngineerFeatures,
+    EvidenceTable,
     ExportTable,
     FetchSeries,
     GetSectorMap,
+    ListEvidence,
     ListReadyProviders,
     ListSectors,
     ListShareSeries,
     ListSources,
+    PlanEvidenceSearch,
     PreparePanel,
+    RecordEvidence,
+    RejectEvidence,
     ResolveBrand,
     RunHealthChecks,
     SearchSeries,
@@ -42,10 +48,12 @@ from mlbooster.application.use_cases import (
     SourceShareTable,
     StoreEntityDirectory,
 )
+from mlbooster.domain.errors import InvalidInput
 from mlbooster.infrastructure.catalog_yaml import YamlCatalogRepository
 from mlbooster.infrastructure.providers.registry import ProviderRegistry
 from mlbooster.infrastructure.secret_store import EnvSecretProvider
 from mlbooster.infrastructure.settings import Settings
+from mlbooster.infrastructure.storage.evidence_store import DuckDbEvidenceStore
 from mlbooster.infrastructure.storage.observation_store import ParquetObservationStore
 from mlbooster.infrastructure.storage.panel_store import ParquetPanelStore
 from mlbooster.infrastructure.storage.raw_store import RawStore
@@ -62,6 +70,7 @@ class Container:
     overrides: CatalogOverrides
     updates: UpdateSource | None = None
     tables: TableReader | None = None
+    evidence_store: EvidenceStore | None = None
 
     @cached_property
     def list_sectors(self) -> ListSectors:
@@ -140,23 +149,63 @@ class Container:
     @cached_property
     def resolve_brand(self) -> ResolveBrand:
         directory = StoreEntityDirectory(self.catalog, self.providers, self.fetch_series, self.observations)
-        return ResolveBrand(self.catalog, directory, self.fetch_series)
+        return ResolveBrand(self.catalog, directory, self.fetch_series, self.list_evidence)
 
     @cached_property
     def analyze_brand(self) -> AnalyzeBrand:
-        return AnalyzeBrand(self.catalog, self.resolve_brand, self.market_share, self.share_tables)
+        return AnalyzeBrand(self.catalog, self.resolve_brand, self.market_share, self.share_tables, self.list_evidence)
 
     @cached_property
     def brand_features(self) -> BuildBrandFeatures:
         return BuildBrandFeatures(self.catalog, self.resolve_brand, self.share_tables, self.build_panel, self.panels)
 
+    @cached_property
+    def plan_evidence(self) -> PlanEvidenceSearch:
+        return PlanEvidenceSearch(self.catalog, self._evidence)
+
+    @cached_property
+    def record_evidence(self) -> RecordEvidence:
+        return RecordEvidence(self.catalog, self._evidence)
+
+    @cached_property
+    def list_evidence(self) -> ListEvidence:
+        return ListEvidence(self.catalog, self._evidence)
+
+    @cached_property
+    def reject_evidence(self) -> RejectEvidence:
+        return RejectEvidence(self.catalog, self._evidence)
+
+    @cached_property
+    def evidence_table(self) -> EvidenceTable:
+        return EvidenceTable(self.catalog, self._evidence)
+
     @property
     def _tables(self) -> TableReader:
         return self.tables or LocalTableReader()
 
+    @property
+    def _evidence(self) -> EvidenceStore:
+        return self.evidence_store or _NoEvidence()
+
 
 class _NoUpdates:
     def latest_version(self) -> str | None:
+        return None
+
+
+class _NoEvidence:
+    """Without a store nothing can be recorded; reading simply finds nothing."""
+
+    def add(self, evidence) -> bool:
+        raise InvalidInput("Bulgu deposu bağlı değil")
+
+    def list(self, brand_keys=None) -> list:
+        return []
+
+    def remove(self, evidence_id, reason, at):
+        return None
+
+    def rejection(self, evidence_id):
         return None
 
 
@@ -171,4 +220,5 @@ def build_container(settings: Settings | None = None) -> Container:
         panels=ParquetPanelStore(settings.data_dir / "gold"),
         updates=GitHubReleaseSource(settings.data_dir / "update_check.json"),
         tables=LocalTableReader(),
+        evidence_store=DuckDbEvidenceStore(settings.data_dir / "evidence"),
     )

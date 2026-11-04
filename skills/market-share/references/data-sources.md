@@ -22,8 +22,27 @@ kullanılmadan önce birincil kaynaktan kontrol edilmelidir.
 
 Halka açık şirketlerin KAP'ta yayımladığı faaliyet raporları ve yatırımcı sunumları çoğu sektörde şirketin kendi
 açıkladığı pazar payını içerir. Bu değerler şirket beyanıdır; analiz tablosuna değil, nitel değerlendirmeye
-(`competitors.json`) kaynak olarak eklenir. KAP'ta toplu veri çekimi (scraping) yapılmaz; yalnızca ilgili bildirim
-okunur.
+(`competitors.json`) ya da yayımlanmış pay bulgularına kaynak olarak eklenir. KAP'ta toplu veri çekimi (scraping) yapılmaz;
+yalnızca ilgili bildirim okunur.
+
+## Yayımlanmış pay bulguları
+
+Oyuncu düzeyinde kaynak yoksa ya da hesaplanan pay başka bir kaynakla sınanacaksa `share-research` agent'ı web'de yayımlanmış
+rakamları arar. Politika `src/mlbooster/catalog_data/evidence_sources.yaml` dosyasındadır; kaynak türünü alan adı belirler ve listede
+olmayan site reddedilir.
+
+| Kaynak türü | Kapsam | Koşul |
+|---|---|---|
+| Resmî (Tier 1) | Rekabet Kurumu kararları ve sektör raporları, BDDK, EPDK, BTK, SPK, TCMB, TÜİK, SEDDK, Resmî Gazete | Güven düzeyi yüksek olabilir |
+| Şirket ya da dernek (Tier 2) | Faaliyet raporu, yatırımcı sunumu, sektör dernekleri | Şirket beyanıdır; güven en fazla orta. Katalogda olmayan şirket sitesi yalnızca alan adı marka adıyla başlıyorsa kabul edilir ve güven düşük kalır |
+| Basın (Tier 3) | Bilinen yayın organları | Özgün kaynak ve tarihi yazılmalıdır; güven en fazla orta |
+| Reddedilir | Anonim bloglar, SEO ve yapay zekâ üretimi listeler, kullanıcı üretimi sayfalar, kaynaksız sayılar | Kaydedilmez |
+| Ücretli araştırma | Nielsen, Euromonitor, IQVIA vb. | İçeriğe erişilmez. Tier 1–3 bir sayfada herkese açık alıntılanan rakam, alıntılayan sayfa kaynak gösterilerek ikinci el işaretiyle kaydedilir |
+| kap.org.tr | Tek bir bildirimin bağlantısı ve kısa atıflı iddia | Alıntı saklanmaz, toplu okuma yapılmaz |
+
+Her kayıtta rakam, dönem, ölçü, kapsam, coğrafya, yayım tarihi, yayıncı, kaynak türü, bağlantı ve en fazla 15 sözcüklük alıntı bulunur; sayfa
+metni saklanmaz. Dönemi 730 günden eski bulgular "güncel" olmaktan çıkar, ancak listede kalır. Bulgular analiz tablosuna, gözlem deposuna
+ve feature'lara girmez.
 
 ## Tablo biçimi
 
