@@ -47,11 +47,11 @@ HAVING GROUPING(region_code) = 1 OR COUNTIF(raw_score IS NOT NULL) > 0
 """
 
 
-def _runs(days: list[date]) -> list[tuple[date, date]]:
-    """Consecutive days grouped into (start, end) ranges of at most SYNC_CHUNK_DAYS days."""
+def _runs(days: list[date], limit: int = SYNC_CHUNK_DAYS) -> list[tuple[date, date]]:
+    """Consecutive days grouped into (start, end) ranges of at most `limit` days."""
     out: list[tuple[date, date]] = []
     for day in sorted(days):
-        if out and day == out[-1][1] + timedelta(days=1) and (day - out[-1][0]).days < SYNC_CHUNK_DAYS:
+        if out and day == out[-1][1] + timedelta(days=1) and (day - out[-1][0]).days < limit:
             out[-1] = (out[-1][0], day)
         else:
             out.append((day, day))
@@ -77,7 +77,7 @@ class BigQueryMirror(BigQueryTermLookup):
         """What a download of the missing days would read, from free dry runs."""
         total, days = 0, 0
         for table, name in TABLES.items():
-            for start, end in _runs(self.missing_days(table)):
+            for start, end in _runs(self.missing_days(table), RETENTION_DAYS + 1):  # a dry run bills nothing: no chunks needed
                 for sql in (_LIST_SQL, _MIRROR_SQL):
                     total += self._bq().query(sql.format(dataset=DATASET, table=name), self._params(start, end), dry_run=True).bytes_processed
             days = max(days, len(self.missing_days(table)))

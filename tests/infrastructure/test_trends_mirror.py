@@ -106,7 +106,8 @@ class FakeBigQuery:
         sent = json.loads(request.content)
         p = {q["name"]: q["parameterValue"].get("value") for q in sent["queryParameters"]}
         since, until = date.fromisoformat(p["since"]), date.fromisoformat(p["until"])
-        assert p["country"] == "TR" and (until - since).days < 7 and sent["maximumBytesBilled"] == str(DEFAULT_MAX_BYTES)
+        assert p["country"] == "TR" and sent["maximumBytesBilled"] == str(DEFAULT_MAX_BYTES)
+        assert sent["dryRun"] or (until - since).days < 7
         assert "togg" not in sent["query"] and "country_name" not in sent["query"] and "percent_gain" not in sent["query"]
         kind = "backfill" if "GROUPING SETS" in sent["query"] else "list"
         self.calls.append((kind, p["since"], p["until"], sent["dryRun"]))
@@ -158,7 +159,7 @@ def make(catalog, mirror):
 def test_estimate_only_dry_runs_and_writes_nothing(make, fake, mirror):
     out = make().estimate()
     assert all(call[3] for call in fake.calls) and mirror.size_bytes() == 0
-    assert out["days"] == 36 and out["bytes"] == len(fake.calls) * 1024**3
+    assert out["days"] == 36 and out["bytes"] == len(fake.calls) * 1024**3 and len(fake.calls) == 4  # both queries of both tables
 
 
 def test_sync_copies_lists_and_backfills_once(make, fake, mirror):

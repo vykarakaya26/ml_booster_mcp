@@ -853,13 +853,17 @@ views.pazar = async (root) => {
         fill(box, h("p", { class: "muted" }, "Yerel kopya kapalı; tercihiniz kaydedildi."), noteLine,
           h("div", { class: "button-row" }, button("Yerel kopya seçeneğini göster", "Ölçülüyor", async () => show({ ...(await ask("status")), state: "off" }))));
       } else {
+        const later = button("Şimdi değil", "Kaydediliyor", async () => show(await ask("decline")));
         fill(box, h("h3", {}, "Yerel kopya oluşturulsun mu?"), h("p", {}, m.offer), noteLine,
           h("div", { class: "button-row" },
             button("Yerel kopya oluştur", "Kopyalanıyor", async () => {
-              const u = await ask("enable");
-              show(u, `Kopya hazır: ${nf(0).format(u.days_added)} gün eklendi, BigQuery ${nf(2).format(u.gib)} GiB okudu.`);
+              later.disabled = true;
+              try {
+                const u = await ask("enable");
+                show(u, `Kopya hazır: ${nf(0).format(u.days_added)} gün eklendi, BigQuery ${nf(2).format(u.gib)} GiB okudu.`);
+              } finally { later.disabled = false; }
             }, ""),
-            button("Şimdi değil", "Kaydediliyor", async () => show(await ask("decline")))));
+            later));
       }
     };
     fill(box, h("p", { class: "muted" }, "Yerel kopya durumu okunuyor."));
