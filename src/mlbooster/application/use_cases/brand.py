@@ -25,6 +25,7 @@ from mlbooster.application.use_cases.search_interest import SearchInterest, run_
 from mlbooster.application.use_cases.series import FetchSeries
 from mlbooster.domain.errors import DomainError, InvalidInput
 from mlbooster.domain.model import Catalog, Frequency, SeedSeries, SeriesKind, ShareSource, Source
+from mlbooster.domain.services import brand_groups
 from mlbooster.domain.services import brand_report as report
 from mlbooster.domain.services.brand_features import (
     BRAND_COLUMNS,
@@ -224,6 +225,13 @@ class SeriesPlan:
     seed: SeedSeries
     focus: str
     siblings: tuple[str, ...]  # other entities of the same brand: they are not competitors
+    match: BrandMatch | None = None
+    labels: dict[str, str] = field(default_factory=dict)
+
+    def reshape(self, table: pd.DataFrame) -> pd.DataFrame:
+        """The table as the analysis sees it: the members of a group become one player."""
+        group = self.match.group if self.match else None
+        return brand_groups.merged_table(table, group, self.labels) if group else table
 
 
 @dataclass(frozen=True)
@@ -266,6 +274,8 @@ class _BrandSeries:
                 skipped[code] = "Katalogda seri tanımı yok"
             elif not found:
                 skipped[code] = "Oyuncu bu seride yer almıyor"
+            elif match.group:
+                plans.append(SeriesPlan(seed, match.name, tuple(found), match, labels))
             else:
                 plans.append(SeriesPlan(seed, found[0], tuple(found[1:])))
         return plans, skipped
@@ -347,7 +357,7 @@ class AnalyzeBrand:
         out = []
         for plan in plans:
             try:
-                result = self._share.from_source(match.source, plan.seed.code, _config(plan, trend_years), period.start, period.end)
+                result = self._share.from_source(match.source, plan.seed.code, _config(plan, trend_years), period.start, period.end, reshape=plan.reshape)
             except (ProviderError, InvalidInput) as exc:
                 skipped[plan.seed.code] = str(exc)
                 continue
@@ -364,7 +374,9 @@ class AnalyzeBrand:
         tables = []
         for code in share.segments:
             try:
-                tables.append(self._tables(match.source, code, period.start, period.end)[0].assign(segment=code))
+                table = self._tables(match.source, code, period.start, period.end)[0]
+                labels = self._tables.labels(match.source, code, period.start, period.end)
+                tables.append(SeriesPlan(primary.seed, primary.focus, (), match, labels).reshape(table).assign(segment=code))
             except (ProviderError, InvalidInput):
                 continue
         if len(tables) < 2:
@@ -382,11 +394,19 @@ class AnalyzeBrand:
             "evidence": self._published(resolution, match),
         }  # fmt: skip
 
+    def _group(self, plan: SeriesPlan, result: dict, period: BrandPeriod) -> dict:
+        """The group next to its members: the same series analysed with the brands apart."""
+        group = plan.match.group
+        apart = self._share.from_source(group.source, plan.seed.code, replace(_config(plan), focus=None), period.start, period.end)
+        focus = next(p for p in result["players"] if p["entity"] == group.name)
+        return brand_groups.summary(group, apart["players"], plan.labels, focus["share"], date.fromisoformat(result["meta"]["last"]))
+
     def _published(self, resolution: BrandResolution, match: BrandMatch, series: list[dict] | None = None, histories: dict[str, dict] | None = None) -> dict | None:
         """Published figures of the brand. They travel in their own block: no computed field is built from them."""
         if self._evidence is None:
             return None
-        return self._evidence.section([match.name, resolution.query, *match.entity_names], series, histories)
+        members = () if match.group else match.entity_names  # a member's findings are not the group's
+        return self._evidence.section([match.name, resolution.query, *members], series, histories)
 
     def _assemble(
         self,
@@ -412,7 +432,8 @@ class AnalyzeBrand:
             "query": resolution.query, "status": RESOLVED, "brand": match.as_dict(),
             "others": [m.as_dict() for m in resolution.others],
             "sector": {"id": sector.id, "name": sector.name, "coverage": share.metric, "notes": share.notes},
-            "headline": report.headline(match.name, sector.name, summaries[0]),
+            "headline": report.group_headline(match.name, sector.name, summaries[0], len(match.entity_ids)) if match.group else report.headline(match.name, sector.name, summaries[0]),
+            "group": self._group(primary_plan, primary, period) if match.group else None,
             "position": summaries[0], "series": summaries,
             "concentration": summaries[0]["concentration"],
             "competitors": report.merge_competitors([(p.seed.code, r) for p, r in results], segments, exclude, display),
@@ -542,7 +563,7 @@ class BuildBrandFeatures:
             code = plan.seed.code
             try:
                 table, meta = self._tables(source.id, code, period.start, period.end)
-                metrics = brand_metrics(table, replace(_config(plan), kind="flow" if plan.seed.kind is SeriesKind.FLOW else "stock"), plan.siblings)
+                metrics = brand_metrics(plan.reshape(table), replace(_config(plan), kind="flow" if plan.seed.kind is SeriesKind.FLOW else "stock"), plan.siblings)
             except (ProviderError, InvalidInput) as exc:
                 skipped[code] = str(exc)
                 continue

@@ -10,6 +10,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from functools import cached_property
 
+from mlbooster.application.dto import RunnerReadiness
 from mlbooster.application.errors import ProviderNotImplemented
 from mlbooster.application.ports import (
     CatalogOverrides,
@@ -19,6 +20,7 @@ from mlbooster.application.ports import (
     ObservationStore,
     PanelStore,
     ProviderFactory,
+    ResearchRunner,
     TableReader,
     UpdateSource,
 )
@@ -55,10 +57,12 @@ from mlbooster.application.use_cases import (
     StoreEntityDirectory,
     TrendsLookup,
     TrendsMirrorControl,
+    WebResearch,
 )
 from mlbooster.application.use_cases.trends_mirror import MirrorSource, MirrorState
 from mlbooster.domain.errors import InvalidInput
 from mlbooster.infrastructure.catalog_yaml import YamlCatalogRepository
+from mlbooster.infrastructure.claude_runner import ClaudeCodeRunner
 from mlbooster.infrastructure.document_reader import PdfDocumentReader
 from mlbooster.infrastructure.providers.bigquery_mirror import TermLookups
 from mlbooster.infrastructure.providers.registry import ProviderRegistry
@@ -89,6 +93,7 @@ class Container:
     mirror_state: MirrorState | None = None
     mirror_source: Callable[[], MirrorSource] | None = None
     documents: DocumentReader | None = None
+    research_runner: ResearchRunner | None = None
 
     @cached_property
     def list_sectors(self) -> ListSectors:
@@ -211,6 +216,10 @@ class Container:
         return RejectEvidence(self.catalog, self._evidence)
 
     @cached_property
+    def web_research(self) -> WebResearch:
+        return WebResearch(self.catalog, self.research_runner or _NoRunner(), self._evidence)
+
+    @cached_property
     def evidence_table(self) -> EvidenceTable:
         return EvidenceTable(self.catalog, self._evidence)
 
@@ -226,6 +235,14 @@ class Container:
 class _NoUpdates:
     def latest_version(self) -> str | None:
         return None
+
+
+class _NoRunner:
+    def readiness(self) -> RunnerReadiness:
+        return RunnerReadiness(False, "Web araması bu kurulumda kullanılamıyor.", "Paneli `mlbooster web` ile başlatın.")
+
+    def run(self, brand, sector, on_event, cancel):
+        raise InvalidInput("Web araması bu kurulumda kullanılamıyor")
 
 
 class _NoEvidence:
@@ -258,6 +275,7 @@ def build_container(settings: Settings | None = None) -> Container:
         updates=GitHubReleaseSource(settings.data_dir / "update_check.json"),
         tables=LocalTableReader(),
         evidence_store=DuckDbEvidenceStore(settings.data_dir / "evidence"),
+        research_runner=ClaudeCodeRunner(settings.data_dir),
         search_terms=YamlSearchTerms(settings.catalog_dir / "search_terms.yaml"),
         term_lookup=lookups.current,
         mirror_state=mirror,

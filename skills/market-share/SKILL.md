@@ -49,8 +49,10 @@ BDDK (banka grupları), TSB (sigorta şirketleri), EPDK (akaryakıt ve LPG lisan
 - **`resolved`**: `headline`, `position`, `series`, `concentration`, `competitors`, `movers`, `segments`, `features` ve
   `sources` alanları hazırdır. `others` listesindeki benzer adları kullanıcıya bildir.
 - **`ambiguous`**: `matches` adaylarını kullanıcıya göster ve seçimini sor (AskUserQuestion varsa onu kullan). Tahmin etme.
-  Seçimden sonra `"$MLB" brand "<ad>" --choice <aday id> --features --json "$OUT/brand.json"` ile devam et. Grup adlarında
-  (Koç, Sabancı) her üye ayrı adaydır; birden fazlası isteniyorsa her biri için ayrı rapor üret.
+  Seçimden sonra `"$MLB" brand "<ad>" --choice <aday id> --features --json "$OUT/brand.json"` ile devam et. Holding adlarında
+  (Koç, Sabancı) her üye ayrı adaydır; birden fazlası isteniyorsa her biri için ayrı rapor üret. Tek kaynakta markaları toplanabilen
+  gruplar (Doğuş Otomotiv, Tofaş, Oyak Renault, Toyota Türkiye) doğrudan `resolved` döner: `group` alanı üye markaları, paylarını,
+  üyelik tarihlerini ve dayanak belgelerini verir. Grup payı kaynakta yayımlanmaz; raporda "üye markaların toplamı" diye nitelenir.
 - **`not_found`**: Hesaplanmış pay yoktur ve **pay tahmini yazılmaz**. Önce `evidence` alanını kontrol et; güncel bulgu yoksa ve
   kullanıcı aksini söylemediyse "Yayımlanmış bulgular" adımını çalıştır. Ardından `message`, `sector_candidates` ve `available`
   alanlarını aktar: sektör makro paneli (`sector-analysis`), Google Trends terimi (`--check-trends` BigQuery sorgusu çalıştırır;
@@ -78,7 +80,8 @@ ya da `"$MLB" trends-mirror enable --yes` çalıştır. İlk kopya onlarca GiB o
 ### Yayımlanmış bulgular
 Kaynaklarda oyuncu düzeyinde veri yoksa ya da kullanıcı hesaplanan payı yayımlanmış rakamlarla karşılaştırmak istiyorsa
 `share-research` agent'ını çalıştır (Agent aracı; `ml-booster:share-research`). Agent `evidence_policy` kurallarıyla arar, rakamı sayfada
-okur ve kaydeder; bütçesi bellidir ve bulgu çıkmazsa bunu söyler. Sonra `"$MLB" brand` komutunu yeniden çalıştır: `evidence` alanı
+okur ve kaydeder; bütçesi bellidir ve bulgu çıkmazsa bunu söyler. Panel ve CLI'dan da başlatılabilir: `"$MLB" brand "<ad>" --web-search`
+kullanıcının kendi Claude Code planıyla çalışır; bu akışın içindeyken agent'ı doğrudan çağır. Sonra `"$MLB" brand` komutunu yeniden çalıştır: `evidence` alanı
 dolu gelir.
 - `evidence.current` güncel bulgular, `evidence.historical` yaşı geçmiş bulgulardır; `evidence.contradictions` aynı ölçü, kapsam ve dönemde
   çelişen rakamları, `evidence.comparison` hesaplanan payla yan yana farkı ve olası nedeni verir.

@@ -76,6 +76,20 @@ def summary_section(r: dict, narrative: str | None) -> str:
     return H.section("Marka özeti", body, "summary")
 
 
+def group_section(g: dict) -> str:
+    """A group share is a computed sum: its members, their dates and the documents stay next to it."""
+    rows = []
+    for m in g["members"]:
+        name = m["name"] if m["included"] else f"{m['name']} (bu dönemde üye değil)"
+        since = f"{m['from']} tarihinden itibaren" if m["from"] else "başlangıcı doğrulanamadı"
+        basis = safe_link(m["url"], "belge") + H.esc(f" · {m['checked']}" + (f" · {m['note']}" if m["note"] else ""))
+        rows.append((H.esc(name), pct(m["share"], 2), "—" if m["rank"] is None else m["rank"], signed(m["d_year_pp"]), H.esc(since), basis))
+    body = f"<p><strong>Grup payı {pct(g['share'], 2)}: {H.esc(g['label'])}.</strong> Kaynak bu grubu ayrı bir oyuncu olarak yayımlamaz.</p>"
+    body += H.table(["Marka", "Pay", "Sıra", "Yıllık değişim (puan)", "Üyelik", "Dayanak"], rows, numeric=[1, 2, 3], raw=range(6))
+    body += "<ul>" + "".join(f"<li>{H.esc(n)}</li>" for n in g["notes"]) + "</ul>"
+    return H.section(f"{g['name']}: grup bileşimi", body, "group")
+
+
 def sector_section(r: dict) -> str:
     names = r["series_names"]
     rows = [(H.esc(s["name"]), pct(s["share"], 2), f"{s['rank']} / {s['players']}", signed(s.get("d_year_pp")), trend_badge(s["trend"]),
@@ -275,6 +289,9 @@ def build(r: dict, documented: dict | None, narrative: str | None, assumptions: 
         sys.exit(f"Hata: {r.get('message', 'rapor üretilecek veri yok')}")
     sections = [summary_section(r, narrative), sector_section(r), competitor_section(r, documented), history_section(r), concentration_section(r)]
     nav = [("summary", "Özet"), ("sector", "Sektör"), ("competitors", "Rakipler"), ("history", "Pay geçmişi"), ("concentration", "Yoğunlaşma")]
+    if r.get("group"):
+        sections.insert(1, group_section(r["group"]))
+        nav.insert(1, ("group", "Grup"))
     if r.get("segments"):
         sections.append(H.section("Segmentler", segment_section(r["segments"], r["position"]["focus"], r["series_names"]), "segments"))
         nav.append(("segments", "Segmentler"))

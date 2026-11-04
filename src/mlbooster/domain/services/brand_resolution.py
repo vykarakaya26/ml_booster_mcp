@@ -13,10 +13,11 @@ from dataclasses import dataclass, field
 from difflib import SequenceMatcher
 
 from mlbooster.domain.errors import NotFound
-from mlbooster.domain.model import BrandEntry, BrandLexicon
+from mlbooster.domain.model import BrandEntry, BrandGroup, BrandLexicon
 
 RESOLVED, AMBIGUOUS, NOT_FOUND = "resolved", "ambiguous", "not_found"
-ALIAS, EXACT, PARTIAL, FUZZY, CHOICE = "alias", "exact", "partial", "fuzzy", "choice"
+ALIAS, EXACT, PARTIAL, FUZZY, CHOICE, GROUP = "alias", "exact", "partial", "fuzzy", "choice", "group"
+GROUP_PREFIX = "GROUP."
 
 MAX_CANDIDATES = 10
 MAX_OTHERS = 5
@@ -54,10 +55,11 @@ class BrandMatch:
     entity_names: tuple[str, ...]
     score: float
     kind: str
+    group: BrandGroup | None = None  # the share of a group is computed as the sum of its members
 
     @property
     def id(self) -> str:
-        return f"{self.source}:{'+'.join(self.entity_ids)}"
+        return f"{self.source}:{GROUP_PREFIX}{self.group.id}" if self.group else f"{self.source}:{'+'.join(self.entity_ids)}"
 
     def as_dict(self) -> dict:
         return {"id": self.id, "name": self.name, "source": self.source, "sector": self.sector,
@@ -161,9 +163,24 @@ def _targets(entry: BrandEntry, by_key: dict, sector_of: dict[str, str]) -> list
     return out
 
 
+def _group_for(query: str, lexicon: BrandLexicon) -> BrandGroup | None:
+    key = "".join(tokens(query, lexicon))
+    return next((g for g in lexicon.groups if key in {"".join(tokens(a, lexicon)) for a in (g.name, *g.aliases)}), None)
+
+
+def _group_match(group: BrandGroup, by_key: dict, sector_of: dict[str, str]) -> BrandMatch | None:
+    """A group needs at least one member the scan has seen; members the source does not list stay out."""
+    found = [by_key[(group.source, m.entity)] for m in group.members if (group.source, m.entity) in by_key]
+    if not found or group.source not in sector_of:
+        return None
+    return BrandMatch(group.name, group.source, sector_of[group.source], tuple(r.entity_id for r in found), tuple(r.name for r in found), 1.0, GROUP, group)
+
+
 def resolve(query: str, scan: EntityScan, lexicon: BrandLexicon, sector_of: dict[str, str]) -> BrandResolution:
     """`sector_of`: source id → sector whose market share list holds it."""
     by_key = {(r.source, r.entity_id): r for r in scan.records}
+    if (group := _group_for(query, lexicon)) and (match := _group_match(group, by_key, sector_of)):
+        return BrandResolution(query, RESOLVED, (match,), (), 1)
     entry = _entry_for(query, lexicon)
     aliased = _targets(entry, by_key, sector_of) if entry else []
     taken = {(m.source, e) for m in aliased for e in m.entity_ids}
@@ -194,6 +211,12 @@ def pick(query: str, choice: str, scan: EntityScan, lexicon: BrandLexicon, secto
     """The candidate the user chose (`BrandMatch.id`); it must be a player the scan has seen."""
     source, _, ids = choice.partition(":")
     by_key = {(r.source, r.entity_id): r for r in scan.records}
+    if ids.startswith(GROUP_PREFIX):
+        group = next((g for g in lexicon.groups if g.source == source and g.id == ids.removeprefix(GROUP_PREFIX)), None)
+        match = _group_match(group, by_key, sector_of) if group else None
+        if match is None:
+            raise NotFound(f"Seçilen aday kaynakta bulunamadı: {choice}")
+        return BrandResolution(query, RESOLVED, (match,), (), 1)
     found = [by_key.get((source, e)) for e in ids.split("+")]
     if not all(found) or source not in sector_of:
         raise NotFound(f"Seçilen aday kaynakta bulunamadı: {choice}")

@@ -324,3 +324,29 @@ def test_prefetch_skips_cached_series(world):
     world.tables.prefetch("tbb", ["TBB.AKTIF"], date(2024, 1, 1), date(2025, 12, 31))
     world.tables.prefetch("tbb", ["TBB.AKTIF", "TBB.KREDI"], date(2024, 1, 1), date(2025, 12, 31))
     assert [c.series_ids for c in world.factory.calls] == [("TBB.AKTIF",), ("TBB.KREDI",)]
+
+
+# ------------------------------------------------------------------------------------------- groups
+
+
+def test_group_is_computed_as_a_sum_and_keeps_its_members_apart(world):
+    out = world.analyze("Tofaş", start=date(2022, 1, 1), end=date(2025, 12, 31))
+    fiat = world.analyze("Fiat", start=date(2022, 1, 1), end=date(2025, 12, 31))
+    assert out["status"] == "resolved" and out["brand"]["kind"] == "group" and out["brand"]["id"] == "odmd:GROUP.tofas"
+    assert out["position"]["share"] == pytest.approx(fiat["position"]["share"])  # the source lists only Fiat of this group
+    assert "üye markanın toplamıdır" in out["headline"]
+    members = {m["name"]: m for m in out["group"]["members"]}
+    assert members["Fiat"]["share"] == pytest.approx(out["group"]["share"]) and members["Peugeot"]["share"] is None
+    assert members["Peugeot"]["from"] == "2025-05-01" and members["Fiat"]["url"].startswith("https://")
+    assert any("doğrulanamadı" in n for n in out["group"]["notes"])
+    assert fiat["group"] is None
+
+
+def test_group_features_are_built_from_the_sum(world):
+    built = world.features("Tofaş", start=date(2022, 1, 1), end=date(2025, 12, 31))
+    assert built.brand["kind"] == "group" and "marka_pay" in built.panel and built.panel["marka_pay"].dropna().iloc[-1] > 0
+    assert built.panel_id.startswith("marka_tofas_")
+
+
+def test_a_group_member_name_still_means_the_brand(world):
+    assert world.analyze("Fiat", start=date(2022, 1, 1))["brand"]["kind"] != "group"

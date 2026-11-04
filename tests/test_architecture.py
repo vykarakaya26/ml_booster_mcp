@@ -9,7 +9,7 @@ import pytest
 
 ROOT = Path(__file__).resolve().parents[1] / "src" / "mlbooster"
 LAYERS = ["domain", "application", "infrastructure", "interfaces"]  # inside out
-IO_LIBS = {"httpx", "duckdb", "pyarrow", "yaml", "mcp", "mcp_types", "typer", "pydantic", "dotenv", "requests", "starlette", "uvicorn"}
+IO_LIBS = {"subprocess", "httpx", "duckdb", "pyarrow", "yaml", "mcp", "mcp_types", "typer", "pydantic", "dotenv", "requests", "starlette", "uvicorn"}
 
 
 def _imports(path: Path) -> set[str]:
@@ -63,7 +63,7 @@ def test_only_composition_root_wires_infrastructure_into_interfaces():
 
 # Container fields that hold ports. Interfaces call use cases only; reaching a port directly bypasses
 # the validation gate in the application layer (CLAUDE.md: "interfaces only call use cases").
-PORT_FIELDS = {"catalog", "providers", "observations", "panels", "overrides", "updates", "tables", "_tables", "evidence_store", "_evidence", "documents"}
+PORT_FIELDS = {"catalog", "providers", "observations", "panels", "overrides", "updates", "tables", "_tables", "evidence_store", "_evidence", "documents", "research_runner"}
 
 
 def _port_accesses(path: Path) -> list[str]:

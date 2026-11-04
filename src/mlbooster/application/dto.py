@@ -79,3 +79,26 @@ class PanelResult:
     panel: pd.DataFrame = field(default_factory=pd.DataFrame)
     skipped: dict[str, str] = field(default_factory=dict)
     location: str | None = None
+
+
+@dataclass(frozen=True)
+class RunnerReadiness:
+    """Whether the web search can run on this computer, and the exact next step if it cannot."""
+
+    ready: bool
+    reason: str | None = None
+    next_step: str | None = None
+    executable: str | None = None
+    plugin_dir: str | None = None
+
+
+@dataclass(frozen=True)
+class ResearchEvent:
+    kind: str  # started | search | page | record | refused
+
+
+@dataclass(frozen=True)
+class ResearchOutcome:
+    status: str  # finished | failed | cancelled
+    message: str
+    report: str | None = None

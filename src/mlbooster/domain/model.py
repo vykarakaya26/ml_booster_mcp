@@ -345,11 +345,38 @@ class BrandEntry:
 
 
 @dataclass(frozen=True)
+class GroupMember:
+    """A brand of a group or distributor, with the document that shows it. `start`/`end` limit the membership; `start`
+    None means the catalog could not date it."""
+
+    entity: str
+    name: str
+    url: str
+    checked: date
+    start: date | None = None
+    end: date | None = None
+    note: str | None = None
+
+
+@dataclass(frozen=True)
+class BrandGroup:
+    """Brands of one source that one company owns or distributes: its share is computed as their sum."""
+
+    id: str
+    name: str
+    source: str
+    members: tuple[GroupMember, ...]
+    aliases: tuple[str, ...] = ()
+    note: str | None = None
+
+
+@dataclass(frozen=True)
 class BrandLexicon:
     entries: tuple[BrandEntry, ...] = ()
     legal_tokens: frozenset[str] = frozenset()  # company form words, dropped from every name
     generic_tokens: frozenset[str] = frozenset()  # sector words that do not identify a brand on their own
     sector_keywords: tuple[tuple[str, tuple[str, ...]], ...] = ()  # (sector id, folded words that hint at it)
+    groups: tuple[BrandGroup, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -466,6 +493,7 @@ class Catalog:
             for target in entry.targets
             if target.source not in self.sources
         ]
+        errors += [f"{group.name}: bilinmeyen kaynak {group.source}" for group in self.brands.groups if group.source not in self.sources]
         errors += [
             f"{entry.name}: bilinmeyen sektör {sector}"
             for entry in self.brands.entries
