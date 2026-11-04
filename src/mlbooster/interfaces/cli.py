@@ -32,6 +32,7 @@ from mlbooster.interfaces.presenters import (
     features_dict,
     prep_dict,
     quality_dict,
+    search_lines,
     sector_map_dict,
     sector_map_markdown,
 )
@@ -441,6 +442,12 @@ def _echo_evidence(out: dict) -> None:
             typer.echo(line)
 
 
+def _echo_search(out: dict) -> None:
+    if section := out.get("search_interest"):
+        for line in search_lines(section):
+            typer.echo(line)
+
+
 def _echo_limits(out: dict) -> None:
     typer.echo(out["message"])
     if (section := out.get("evidence")) and (section["current"] or section["historical"]):
@@ -452,6 +459,7 @@ def _echo_limits(out: dict) -> None:
     typer.echo("Kullanılabilecekler:")
     for a in out["available"]:
         typer.echo(f"  - {a['message']}" + (f" Seri: {a['series']}" if a.get("series") else ""))
+    _echo_search(out)
 
 
 def _echo_brand(out: dict, top: int = 5) -> None:
@@ -476,6 +484,7 @@ def _echo_brand(out: dict, top: int = 5) -> None:
     for src in out["sources"]:
         typer.echo(f"{src['attribution']}. Lisans: {src['license']}")
     _echo_evidence(out)
+    _echo_search(out)
 
 
 @app.command()
@@ -489,6 +498,7 @@ def brand(
     features: Annotated[bool, typer.Option("--features", help="Marka feature panelini de üret ve yerel veri dizinine yaz")] = False,
     out: Annotated[Path | None, typer.Option(help="--features ile: paneli ayrıca bu dosyaya yaz (.parquet/.csv)")] = None,
     check_trends: Annotated[bool, typer.Option("--check-trends", help="Marka bulunmazsa terimi Google Trends listesinde ara (BigQuery sorgusu çalıştırır)")] = False,
+    search_interest: Annotated[bool, typer.Option("--search-interest", help="Marka, rakip ve kategori terimlerini Google Trends listelerinde ara (BigQuery sorgusu çalıştırır; pazar payı değildir)")] = False,
     json_out: Annotated[Path | None, typer.Option("--json", help="Sonucu bu JSON dosyasına yaz")] = None,
 ):
     """Marka ya da şirket adından pazar payı raporu: adı oyuncu düzeyinde kaynaklarda arar; sektörü, sırayı, payı, rakipleri
@@ -497,11 +507,11 @@ def brand(
         if out is not None:
             container().export_table.check(out)
         typer.echo("Kaynaklar taranıyor (yerel cache kullanılır; ilk arama birkaç dakika sürebilir)", err=True)
-        result = container().analyze_brand(name, choice, _date(start), _period_end(end), refresh, trend_years)
+        result = container().analyze_brand(name, choice, _date(start), _period_end(end), refresh, trend_years, search_interest)
         if result["status"] == "not_found" and check_trends:
-            result = container().resolve_brand(name, check_trends=True)
+            result = container().resolve_brand(name, check_trends=True) | {"search_interest": result["search_interest"]}
         if result["status"] == "resolved" and features:
-            built = container().brand_features(name, result["brand"]["id"], _date(start), _period_end(end))
+            built = container().brand_features(name, result["brand"]["id"], _date(start), _period_end(end), search_interest=search_interest)
             result["features"] = brand_features_dict(built)
             if out is not None:
                 result["features"]["export"] = container().export_table(built.storable, out)
@@ -519,6 +529,7 @@ def brand(
         _echo_limits(result)
     else:
         typer.echo(result["message"])
+        _echo_search(result)
 
 
 @evidence_app.command("list")

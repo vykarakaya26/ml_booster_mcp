@@ -1,0 +1,29 @@
+# Search terms of the brand flow, per sector (application/use_cases/search_interest.py).
+# generic: category terms; a term also matches longer last words, so stems are fine ("benzin fiyat" → "benzin fiyatları").
+#          Keep them specific: a short stem would match unrelated words.
+# brands:  competitor set used when the brand analysis does not supply one. Aliases come from brands.yaml.
+sectors:
+  bankacilik:
+    generic: [ihtiyaç kredi, konut kredi, taşıt kredi, kredi kartı, mevduat faiz, kredi faiz, emekli promosyon]
+    brands: [Ziraat Bankası, Halkbank, VakıfBank, Türkiye İş Bankası, Akbank, Garanti BBVA, Yapı Kredi, QNB, DenizBank, TEB, ING]
+  sigorta:
+    generic: [kasko, trafik sigorta, sağlık sigorta, dask, konut sigorta, bireysel emeklilik]
+    brands: [Anadolu Sigorta, Türkiye Sigorta, Allianz, Axa Sigorta, Sompo Sigorta, HDI Sigorta, Ray Sigorta, Mapfre]
+  otomotiv:
+    generic: [sıfır araba, sıfır araç, ikinci el araba, ikinci el araç, araba fiyat, otomobil fiyat, araç kredi, ötv]
+    brands: [Togg, Renault, Fiat, Toyota, Hyundai, Volkswagen, Ford, Dacia, Peugeot, Citroen, Opel, Skoda, BMW, Mercedes-Benz, BYD, Chery, Tesla]
+  akaryakit:
+    generic: [benzin fiyat, motorin fiyat, mazot fiyat, akaryakıt, lpg fiyat, benzin indirim, motorin indirim, benzin zam, motorin zam]
+    brands: [Petrol Ofisi, Shell, Opet, BP, Aytemiz, TotalEnergies, SOCAR]
+  telekom:
+    generic: [fiber internet, ev interneti, mobil tarife, internet paket, numara taşıma, 5g]
+    brands: [Turkcell, Vodafone, Türk Telekom, TurkNet, Superonline]
+  perakende:
+    generic: [market indirim, aktüel, online alışveriş, süpermarket, market fiyat, indirim günleri]
+    brands: [Migros, BİM, A101, ŞOK Market, CarrefourSA, Hepsiburada, Trendyol, Getir, Teknosa, MediaMarkt, LC Waikiki]
+  turizm:
+    generic: [uçak bilet, otel fiyat, tatil köyü, erken rezervasyon, vize başvuru]
+    brands: [Türk Hava Yolları, Pegasus, AJet, ETS Tur, Tatilsepeti, Jolly Tur]
+  konut:
+    generic: [konut kredi, kiralık daire, satılık daire, kira artış, konut fiyat]
+    brands: [Emlak Konut, TOKİ, Sahibinden, Hepsiemlak, Emlakjet]
