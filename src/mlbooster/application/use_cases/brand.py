@@ -16,6 +16,7 @@ from mlbooster.application.ports import (
     PanelStore,
     ProviderFactory,
 )
+from mlbooster.application.use_cases.evidence import ListEvidence
 from mlbooster.application.use_cases.market_share import AnalyzeMarketShare, SourceShareTable
 from mlbooster.application.use_cases.panel import BuildPanel
 from mlbooster.application.use_cases.series import FetchSeries
@@ -44,6 +45,7 @@ from mlbooster.domain.services.brand_resolution import (
     trends_code,
 )
 from mlbooster.domain.services.calendar_tr import HOLIDAY_YEARS, uncovered_years
+from mlbooster.domain.services.evidence import HOW_TO_SEARCH
 from mlbooster.domain.services.feature_engineering import FeatureConfig, FeatureSpec, generate
 from mlbooster.domain.services.market_share import ShareConfig
 from mlbooster.domain.validation import brand_choice, brand_query
@@ -136,10 +138,11 @@ def _sector_of(catalog: Catalog) -> dict[str, str]:
 class ResolveBrand:
     """Text → the brand, the candidates to choose from, or a plain statement of what is available instead."""
 
-    def __init__(self, catalog: CatalogRepository, directory: EntityDirectory, fetch: FetchSeries | None = None):
+    def __init__(self, catalog: CatalogRepository, directory: EntityDirectory, fetch: FetchSeries | None = None, evidence: ListEvidence | None = None):
         self._catalog = catalog
         self._directory = directory
         self._fetch = fetch
+        self._evidence = evidence
 
     def __call__(self, query: str, refresh: bool = False, check_trends: bool = False) -> dict:
         resolution, scan = self.resolution(query, refresh=refresh)
@@ -177,7 +180,9 @@ class ResolveBrand:
             message += f" Şu kaynaklar okunamadığı için sonuç kesin değil: {', '.join(sorted(scan.skipped))}."
         return {
             "message": message, "sector_candidates": sectors,
-            "available": _alternatives(catalog, [s["sector"] for s in sectors]) + [self._trends(resolution.query, check_trends)]
+            "evidence": self._evidence.section([resolution.query]) if self._evidence else None,
+            "available": [{"kind": "web_evidence", "message": HOW_TO_SEARCH.format(brand=resolution.query)}]
+            + _alternatives(catalog, [s["sector"] for s in sectors]) + [self._trends(resolution.query, check_trends)]
             + [{"kind": "user_table", "message": "Kendi pazar payı tablonuzu (entity, date, value) yükleyerek analiz yapabilirsiniz."}],
         }  # fmt: skip
 
@@ -285,11 +290,19 @@ class AnalyzeBrand:
     """Position, concentration, competitors and movers of a brand across the series of its sector. A text that does not
     lead to one brand returns the resolution (candidates or limits); no share is produced for it."""
 
-    def __init__(self, catalog: CatalogRepository, resolver: ResolveBrand, market_share: AnalyzeMarketShare, tables: SourceShareTable):
+    def __init__(
+        self,
+        catalog: CatalogRepository,
+        resolver: ResolveBrand,
+        market_share: AnalyzeMarketShare,
+        tables: SourceShareTable,
+        evidence: ListEvidence | None = None,
+    ):
         self._catalog = catalog
         self._resolver = resolver
         self._share = market_share
         self._tables = tables
+        self._evidence = evidence
         self._series = _BrandSeries(catalog, tables)
 
     def __call__(
@@ -350,7 +363,14 @@ class AnalyzeBrand:
         return {
             "query": resolution.query, "status": "no_data", "brand": match.as_dict(), "skipped_series": skipped,
             "message": f"{match.name} kaynakta bulundu; ancak {period.start} sonrası için pay hesaplanabilecek veri alınamadı.",
+            "evidence": self._published(resolution, match),
         }  # fmt: skip
+
+    def _published(self, resolution: BrandResolution, match: BrandMatch, series: list[dict] | None = None, histories: dict[str, dict] | None = None) -> dict | None:
+        """Published figures of the brand. They travel in their own block: no computed field is built from them."""
+        if self._evidence is None:
+            return None
+        return self._evidence.section([match.name, resolution.query, *match.entity_names], series, histories)
 
     def _assemble(
         self,
@@ -388,6 +408,7 @@ class AnalyzeBrand:
             "sources": _source_notes(catalog, match, is_proxy), "is_proxy": is_proxy,
             "issues": report.merged_issues([(p.seed.code, r) for p, r in results]),
             "skipped_series": skipped,
+            "evidence": self._published(resolution, match, summaries, {p.seed.code: r["shares"] for p, r in results}),
         }  # fmt: skip
 
 

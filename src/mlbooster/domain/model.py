@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from datetime import date
 from enum import StrEnum
 
 from mlbooster.domain.errors import InconsistentCatalog, NotFound
@@ -352,10 +353,98 @@ class BrandLexicon:
 
 
 @dataclass(frozen=True)
+class EvidenceTier:
+    """A class of web sources for published share figures; the lower the rank, the stronger the source."""
+
+    id: str
+    rank: int
+    label: str
+    reason: str
+    max_confidence: str
+    domains: tuple[str, ...] = ()
+    requires_original: bool = False  # the page must name the original source of the figure and its date
+
+
+@dataclass(frozen=True)
+class RestrictedDomain:
+    """A domain whose terms allow a link to one document and a short cited claim, nothing more."""
+
+    domain: str
+    tier: str
+    path_pattern: str
+    reason: str
+
+
+@dataclass(frozen=True)
+class RefusedSources:
+    label: str
+    reason: str
+    domains: tuple[str, ...]
+
+
+@dataclass(frozen=True)
+class EvidencePolicy:
+    """catalog_data/evidence_sources.yaml. A domain that is not listed is refused."""
+
+    tiers: tuple[EvidenceTier, ...] = ()
+    company_domains: tuple[tuple[str, tuple[str, ...]], ...] = ()  # (brand, its own sites)
+    brand_rule_min_letters: int = 4
+    brand_rule_max_confidence: str = "low"
+    brand_rule_deny_words: tuple[str, ...] = ()
+    restricted: tuple[RestrictedDomain, ...] = ()
+    refused: tuple[RefusedSources, ...] = ()
+    paid_reason: str = ""
+    paid_names: tuple[str, ...] = ()
+    paid_domains: tuple[str, ...] = ()
+    current_max_age_days: int = 730
+    contradiction_pp: float = 1.0
+    quote_max_words: int = 15
+    max_searches: int = 8
+    max_fetches: int = 12
+    min_independent_sources: int = 2
+    queries: tuple[tuple[str, tuple[str, ...]], ...] = ()  # (language, templates)
+    sector_terms: tuple[tuple[str, tuple[tuple[str, str], ...]], ...] = ()  # (sector, ((language, term), ...))
+
+    def tier(self, tier_id: str) -> EvidenceTier:
+        return next(t for t in self.tiers if t.id == tier_id)
+
+
+@dataclass(frozen=True)
+class ShareEvidence:
+    """A market share figure as published on a web page. It is a compiled claim, not a computed share: it never enters
+    the observation store or the feature panels. Only facts and a short quote are kept, never the text of the page."""
+
+    id: str
+    brand: str
+    brand_key: str
+    sector: str | None
+    claim: str  # share | rank
+    value: float
+    value_high: float | None  # upper end when the page gives a range
+    qualifier: str  # exact | about | over | under | range
+    basis: str
+    geography: str
+    segment: str | None
+    period: str
+    period_end: date
+    published: str
+    publisher: str
+    tier: str
+    url: str
+    quote: str
+    retrieved: date
+    second_hand: bool
+    original_source: str | None
+    original_date: str | None
+    confidence: str
+
+
+@dataclass(frozen=True)
 class Catalog:
     sources: dict[str, Source]
     sectors: dict[str, Sector]
     brands: BrandLexicon = BrandLexicon()
+    evidence: EvidencePolicy = EvidencePolicy()
 
     def __post_init__(self) -> None:
         errors = [

@@ -3,53 +3,13 @@ from datetime import UTC, date, datetime, timedelta
 import pandas as pd
 import pytest
 
-from fakes import PLAYERS, BrandFactory, InMemoryObservationStore, InMemoryPanelStore
-from mlbooster.application.dto import PanelResult
-from mlbooster.application.use_cases.brand import (
-    AnalyzeBrand,
-    BuildBrandFeatures,
-    ResolveBrand,
-    StoreEntityDirectory,
-)
-from mlbooster.application.use_cases.market_share import AnalyzeMarketShare, SourceShareTable
-from mlbooster.application.use_cases.series import FetchSeries
+from fakes import PLAYERS, BrandWorld, StubPanel
 from mlbooster.domain.errors import InvalidInput, NotFound
-
-
-class StaticCatalog:
-    def __init__(self, catalog):
-        self.catalog = catalog
-
-    def load(self):
-        return self.catalog
-
-
-class StubPanel:
-    def __init__(self, panel=None, skipped=None):
-        self.panel, self.skipped, self.calls = panel, skipped or {}, []
-
-    def __call__(self, sector_id, start, end, save=True):
-        self.calls.append((sector_id, start, save))
-        panel = self.panel if self.panel is not None else pd.DataFrame()
-        return PanelResult(sector_id, panel, self.skipped)
-
-
-class World:
-    def __init__(self, catalog, panel=None, **kwargs):
-        self.factory, self.store, self.panels = BrandFactory(**kwargs), InMemoryObservationStore(), InMemoryPanelStore()
-        repo = StaticCatalog(catalog)
-        fetch = FetchSeries(repo, self.factory, self.store)
-        self.tables = SourceShareTable(repo, fetch, self.store)
-        self.directory = StoreEntityDirectory(repo, self.factory, fetch, self.store)
-        self.resolve = ResolveBrand(repo, self.directory, fetch)
-        self.analyze = AnalyzeBrand(repo, self.resolve, AnalyzeMarketShare(None, None, self.tables), self.tables)
-        self.panel = panel or StubPanel()
-        self.features = BuildBrandFeatures(repo, self.resolve, self.tables, self.panel, self.panels)
 
 
 @pytest.fixture
 def world(catalog):
-    return World(catalog)
+    return BrandWorld(catalog)
 
 
 # ------------------------------------------------------------------------------------------- directory
@@ -77,7 +37,7 @@ def test_directory_drops_totals_and_residual_rows(world):
 
 
 def test_directory_refreshes_an_old_list_and_keeps_it_when_the_source_is_down(catalog):
-    world = World(catalog)
+    world = BrandWorld(catalog)
     world.directory.scan()
     world.store.frames = [f.assign(vintage_ts=datetime.now(UTC) - timedelta(days=40)) for f in world.store.frames]
     calls = len(world.factory.calls)
@@ -88,14 +48,14 @@ def test_directory_refreshes_an_old_list_and_keeps_it_when_the_source_is_down(ca
 
 
 def test_refresh_keeps_the_stored_list_when_the_source_is_down(catalog):
-    world = World(catalog)
+    world = BrandWorld(catalog)
     world.directory.scan()
     world.factory.down = {"odmd"}
     assert "TOGG" in {r.name for r in world.directory.scan(refresh=True).records}
 
 
 def test_source_that_cannot_be_read_is_reported(catalog):
-    world = World(catalog, down={"tbb"})
+    world = BrandWorld(catalog, down={"tbb"})
     scan = world.directory.scan()
     assert scan.skipped == {"tbb": "tbb yanıt vermedi"}
     assert "tbb" not in {r.source for r in scan.records}
@@ -122,7 +82,7 @@ def test_not_found_says_what_is_available_and_gives_no_share(world):
     assert out["status"] == "not_found" and "pazar payı hesaplanmadı" in out["message"]
     assert out["sector_candidates"][0]["sector"] == "perakende"
     kinds = [a["kind"] for a in out["available"]]
-    assert kinds[:2] == ["sector_panel", "share_source"] and "google_trends" in kinds and "user_table" in kinds
+    assert kinds[:3] == ["web_evidence", "sector_panel", "share_source"] and "google_trends" in kinds and "user_table" in kinds
     proxy = next(a for a in out["available"] if a["kind"] == "share_source")
     assert proxy["source"] == "bkm" and proxy["is_proxy"] is True
     trends = next(a for a in out["available"] if a["kind"] == "google_trends")
@@ -131,7 +91,7 @@ def test_not_found_says_what_is_available_and_gives_no_share(world):
 
 
 def test_not_found_carries_the_catalog_note_and_unread_sources(catalog):
-    world = World(catalog, down={"tbb"})
+    world = BrandWorld(catalog, down={"tbb"})
     message = world.resolve("Kuveyt Türk")["message"]
     assert "katılım bankalarını içermiyor" in message and "tbb" in message and "kesin değil" in message
 
@@ -143,14 +103,14 @@ def test_not_found_for_an_unknown_name_uses_keywords(world):
 
 
 def test_trends_check_is_opt_in_and_reports_a_failure_without_raising(catalog):
-    world = World(catalog, down={"bq_trends"})
+    world = BrandWorld(catalog, down={"bq_trends"})
     out = world.resolve("Migros", check_trends=True)
     trends = next(a for a in out["available"] if a["kind"] == "google_trends")
     assert trends["listed"] is None and "Kontrol edilemedi" in trends["message"]
 
 
 def test_trends_check_says_whether_the_term_is_listed(catalog, monkeypatch):
-    world = World(catalog)
+    world = BrandWorld(catalog)
     calls = []
 
     def fetch(request):
@@ -209,7 +169,7 @@ def test_report_carries_attribution_and_licence(world):
 
 
 def test_proxy_data_stays_marked_proxy(catalog):
-    world = World(catalog, proxy=True)
+    world = BrandWorld(catalog, proxy=True)
     out = world.analyze("Togg", start=date(2022, 1, 1), end=date(2025, 12, 31))
     assert out["is_proxy"] is True and out["sources"][0]["is_proxy"] is True and out["position"]["is_proxy"] is True
     assert any(i["check"] == "proxy" for i in out["issues"])
@@ -267,7 +227,7 @@ def test_brand_without_rows_in_the_period_reports_no_data(world):
 
 
 def test_brand_without_volume_in_a_series_is_skipped(catalog):
-    world = World(catalog)
+    world = BrandWorld(catalog)
     world.directory.scan()
     frames = []
     world.tables.prefetch("odmd", ["ODMD.TOPLAM", "ODMD.OTOMOBIL"], date(2022, 1, 1), date(2025, 12, 31))
@@ -281,7 +241,7 @@ def test_brand_without_volume_in_a_series_is_skipped(catalog):
 
 
 def test_fetch_failure_falls_back_to_cached_series(catalog):
-    world = World(catalog)
+    world = BrandWorld(catalog)
     world.analyze("Togg", start=date(2022, 1, 1), end=date(2025, 12, 31))
     world.factory.down = {"odmd"}
     out = world.analyze("Togg", start=date(2020, 1, 1), end=date(2025, 12, 31))  # asks for more history than is cached
@@ -298,7 +258,7 @@ def _macro():
 
 
 def test_features_join_brand_metrics_with_the_sector_panel(catalog):
-    world = World(catalog, panel=StubPanel(_macro(), {"kredi": "seri kodu bekleniyor"}))
+    world = BrandWorld(catalog, panel=StubPanel(_macro(), {"kredi": "seri kodu bekleniyor"}))
     out = world.features("Togg", start=date(2022, 1, 1), end=date(2025, 12, 31))
     panel = out.panel
     assert {"marka_pay", "marka_pay_degisim", "marka_sira", "lider_farki", "goreli_buyume", "rakip_pay", "tufe_yoy"} <= set(panel.columns)
@@ -312,7 +272,7 @@ def test_features_join_brand_metrics_with_the_sector_panel(catalog):
 
 
 def test_features_are_point_in_time_and_saved_as_a_panel(catalog):
-    world = World(catalog)
+    world = BrandWorld(catalog)
     out = world.features("Togg", start=date(2022, 1, 1), end=date(2025, 12, 31))
     assert out.panel.index[0] == pd.Timestamp("2023-01-31")  # 12-month basis to Dec 2022, published in January
     assert list(out.panel.index) == list(pd.date_range(out.panel.index[0], out.panel.index[-1], freq="ME"))
@@ -334,7 +294,7 @@ def test_features_can_stay_in_memory(world):
 def test_columns_from_a_source_that_forbids_storing_are_not_saved(catalog):
     held = next(f.name for f in catalog.sector("bankacilik").macro_features if f.source == "bkm")
     macro = _macro().rename(columns={"tufe_yoy": held})
-    world = World(catalog, panel=StubPanel(macro))
+    world = BrandWorld(catalog, panel=StubPanel(macro))
     out = world.features("Garanti", start=date(2022, 1, 1), end=date(2025, 12, 31))
     saved = next(iter(world.panels.saved.values()))
     assert held in out.panel.columns and held in out.withheld and f"{held}__l3" in out.withheld

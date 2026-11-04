@@ -166,13 +166,15 @@ def test_market_share_report(tmp_path):
     assert "Doğrudan rakip" in html and "pay etkisi" in html and "data-chart=" in html
 
 
-def _brand_analysis(tmp_path, catalog_repo, query, **kwargs):
-    from fakes import BrandFactory, InMemoryObservationStore, InMemoryPanelStore
+def _brand_analysis(tmp_path, catalog_repo, query, evidence=(), **kwargs):
+    from fakes import BrandFactory, InMemoryEvidenceStore, InMemoryObservationStore, InMemoryPanelStore
     from mlbooster.bootstrap import Container
     from mlbooster.interfaces.presenters import brand_features_dict
 
     c = Container(catalog=catalog_repo, providers=BrandFactory(), observations=InMemoryObservationStore(),
-                  panels=InMemoryPanelStore(), overrides=catalog_repo)  # fmt: skip
+                  panels=InMemoryPanelStore(), overrides=catalog_repo, evidence_store=InMemoryEvidenceStore())  # fmt: skip
+    for draft in evidence:
+        c.record_evidence(draft)
     out = c.analyze_brand(query, **kwargs)
     if out["status"] == "resolved":
         out["features"] = brand_features_dict(c.brand_features(query, out["brand"]["id"], kwargs.get("start"), kwargs.get("end")))
@@ -207,6 +209,44 @@ def test_brand_report_of_a_name_without_a_source_has_no_share(tmp_path, catalog_
     _run(SKILLS / "market-share/scripts/render_brand_report.py", "--analysis", str(path), "--out", str(target))
     html = target.read_text(encoding="utf-8")
     assert "pazar payı hesaplanmadı" in html and "Perakende" in html and "BQT.ILGI.MIGROS" in html and "Marka özeti" not in html
+
+
+def _draft(**kwargs):
+    from mlbooster.domain.services.evidence import EvidenceDraft
+
+    year = date.today().year - 1
+    base = {"brand": "Migros", "value": 24.5, "basis": "revenue", "period": str(year), "published": f"{year + 1}-03-01", "publisher": "Migros Ticaret",
+            "url": "https://www.migroskurumsal.com/rapor.pdf", "quote": "pazar payımız %24,5 oldu", "sector": "perakende"}  # fmt: skip
+    return EvidenceDraft(**{**base, **kwargs})
+
+
+def test_brand_report_of_a_name_without_a_source_leads_with_evidence(tmp_path, catalog_repo):
+    out, path = _brand_analysis(tmp_path, catalog_repo, "Migros", [_draft()])
+    item = out["evidence"]["current"][0]
+    item["publisher"] += EVIL
+    item["quote"] += EVIL
+    out["evidence"]["historical"] = [{**item, "url": "javascript:alert(1)", "period": "2019", "publisher": "eski yayın"}]
+    path.write_text(json.dumps(out, ensure_ascii=False), encoding="utf-8")
+    target = tmp_path / "report.html"
+    _run(SKILLS / "market-share/scripts/render_brand_report.py", "--analysis", str(path), "--out", str(target))
+    html = target.read_text(encoding="utf-8")
+    _assert_safe(html)
+    assert html.index("Yayımlanmış pay bulguları</h2>") < html.index("<h2>Sonuç</h2>") < html.index("Bunun yerine kullanılabilecekler")
+    assert "derlenmiş; hesaplanmış pay değildir" in html and "%24,5" in html and 'rel="noopener noreferrer"' in html
+    assert "javascript:" not in html and "Marka özeti" not in html
+
+
+def test_brand_report_shows_computed_and_published_side_by_side(tmp_path, catalog_repo):
+    start, end = date(2022, 1, 1), date(2025, 12, 31)
+    togg = _draft(brand="Togg", value=1.5, quote="payımız %1,5", basis="units", url="https://www.togg.com.tr/x", sector="otomotiv")
+    bad = _draft(brand="Togg", value=5, quote="payımız %5", basis="units", url="https://www.rekabet.gov.tr/x", publisher="Rekabet Kurumu", sector="otomotiv")
+    out, path = _brand_analysis(tmp_path, catalog_repo, "Togg", [togg, bad], start=start, end=end)
+    assert out["evidence"]["contradictions"] and len(out["evidence"]["comparison"]) == 2
+    target = tmp_path / "report.html"
+    _run(SKILLS / "market-share/scripts/render_brand_report.py", "--analysis", str(path), "--out", str(target))
+    html = target.read_text(encoding="utf-8")
+    assert html.index("<h2>Marka özeti</h2>") < html.index("Yayımlanmış pay bulguları</h2>") < html.index("Kaynaklar ve lisans</h2>")
+    assert "Hesaplanan pay ile karşılaştırma" in html and "Çelişen bulgular" in html and "Olası neden" in html
 
 
 def test_brand_report_refuses_an_unclear_name(tmp_path, catalog_repo):

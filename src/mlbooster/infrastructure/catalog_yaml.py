@@ -23,12 +23,16 @@ from mlbooster.domain.model import (
     BrandLexicon,
     BrandTarget,
     Catalog,
+    EvidencePolicy,
+    EvidenceTier,
     FeatureRecipe,
     Frequency,
     HistoryPolicy,
     LicenseSpec,
     MacroFeature,
     RateLimitSpec,
+    RefusedSources,
+    RestrictedDomain,
     Sector,
     SectorEvent,
     SeedSeries,
@@ -356,6 +360,107 @@ class OverrideSeedSchema(SeedSchema):
     verified_at: str | None = None
 
 
+_DOMAIN = re.compile(r"^[a-z0-9-]+(\.[a-z0-9-]+)+$")
+Confidence = Literal["low", "medium", "high"]
+
+
+def _domains(values: list[str]) -> list[str]:
+    bad = [v for v in values if not _DOMAIN.fullmatch(v)]
+    if bad:
+        raise ValueError(f"geçersiz alan adı: {bad}")
+    return values
+
+
+class EvidenceTierSchema(_Strict):
+    id: Literal["official", "company", "press"]
+    rank: int = Field(ge=1, le=3)
+    label: str
+    reason: str
+    max_confidence: Confidence
+    domains: list[str]
+    requires_original: bool = False
+
+    _check = field_validator("domains")(_domains)
+
+    def to_domain(self) -> EvidenceTier:
+        return EvidenceTier(self.id, self.rank, self.label, self.reason, self.max_confidence, tuple(self.domains), self.requires_original)
+
+
+class BrandDomainRuleSchema(_Strict):
+    min_letters: int = Field(ge=3)
+    max_confidence: Confidence
+    deny_words: list[str]
+
+
+class RestrictedSchema(_Strict):
+    domain: str
+    tier: Literal["official", "company", "press"]
+    path_pattern: str
+    reason: str
+
+    @field_validator("path_pattern")
+    @classmethod
+    def _pattern(cls, v: str) -> str:
+        re.compile(v)
+        return v
+
+
+class RefusedSchema(_Strict):
+    label: str
+    reason: str
+    domains: list[str]
+
+    _check = field_validator("domains")(_domains)
+
+
+class PaidResearchSchema(_Strict):
+    reason: str
+    names: list[str]
+    domains: list[str]
+
+    _check = field_validator("domains")(_domains)
+
+
+class EvidenceSearchSchema(_Strict):
+    max_searches: int = Field(ge=1, le=30)
+    max_fetches: int = Field(ge=1, le=50)
+    min_independent_sources: int = Field(ge=1, le=5)
+    queries: dict[Literal["tr", "en"], list[str]]
+    sector_terms: dict[str, dict[Literal["tr", "en"], str]] = Field(default_factory=dict)
+
+
+class EvidenceSchema(_Strict):
+    """catalog_data/evidence_sources.yaml: which web sources a published share figure may come from."""
+
+    current_max_age_days: int = Field(ge=30)
+    contradiction_pp: float = Field(gt=0)
+    quote_max_words: int = Field(ge=5, le=15)
+    tiers: list[EvidenceTierSchema]
+    company_domains: dict[str, list[str]] = Field(default_factory=dict)
+    brand_domain_rule: BrandDomainRuleSchema
+    restricted: list[RestrictedSchema] = Field(default_factory=list)
+    refused: list[RefusedSchema]
+    paid_research: PaidResearchSchema
+    search: EvidenceSearchSchema
+
+    def to_domain(self) -> EvidencePolicy:
+        rule, paid, search = self.brand_domain_rule, self.paid_research, self.search
+        return EvidencePolicy(
+            tiers=tuple(t.to_domain() for t in sorted(self.tiers, key=lambda t: t.rank)),
+            company_domains=tuple((brand, tuple(_domains(sites))) for brand, sites in self.company_domains.items()),
+            brand_rule_min_letters=rule.min_letters, brand_rule_max_confidence=rule.max_confidence,
+            brand_rule_deny_words=tuple(rule.deny_words),
+            restricted=tuple(RestrictedDomain(r.domain, r.tier, r.path_pattern, r.reason) for r in self.restricted),
+            refused=tuple(RefusedSources(r.label, r.reason, tuple(r.domains)) for r in self.refused),
+            paid_reason=paid.reason, paid_names=tuple(paid.names), paid_domains=tuple(paid.domains),
+            current_max_age_days=self.current_max_age_days, contradiction_pp=self.contradiction_pp,
+            quote_max_words=self.quote_max_words, max_searches=search.max_searches, max_fetches=search.max_fetches,
+            min_independent_sources=search.min_independent_sources,
+            queries=tuple((lang, tuple(templates)) for lang, templates in search.queries.items()),
+            sector_terms=tuple((sector, tuple(terms.items())) for sector, terms in search.sector_terms.items()),
+        )  # fmt: skip
+
+
 class OverridesSchema(_Strict):
     """~/.mlbooster/catalog/overrides.yaml — series discovered by the user."""
 
@@ -394,6 +499,8 @@ class YamlCatalogRepository:
             overrides = self._read_overrides()
             brands_path = self._root / "brands.yaml"
             brands = BrandsSchema.model_validate(_read_yaml(brands_path)).to_domain() if brands_path.exists() else BrandLexicon()
+            evidence_path = self._root / "evidence_sources.yaml"
+            evidence = EvidenceSchema.model_validate(_read_yaml(evidence_path)).to_domain() if evidence_path.exists() else EvidencePolicy()
         except ValidationError as exc:
             raise InconsistentCatalog(f"Katalog schema hatası: {exc}") from None
         source_map = {s.id: s for s in sources}
@@ -424,7 +531,7 @@ class YamlCatalogRepository:
                 replace(f, series=mapping[f.name]) if f.name in mapping else f for f in sector.macro_features
             )
             sector_map[sector_id] = replace(sector, macro_features=features)
-        return Catalog(sources=source_map, sectors=sector_map, brands=brands)
+        return Catalog(sources=source_map, sectors=sector_map, brands=brands, evidence=evidence)
 
     def _read_overrides(self) -> OverridesSchema:
         if self._overrides_path is None or not self._overrides_path.exists():

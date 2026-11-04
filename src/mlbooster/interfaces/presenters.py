@@ -21,6 +21,7 @@ SEVERITY_LABELS = {"high": "kritik", "medium": "uyarı", "info": "bilgi"}
 TREND_LABELS = {"gaining": "pay kazanıyor", "losing": "pay kaybediyor", "flat": "yatay", "insufficient_data": "yetersiz gözlem"}
 HHI_CLASS_LABELS = {"low": "düşük", "moderate": "orta", "high": "yüksek"}
 BASIS_LABELS = {"period": "dönemlik", "ttm": "TTM (son 12 ay toplamı)"}
+MAX_COMPARISON_LINES = 3
 
 
 def _auth_label(source: Source) -> str:
@@ -234,3 +235,34 @@ def brand_features_dict(result, tail: int = 6) -> dict:
         "is_proxy": result.is_proxy,
         "tail": [_deep(r) for r in rows.astype({"date": str}).to_dict(orient="records")],
     }
+
+
+def _evidence_line(e: dict) -> list[str]:
+    scope = " · ".join(x for x in (e["basis_label"], e["segment"], None if e["geography"] == "Türkiye" else e["geography"]) if x)
+    flags = " · ikinci el" if e["second_hand"] else ""
+    origin = f" · özgün kaynak: {e['original_source']} ({e['original_date'] or 'tarih yok'})" if e["original_source"] else ""
+    return [f"  {e['claim_text']} · {e['period']} · {scope} · {e['tier_label']} · {e['publisher']}{origin}{flags}", f"    {e['url']}  [{e['id']}]"]
+
+
+def evidence_lines(section: dict, historical: bool = False) -> list[str]:
+    """Text form of the published findings. The heading keeps them apart from computed shares."""
+    lines = [f"Yayımlanmış pay bulguları ({section['label']})"]
+    for e in section["current"]:
+        lines += _evidence_line(e)
+    if not section["current"]:
+        lines.append("  Güncel bulgu yok.")
+    if section["single_source"]:
+        lines.append("  Bulgular tek bir bağımsız kaynağa dayanıyor.")
+    for c in section["comparison"][:MAX_COMPARISON_LINES]:
+        lines.append(f"  Karşılaştırma: {c['series_name']} {c['computed_text']} ({c['computed_period']}) / bulgu {c['evidence_text']} ({c['evidence_period']}). {' '.join(c['reasons'])}")
+    if (more := len(section["comparison"]) - MAX_COMPARISON_LINES) > 0:
+        lines.append(f"  {more} karşılaştırma daha var: --json çıktısı, panel ve rapor hepsini gösterir.")
+    lines += [f"  Çelişki: {c['message']}" for c in section["contradictions"]]
+    if historical:
+        for e in section["historical"]:
+            lines += _evidence_line(e)
+    elif section["historical"]:
+        lines.append(f"  {len(section['historical'])} eski bulgu var: mlbooster evidence list")
+    if section["next_step"]:
+        lines.append(f"  {section['next_step']}")
+    return lines
