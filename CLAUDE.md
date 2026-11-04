@@ -23,9 +23,10 @@ src/mlbooster/
                      # (single period-string parser), numfmt.py (Turkish number formatting for messages),
                      # observations.py (observation frame contract), services/ (frequency, deflation, features,
                      # chunking, sector_map, quality, distribution, preprocessing, feature_engineering,
-                     # calendar_tr, market_share). Allowed: stdlib + pandas/numpy. NO I/O.
+                     # calendar_tr, market_share, brand_resolution, brand_report, brand_features). Allowed: stdlib + pandas/numpy.
+                     # NO I/O.
   application/       # ports.py (Protocols), dto.py (FetchRequest: input validation gate), errors.py,
-                     # use_cases/ (catalog, series, discovery, panel, health, analysis, modeling, market_share,
+                     # use_cases/ (catalog, series, discovery, panel, health, analysis, modeling, market_share, brand,
                      # files: ExportTable). Depends only on domain.
   infrastructure/    # port implementations: providers/ (evds3, sdmx, tuik, bddk, tbb, bkm, tsb, odmd, epdk, btk, epias,
                      # bigquery_trends + google_auth/bigquery_rest, registry), http_client.py (SecureHttpClient),
@@ -35,7 +36,7 @@ src/mlbooster/
                      # JS/CSS, no build step; labels.py derives readable feature names) — call use cases only
                      # (tests/test_architecture.py forbids container().<port> access)
   bootstrap.py       # composition root: the single wiring point
-  catalog_data/      # sources/*.yaml, sectors/*.yaml (package-data); user override: ~/.mlbooster/catalog/overrides.yaml
+  catalog_data/      # sources/*.yaml, sectors/*.yaml, brands.yaml (package-data); user override: ~/.mlbooster/catalog/overrides.yaml
 skills/              # Claude Code plugin skills (sector-analysis, data-quality-audit, data-prep, feature-engineering,
                      # evds-series-discovery, market-share); _shared/ = stdlib-only report library
                      # + bin/mlb CLI wrapper
@@ -210,6 +211,18 @@ currency, is_proxy, vintage_ts, publication_lag_days. Key: source_id, series_id,
   The analysis is in `domain/services/market_share.py` (HHI range, trend |t|≥2 and ≥0.2 pp/year, substitution
   correlation, shift-share). Input schema: entity, date, value[, segment]; the market total is given in rows whose
   entity is `TOPLAM` (default; `TOTAL` is also accepted, case-insensitive).
+
+## Brand flow
+The user types a brand or company name (`mlbooster brand`, MCP `analyze_brand` / `build_brand_features`, panel "Marka ara").
+A brand is resolved against the entity-level sources through `EntityDirectory` (players from the observation store; a
+source never read is fetched for the last 270 days, a list older than 35 days is read again). Aliases, groups, known
+brands without a source, legal and generic tokens live in catalog_data/brands.yaml. Only an alias or an exact name
+resolves a brand; partial and fuzzy matches are returned as candidates, never a silent guess. A brand with no
+entity-level source gets `not_found`, the sector candidates and what is available; a share is never estimated.
+`market_share_sources[]` fields: `entities_from` (series that list all players, default the first of `series`),
+`segments` (series of one unit that split the market), `history_years`. Brand features are monthly and point-in-time;
+the competitor set of a period comes from that period's ranking. Saved brand panels leave out columns built from a
+source with `storage.observations: false` (BKM).
 
 ## Acceptance criteria (MVP)
 - 10 adapters (EVDS3 ✓, TÜİK ✓, BDDK ✓, TBB ✓, EPİAŞ ✓ code / healthcheck needs the user's account, EPDK ✓, BTK ✓, TSB ✓,
