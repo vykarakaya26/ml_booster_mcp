@@ -66,10 +66,8 @@ tiers:
       - ekonomist.com.tr
       - marketingturkiye.com.tr
       - perakende.org
-      - reuters.com
-      - bloomberg.com
 company_domains:  # own sites of known brands: valid for that brand only
-  Migros: [migroskurumsal.com, migros.com.tr]
+  Migros: [migroskurumsal.com, migros.com.tr, migroskurumsalstr.blob.core.windows.net]  # the blob host serves the PDFs linked from its investor pages
   BİM: [bim.com.tr]
   ŞOK Market: [sokmarket.com.tr]
   CarrefourSA: [carrefoursa.com]

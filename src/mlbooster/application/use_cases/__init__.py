@@ -18,6 +18,7 @@ from mlbooster.application.use_cases.evidence import (
     EvidenceTable,
     ListEvidence,
     PlanEvidenceSearch,
+    ReadEvidenceDocument,
     RecordEvidence,
     RejectEvidence,
 )
@@ -49,6 +50,7 @@ __all__ = [
     "ListSources",
     "PlanEvidenceSearch",
     "PreparePanel",
+    "ReadEvidenceDocument",
     "RecordEvidence",
     "RejectEvidence",
     "ResolveBrand",

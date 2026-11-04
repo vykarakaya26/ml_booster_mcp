@@ -253,3 +253,12 @@ class BrandWorld:
         self.analyze = AnalyzeBrand(repo, self.resolve, AnalyzeMarketShare(None, None, self.tables), self.tables)
         self.panel = panel or StubPanel()
         self.features = BuildBrandFeatures(repo, self.resolve, self.tables, self.panel, self.panels)
+
+
+class FakeDocumentReader:
+    def __init__(self, pages):
+        self.pages, self.calls = pages, []
+
+    def read(self, url):
+        self.calls.append(url)
+        return self.pages

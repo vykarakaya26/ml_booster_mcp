@@ -284,3 +284,29 @@ def test_allowed_sources_add_the_brands_own_site(catalog):
     assert [t["tier"] for t in tiers] == ["official", "company", "press"]
     assert "migroskurumsal.com" in tiers[1]["domains"] and all(t["reason"] for t in tiers)
     assert "migroskurumsal.com" not in rules.allowed_sources(catalog.evidence, "BİM", catalog.brands)[1]["domains"]
+
+
+PAGES = ["Giriş\nMigros bu sektörde faaliyet gösterir.\n\nPazar payı tablosu aşağıdadır\nA\n", "B\nMigros'un pazar payı %24,5 olmuştur.\nC\n"]
+
+
+def test_snippets_put_passages_with_a_figure_first_and_keep_them_short():
+    out = rules.snippets(PAGES, ["migros", "pazar pay"])
+    assert out[0]["page"] == 2 and "%24,5" in out[0]["text"] and len(out) == 3
+    assert rules.snippets(PAGES, ["migros"], limit=1) == [out[0]]
+    assert len(rules.snippets(["x migros " * 200], ["migros"])[0]["text"]) <= rules.SNIPPET_MAX
+    assert rules.snippets(PAGES, ["bulunmaz"]) == []
+
+
+def test_document_terms_default_to_the_brand_and_stay_bounded(catalog):
+    assert rules.document_terms("Migros Ticaret", None, catalog.brands)[:2] == ["migros", "pazar pay"]
+    assert rules.document_terms("Migros", ["Nielsen", "CİRO"], catalog.brands) == ["nielsen", "ciro"]
+    with pytest.raises(InvalidInput, match="En fazla"):
+        rules.document_terms("Migros", list("abcdef"), catalog.brands)
+    with pytest.raises(InvalidInput, match="kişisel veri"):
+        rules.document_terms("Migros", ["ali@example.com"], catalog.brands)
+
+
+def test_pages_of_one_site_count_once(build):
+    a, _ = build(draft())
+    b, _ = build(draft(url="https://www.migroskurumsal.com/kurumsal", original_source="Nielsen", original_date="2025", value=25, quote="pay %25"))
+    assert rules.independent_sources([a, b]) == 1

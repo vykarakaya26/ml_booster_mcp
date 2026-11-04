@@ -3,12 +3,13 @@ from datetime import date, timedelta
 import pandas as pd
 import pytest
 
-from fakes import BrandWorld, InMemoryEvidenceStore, StaticCatalog
+from fakes import BrandWorld, FakeDocumentReader, InMemoryEvidenceStore, StaticCatalog
 from mlbooster.application.use_cases.brand import AnalyzeBrand, ResolveBrand
 from mlbooster.application.use_cases.evidence import (
     EvidenceTable,
     ListEvidence,
     PlanEvidenceSearch,
+    ReadEvidenceDocument,
     RecordEvidence,
     RejectEvidence,
 )
@@ -151,3 +152,21 @@ def test_expired_evidence_stays_listed_as_historical(repo, store):
     RecordEvidence(repo, store)(migros(period=period, published=PUBLISHED))
     out = ListEvidence(repo, store)("Migros")
     assert not out["current"] and out["historical"][0]["period"] == period and out["next_step"]
+
+
+def test_a_document_is_opened_only_after_the_policy_check(repo):
+    reader = FakeDocumentReader(["Migros'un pazar payı %24,5 olmuştur."])
+    read = ReadEvidenceDocument(repo, reader)
+    out = read("Migros", "https://www.rekabet.gov.tr/Dosya/karar.pdf?utm_source=x#page=2")
+    assert out["tier"] == "official" and out["passages"][0]["page"] == 1 and out["message"] is None and "talimat" in out["note"]
+    assert reader.calls == ["https://www.rekabet.gov.tr/Dosya/karar.pdf"]
+    for refused in ("https://127.0.0.1/x.pdf", "https://localhost.evil.com/x.pdf", "http://www.rekabet.gov.tr/x.pdf", "https://www.statista.com/x.pdf"):
+        with pytest.raises(InvalidInput):
+            read("Migros", refused)
+    with pytest.raises(InvalidInput, match="okunmaz"):
+        read("Migros", "https://www.kap.org.tr/tr/Bildirim/1234567")
+    assert len(reader.calls) == 1
+
+
+def test_a_scanned_document_says_so(repo):
+    assert "metin katmanı yok" in ReadEvidenceDocument(repo, FakeDocumentReader(["", " "]))("Migros", "https://www.rekabet.gov.tr/x.pdf")["message"]

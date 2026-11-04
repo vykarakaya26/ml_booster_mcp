@@ -12,6 +12,7 @@ from functools import cached_property
 from mlbooster.application.ports import (
     CatalogOverrides,
     CatalogRepository,
+    DocumentReader,
     EvidenceStore,
     ObservationStore,
     PanelStore,
@@ -39,6 +40,7 @@ from mlbooster.application.use_cases import (
     ListSources,
     PlanEvidenceSearch,
     PreparePanel,
+    ReadEvidenceDocument,
     RecordEvidence,
     RejectEvidence,
     ResolveBrand,
@@ -50,6 +52,7 @@ from mlbooster.application.use_cases import (
 )
 from mlbooster.domain.errors import InvalidInput
 from mlbooster.infrastructure.catalog_yaml import YamlCatalogRepository
+from mlbooster.infrastructure.document_reader import PdfDocumentReader
 from mlbooster.infrastructure.providers.registry import ProviderRegistry
 from mlbooster.infrastructure.secret_store import EnvSecretProvider
 from mlbooster.infrastructure.settings import Settings
@@ -71,6 +74,7 @@ class Container:
     updates: UpdateSource | None = None
     tables: TableReader | None = None
     evidence_store: EvidenceStore | None = None
+    documents: DocumentReader | None = None
 
     @cached_property
     def list_sectors(self) -> ListSectors:
@@ -162,6 +166,10 @@ class Container:
     @cached_property
     def plan_evidence(self) -> PlanEvidenceSearch:
         return PlanEvidenceSearch(self.catalog, self._evidence)
+
+    @cached_property
+    def read_evidence(self) -> ReadEvidenceDocument:
+        return ReadEvidenceDocument(self.catalog, self.documents or PdfDocumentReader())
 
     @cached_property
     def record_evidence(self) -> RecordEvidence:

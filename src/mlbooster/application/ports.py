@@ -111,6 +111,12 @@ class EvidenceStore(Protocol):
         ...
 
 
+class DocumentReader(Protocol):
+    def read(self, url: str) -> list[str]:
+        """Text of each page of one public document. Held in memory only."""
+        ...
+
+
 class PanelStore(Protocol):
     def save(self, sector_id: str, panel: pd.DataFrame) -> str:
         """Persists the panel and returns its location."""

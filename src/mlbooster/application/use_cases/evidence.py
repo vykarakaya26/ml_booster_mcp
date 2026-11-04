@@ -11,7 +11,7 @@ from datetime import date
 
 import pandas as pd
 
-from mlbooster.application.ports import CatalogRepository, EvidenceStore
+from mlbooster.application.ports import CatalogRepository, DocumentReader, EvidenceStore
 from mlbooster.domain.errors import InvalidInput, NotFound
 from mlbooster.domain.model import Catalog
 from mlbooster.domain.services import evidence as rules
@@ -60,6 +60,28 @@ class PlanEvidenceSearch:
             "bases": rules.BASIS_LABELS, "quote_max_words": policy.quote_max_words, "current_max_age_days": policy.current_max_age_days,
             "already_recorded": [rules.as_dict(e, policy) for e in known],
         }  # fmt: skip
+
+
+class ReadEvidenceDocument:
+    """Passages of one PDF on an allowed domain, for the search to read a figure. Only what the policy allows is opened;
+    a domain restricted to links (KAP) is never read here. The text stays in memory and is returned as data."""
+
+    def __init__(self, catalog: CatalogRepository, reader: DocumentReader):
+        self._catalog = catalog
+        self._reader = reader
+
+    def __call__(self, brand: str, url: str, terms: list[str] | None = None) -> dict:
+        catalog = self._catalog.load()
+        name = brand_query(brand)
+        words = rules.document_terms(name, terms, catalog.brands)
+        address, host, path = rules.clean_url(url)
+        verdict = rules.classify(host, path, name, catalog.evidence, catalog.brands)
+        if not verdict.quote_allowed:
+            raise InvalidInput(f"{host} içeriği bu araçla okunmaz; yalnızca bağlantısı kaydedilir")
+        pages = self._reader.read(address)
+        passages = rules.snippets(pages, words)
+        message = None if any(p.strip() for p in pages) else "Belgede metin katmanı yok (taranmış PDF); rakam okunamaz."
+        return {"url": address, "tier": verdict.tier.id, "pages": len(pages), "terms": words, "passages": passages, "message": message, "note": rules.UNTRUSTED_NOTE}
 
 
 class RecordEvidence:

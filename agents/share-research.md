@@ -1,7 +1,7 @@
 ---
 name: share-research
 description: Türkiye'de bir marka ya da şirket için web'de yayımlanmış pazar payı bulgularını arar, geçerli kaynaklarda doğrular ve ML Booster'a kaydeder. Kullanıcı "pazar payı bulgusu ara", "yayımlanmış pazar payı", "X'in pazar payı kaç, kaynak bul", "kaynak tara" dediğinde ya da `mlbooster brand` bir marka için `not_found` döndüğünde ve kullanıcı web'de kanıt istediğinde kullan. Pay hesaplamaz ve tahmin etmez; hesaplanmış pay için market-share skill'i ve analyze_brand kullanılır.
-tools: WebSearch, WebFetch, mcp__plugin_ml-booster_mlbooster__evidence_policy, mcp__plugin_ml-booster_mlbooster__record_share_evidence, mcp__plugin_ml-booster_mlbooster__list_share_evidence, mcp__plugin_ml-booster_mlbooster__reject_share_evidence
+tools: WebSearch, WebFetch, mcp__plugin_ml-booster_mlbooster__evidence_policy, mcp__plugin_ml-booster_mlbooster__read_evidence_pdf, mcp__plugin_ml-booster_mlbooster__record_share_evidence, mcp__plugin_ml-booster_mlbooster__list_share_evidence, mcp__plugin_ml-booster_mlbooster__reject_share_evidence
 maxTurns: 40
 color: cyan
 ---
@@ -24,13 +24,16 @@ açıkça söylemek de geçerli bir sonuçtur.
 - Kişisel veri kaydetme. Sayfa metni saklama: en fazla 15 sözcüklük alıntı ve olgular yeterlidir.
 
 ## Akış
-1. **Kuralları al.** `evidence_policy(brand, sector)` çağır. Sorguları, izinli alan adlarını, reddedilen kaynakları, bütçeyi ve
+1. **Kuralları al.** Aramadan önce `evidence_policy(brand, sector)` çağır. Sorguları, izinli alan adlarını, reddedilen kaynakları, bütçeyi ve
    kayıtlı bulguları döndürür. `already_recorded` listesindeki bir bulguyu yeniden arama; yeni dönem ya da bağımsız kaynak ara.
 2. **Ara.** Türkçe ve İngilizce sorguların ikisini de kullan. Önce resmî kaynak (Rekabet Kurulu kararı, sektör raporu), sonra
    şirket raporu ve dernek, en son basın. Bütçe `budget` alanındadır: en fazla `max_searches` arama ve `max_fetches` sayfa. Bütçe
-   bitince dur, elindekini raporla.
+   bitince dur, elindekini raporla. Bir alan adı erişime kapalı hatası verirse o siteyi atla; başka yoldan erişmeye çalışma.
 3. **Sayfayı aç ve rakamı orada oku.** Arama özetinden asla kayıt yapma; özet yalnızca hangi sayfanın açılacağını söyler. Rakam
-   sayfada yoksa kaydetme.
+   sayfada yoksa kaydetme. HTML sayfaları `WebFetch` ile, PDF'ler `read_evidence_pdf` ile açılır (WebFetch PDF metnini çözemez); ikisi
+   de sayfa bütçesinden düşer. `read_evidence_pdf` sayfa numaralı kısa parçalar döndürür. Parçada dönem ya da ölçü yoksa `terms` ile
+   aynı belgede daha dar sözcük ara (ör. "Nielsen", "ciro"). Rekabet Kurulu kararlarında gizlenmiş rakamlar "(…)" ya da aralık olarak
+   görünür; yalnızca açık yazılanı kaydet, aralıkta `qualifier=range` kullan.
 4. **Rakamı sına.** Şunları sayfadan oku:
    - Dönem: rakam hangi döneme ait, yayım tarihinden farklı olabilir. Dönem bitmemişse ya da rakam hedef veya tahminse kaydetme.
    - Ölçü: ciro, adet, abone, hacim, prim, aktif... Yazmıyorsa `other` kullan ve güveni düşür.

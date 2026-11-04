@@ -46,6 +46,10 @@ URL_MAX = 500
 TEXT_MAX = 80
 QUOTE_MAX = 200
 RANK_MAX = 500
+MAX_TERMS = 5
+MAX_SNIPPETS = 12
+SNIPPET_MAX = 320
+DEFAULT_TERMS = ("pazar pay", "market share", "pazar lider")
 NEAR_PP = 1.0  # a computed and a published figure this close need no explanation
 SAME_PERIOD_DAYS = 31
 
@@ -140,7 +144,7 @@ def _site_label(host: str) -> str:
     labels = host.split(".")
     if labels[-1] == "tr" and len(labels) > 2 and labels[-2] in _TR_SECOND_LEVEL:
         return labels[-3]
-    return labels[-2]
+    return labels[-2] if len(labels) > 1 else host
 
 
 def classify(host: str, path: str, brand: str, policy: EvidencePolicy, lexicon: BrandLexicon) -> DomainVerdict:
@@ -175,6 +179,34 @@ def classify(host: str, path: str, brand: str, policy: EvidencePolicy, lexicon: 
 def _own_site(host: str, key: str, policy: EvidencePolicy) -> bool:
     label = _site_label(host).replace("-", "")
     return len(key) >= policy.brand_rule_min_letters and label.startswith(key) and not any(w in label for w in policy.brand_rule_deny_words)
+
+
+def document_terms(brand: str, terms: list[str] | None, lexicon: BrandLexicon) -> list[str]:
+    """Words looked for in a document: the given ones, or the brand and the usual share wording."""
+    words = list(terms or [])
+    if len(words) > MAX_TERMS:
+        raise InvalidInput(f"En fazla {MAX_TERMS} arama sözcüğü verilebilir")
+    folded = [fold(_text(w, "Arama sözcüğü", 40)) for w in words]
+    return folded or [fold(canonical_brand(brand, lexicon)), *DEFAULT_TERMS]
+
+
+def snippets(pages: list[str], terms: list[str], limit: int = MAX_SNIPPETS) -> list[dict]:
+    """Short passages around the words, those with a figure first. They are returned to the reader and never stored."""
+    found = []
+    for number, page in enumerate(pages, start=1):
+        lines = [line.strip() for line in page.split("\n") if line.strip()]
+        for i, line in enumerate(lines):
+            hits = sum(t in fold(line) for t in terms)
+            if hits:
+                text = " ".join(lines[max(0, i - 1) : i + 2])[:SNIPPET_MAX]
+                found.append((-(hits + 2 * bool(_NUMBER.search(line))), number, text))
+    seen: set[str] = set()
+    out = []
+    for _, number, text in sorted(found, key=lambda x: x[:2]):
+        if text not in seen and len(out) < limit:
+            seen.add(text)
+            out.append({"page": number, "text": text})
+    return out
 
 
 # ------------------------------------------------------------------------------------------- record
@@ -371,8 +403,13 @@ def contradictions(items: list[ShareEvidence], tolerance_pp: float) -> list[dict
 
 
 def independent_sources(items: list[ShareEvidence]) -> int:
-    """Pages that repeat one original source count once."""
-    return len({fold(e.original_source or e.publisher) for e in items})
+    """Pages that repeat one original source, and the pages of one site, count once."""
+    groups: list[set[str]] = []
+    for e in items:
+        keys = {fold(e.publisher), fold(e.original_source or e.publisher), _site_label(urlsplit(e.url).hostname or "")}
+        linked = [g for g in groups if g & keys]
+        groups = [g for g in groups if not g & keys] + [keys.union(*linked)]
+    return len(groups)
 
 
 def _closest(item: ShareEvidence, series: list[dict]) -> dict:
