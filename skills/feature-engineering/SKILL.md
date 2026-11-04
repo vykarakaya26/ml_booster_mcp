@@ -38,7 +38,7 @@ MLB="${CLAUDE_SKILL_DIR}/../_shared/bin/mlb"
 SECTOR=<sektör>; OUT="mlbooster-reports/${SECTOR}-$(date +%Y%m%d)"; mkdir -p "$OUT"
 "$MLB" map show --sector "$SECTOR" --format json > "$OUT/map.json"
 ```
-Eksikse kullanıcıya sor (en fazla üç soru): **hedef** (panel kolonu), **ufuk** (ay) ve **eğitim penceresi sonu**
+Eksikse kullanıcıya sor (en fazla üç soru): **hedef** (panel kolonu), **horizon** (ay) ve **eğitim penceresi sonu**
 (son 3–4 yıl değerlendirme için ayrılır; ör. `2022-12`). Hedef seçimi için `sector-analysis` skill'inin hedef
 tablosuna (`targets.md`) bak. Sektörün tarifleri ve olayları `map.json` ile birlikte
 `references/sector-features.md` dosyasından okunur. Seri kodu bağlanmamış girdiler tarifin atlanmasına yol açar;
@@ -62,7 +62,7 @@ bunu kullanıcıya bildir ve gerekirse `evds-series-discovery` ile tamamla.
   --panel-file "$OUT/features_selected.csv" --json "$OUT/bt_features.json"
 ```
 `--eval-start` eğitim penceresi sonuyla aynı olmalıdır; aksi halde seçimin yapıldığı dönemde ölçülen performans
-iyimser çıkar. Aylık ortalama hedeflerde çapa (`--anchor`) ver; ayrıntı `forecast-baseline` skill'indedir.
+iyimser çıkar. Aylık ortalama hedeflerde anchor (`--anchor`) ver; ayrıntı `forecast-baseline` skill'indedir.
 
 ### 4. Yorumla → `$OUT/feature-notes.md`
 - Seçilen feature'ların ekonomik anlamını yaz (ör. "ÜFE−TÜFE farkının 3 aylık değişimi: maliyet baskısının fiyata

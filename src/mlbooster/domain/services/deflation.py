@@ -37,7 +37,7 @@ def index_from_levels(
     for raw in break_dates:
         b = pd.Timestamp(raw)
         if b not in breaks:
-            raise InvalidInput(f"{b.date()} baz kırılması için aylık % değişim (pct_at_breaks) verilmelidir")
+            raise InvalidInput(f"{b.date()} baz değişikliği için aylık % değişim (pct_at_breaks) verilmelidir")
         ratio.loc[b] = 1 + breaks[b] / 100
     return _rebase(ratio.fillna(1.0).cumprod(), ref_period)
 

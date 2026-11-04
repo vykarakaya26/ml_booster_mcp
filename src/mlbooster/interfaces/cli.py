@@ -310,7 +310,7 @@ def backtest(
         _fail(exc)
     if json_out is not None:
         _write_json(backtest_dict(result, sector), json_out)
-    typer.echo(f"Hedef {target}, ufuk {horizon} ay — en iyi: {result.best_model}")
+    typer.echo(f"Hedef {target}, horizon {horizon} ay — en iyi: {result.best_model}")
     typer.echo(result.metrics.round(4).to_string(index=False))
 
 
@@ -417,7 +417,7 @@ def market_share(
     unit: Annotated[str, typer.Option(help="Değer birimi (ör. adet, TL, abone)")] = "",
     total_entity: Annotated[str, typer.Option(help="Pazar toplamını taşıyan satırların oyuncu adı (TOTAL da kabul edilir)")] = "TOPLAM",
     basis: Annotated[str, typer.Option(help="auto | period (dönemlik) | ttm (son 12 ay toplamı)")] = "auto",
-    trend_years: Annotated[int, typer.Option(help="Eğilim penceresi (yıl)")] = 3,
+    trend_years: Annotated[int, typer.Option(help="Trend penceresi (yıl)")] = 3,
     top_n: Annotated[int, typer.Option(help="Grafikte ayrı gösterilecek oyuncu sayısı")] = 8,
     sector: Annotated[str | None, typer.Option(help="Sektör id: verilirse pazar büyümesi makro panelle ilişkilendirilir")] = None,
     start: Annotated[str, typer.Option(help="Makro panel ve --source verisinin başlangıcı, YYYY-AA[-GG]")] = DEFAULT_START.isoformat(),
@@ -449,7 +449,7 @@ def market_share(
     for p in result["players"][:top_n]:
         d, share = p.get("d_year_pp"), "%" + tr_num(p["share"], ".2f")
         trend = TREND_LABELS.get(p["trend"], p["trend"])
-        horizon = f"{trend_years} yıllık eğilim: {trend}"
+        horizon = f"{trend_years} yıllık trend: {trend}"
         typer.echo(f"{p['rank']:>3}. {p['entity']:<28} {share:>7}  son 1 yıl {tr_num(d, '+.2f')} puan · {horizon}" if d is not None
                    else f"{p['rank']:>3}. {p['entity']:<28} {share:>7}  {horizon}")  # fmt: skip
     for i in result["issues"]:

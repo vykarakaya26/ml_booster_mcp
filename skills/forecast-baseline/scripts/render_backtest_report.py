@@ -139,7 +139,7 @@ def build(bt: dict, notes: str | None, assumptions: dict | None = None, external
         sections.append(X.section(external, latest=latest))
     method = f"""
 - **Yöntem:** genişleyen pencereyle (expanding window) rolling-origin backtest; ilk eğitim penceresi {cfg['min_train']} ay, her ay bir adım ileri.
-- **Look-ahead yok:** t origin'inde yalnızca t ve öncesi kullanılır; panel publication lag'e göre hizalanmıştır.
+- **Look-ahead yok:** t origin'inde yalnızca t ve öncesi kullanılır; panelde publication lag uygulanmıştır.
 - **Adil karşılaştırma:** metrikler, tüm modellerin forecast ürettiği {bt['common_origins']} ortak origin'de hesaplanır.
 - **Ridge:** hedefin {cfg['horizon']} adımlı değişimini {'anchor\'dan (' + cfg['anchor'] + ')' if cfg.get('anchor') else 'son değerden'} öğrenir; lag'ler {cfg['lags']}, alpha {cfg['alpha']}, dışsal feature'lar {'açık' if cfg['exogenous'] else 'kapalı'}.
 - **Anchor:** {('`' + cfg['anchor'] + '` — aylık ortalama hedefte ay sonu değeri en güncel bilgiyi taşır; benchmark anchor naive’dir.') if cfg.get('anchor') else 'kullanılmadı.'}

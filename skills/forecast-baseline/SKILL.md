@@ -26,7 +26,7 @@ SECTOR=otomotiv; OUT="mlbooster-reports/${SECTOR}-forecast-$(date +%Y%m%d)"; mkd
    "anchor naive" modelidir; yalnızca düz naive'i geçmek yeterli sayılmaz. Anchor kolonu yoksa bunu raporun
    sınırlar kısmında belirt. Kullanıcı ham bir seri istiyorsa (ör. "taşıt kredisi faizi") paneldeki karşılığı
    olan feature'ı bul. Panelde yoksa önce `evds-series-discovery` skill'iyle bağla.
-2. **Ufuk**: kullanıcı belirtmediyse kararın sıklığına göre seç: fiyatlama ve likidite için 1 ay, bütçe ve
+2. **Horizon**: kullanıcı belirtmediyse kararın sıklığına göre seç: fiyatlama ve likidite için 1 ay, bütçe ve
    planlama için 3–6 ay. Gerekirse birkaç ufku ayrı JSON dosyalarıyla koş.
 3. **Model seçimi ve skewness.** Varsayılan set şunları içerir: naive, drift, drift_recent, mean12, median12,
    ridge, qr (quantile regression), combo_mean, combo_median, auto_robust. Audit'te ya da `diagnostics`
@@ -58,9 +58,9 @@ SECTOR=otomotiv; OUT="mlbooster-reports/${SECTOR}-forecast-$(date +%Y%m%d)"; mkd
 ### 1. Girdileri ve varsayımları topla → `$OUT/assumptions.json`
 Yorum içeren her çıktı varsayımlara bağlanır; okur bir ifadenin neye dayandığını görebilmelidir. Bunun için
 `${CLAUDE_SKILL_DIR}/../_shared/references/assumptions-guide.md` dosyasını oku.
-- İstekten çıkarılabilenleri (sektör, hedef, ufuk…) kendin doldur.
+- İstekten çıkarılabilenleri (sektör, hedef, horizon…) kendin doldur.
 - Sonucu değiştirecek eksik girdileri kullanıcıya **tek seferde, en fazla 3–4 kısa soruyla** sor.
-  AskUserQuestion aracı varsa onu kullan. Sorulacaklar: amaç ve karar, hedef değişken, ufuk, nominal/reel.
+  AskUserQuestion aracı varsa onu kullan. Sorulacaklar: amaç ve karar, hedef değişken, horizon, nominal/reel.
   Sektör varsayımlarını `${CLAUDE_SKILL_DIR}/../_shared/references/sector-assumptions.md` dosyasındaki
   seçeneklerle sun.
 - Yanıt gelmezse ya da kullanıcı "sen karar ver" derse sektör varsayılanlarıyla devam et. Bunları
@@ -75,7 +75,7 @@ Yorum içeren her çıktı varsayımlara bağlanır; okur bir ifadenin neye daya
 - **Benchmark en güçlü naive'dir.** Anchor verildiyse anchor naive, verilmediyse naive. Bir model ancak bu
   benchmark'ı ortak örneklemde geçtiğinde "benchmark'ı geçti" denebilir.
 - **Naive en iyi sonucu verirse** bu da bir bulgudur. Kısa vadede kur ya da yıllık (YoY) enflasyon için
-  olağandır. "Model başarısız" ifadesini kullanma; "bu ufukta seri son değerinden daha iyi tahmin edilemiyor;
+  olağandır. "Model başarısız" ifadesini kullanma; "bu horizon'da seri son değerinden daha iyi tahmin edilemiyor;
   benchmark naive MAE = X" biçiminde yaz.
 - **MASE > 1** Türkiye verisinde sık görülür, çünkü test dönemi ilk training dönemine göre daha oynaktır.
   Bunu açıkla.

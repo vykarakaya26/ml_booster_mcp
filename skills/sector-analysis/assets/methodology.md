@@ -1,4 +1,4 @@
-## Veri ve hizalama
+## Veri ve point-in-time takvim
 - Veriler resmi kaynaklardan (öncelikle TCMB EVDS) kullanıcının kendi API key'iyle çekilir; her çekim ayrı bir vintage olarak saklanır.
 - Panel aylık dönem sonu takvimini kullanır. Her gözlem, **dönem sonu + publication lag** tarihinin düştüğü ayın satırına yazılır. Bu nedenle bir ayın satırında yalnızca o ayın sonunda bilinen veri bulunur (look-ahead yok).
 - Günlük seriler aylık ortalamaya, akım seriler toplama indirgenir; tamamlanmamış son ay atılır. Çeyreklik seriler yalnızca ileriye doğru doldurulur (forward fill).

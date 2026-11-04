@@ -9,13 +9,13 @@ skill belgeleri) için kanonik dil standardıdır.
 ## Yapı
 ```markdown
 ## Ana bulgu
-Tek paragraf: odak oyuncunun konumu, eğilimi ve bunun en önemli nedeni.
+Tek paragraf: odak oyuncunun konumu, trendi ve bunun en önemli nedeni.
 
 ## Pazar
 Büyüklük ve büyüme (birim ve nominal/reel ayrımıyla), yoğunlaşmanın düzeyi ve yönü, pazardaki pay hareketliliği.
 
-## Konum ve eğilim
-Pay, sıra, göreli pay, yıllık değişim ve istatistiksel eğilim; pazara göre büyüme farkı.
+## Konum ve trend
+Pay, sıra, göreli pay, yıllık değişim ve istatistiksel trend; pazara göre büyüme farkı.
 
 ## Rakipler
 Doğrudan rakipler ve gerekçeleri; payın hangi oyunculardan geldiğine ilişkin kanıt (substitution correlation,

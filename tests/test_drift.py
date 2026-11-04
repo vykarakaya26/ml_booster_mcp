@@ -64,3 +64,35 @@ def test_claude_md_lists_every_skill():
     skills = sorted(p.parent.name for p in (REPO / "skills").glob("*/SKILL.md"))
     missing = [s for s in skills if s not in claude_md]
     assert not missing, f"CLAUDE.md does not mention skills: {missing}"
+
+
+# CLAUDE.md "Language standard": technical terms stay in English. Turkified forms below must not reappear in
+# user-facing text. "patika" (faiz/kur patikası) and "çapalanma" (expectations) are domain words and stay allowed.
+TURKIFIED_TERMS = (
+    "çıta", "kırılma", "durağan", "eğilim", "hizala", "geleceği görmeyen", "sızıntı", "aykırı değer", "bayat",
+    "kantil", "kontrollü patika", "birim kök", "kalın kuyruk", "basıklık", "çarpıklık", "oynaklık",
+    "geriye dönük sınama", "ufuk", "uç değer", "düzenlileştir", "eşbütünleşme", "ikame korelasyon", "nokta-zamanlı",
+)
+# Files that quote the banned forms on purpose: the report guide's "do not write" table and user-phrased eval prompts.
+TERM_GUARD_EXEMPT = ("skills/market-share/references/report-guide.md",)
+
+
+def _user_facing_files():
+    yield REPO / "README.md"
+    yield from (REPO / "src" / "mlbooster").rglob("*.py")
+    yield from (REPO / "src" / "mlbooster").rglob("*.js")
+    yield from (REPO / "src" / "mlbooster").rglob("*.html")
+    yield from (REPO / "src" / "mlbooster" / "catalog_data").rglob("*.yaml")
+    for pattern in ("*.md", "*.py", "*.json"):
+        for p in (REPO / "skills").rglob(pattern):
+            rel = p.relative_to(REPO).as_posix()
+            if rel not in TERM_GUARD_EXEMPT and not (p.name == "prompt.md" and "/evals/" in rel):
+                yield p
+
+
+def test_user_facing_text_keeps_technical_terms_in_english():
+    found = []
+    for path in _user_facing_files():
+        text = path.read_text(encoding="utf-8").lower()
+        found += [f"{path.relative_to(REPO)}: {term}" for term in TURKIFIED_TERMS if term in text]
+    assert not found, "Turkified technical terms (use the English term): " + "; ".join(found)

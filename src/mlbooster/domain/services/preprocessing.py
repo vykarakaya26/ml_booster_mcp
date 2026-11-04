@@ -132,9 +132,9 @@ def profile(series: pd.Series, name: str, transform: str | None, k: float = ROBU
     kurt = float(x.kurt()) if n >= 4 else None
     reasons = []
     if skew is not None and abs(skew) > SKEW_ROBUST:
-        reasons.append(f"çarpıklık {tr_num(skew, '+.2f')} (|·| > {tr_num(SKEW_ROBUST, 'g')})")
+        reasons.append(f"skewness {tr_num(skew, '+.2f')} (|·| > {tr_num(SKEW_ROBUST, 'g')})")
     if kurt is not None and kurt > KURT_ROBUST:
-        reasons.append(f"fazla basıklık {tr_num(kurt, '.2f')} (> {tr_num(KURT_ROBUST, 'g')})")
+        reasons.append(f"excess kurtosis {tr_num(kurt, '.2f')} (> {tr_num(KURT_ROBUST, 'g')})")
     if outlier_share > OUTLIER_SHARE_ROBUST:
         reasons.append(f"outlier oranı {tr_pct(outlier_share * 100)} (> {tr_pct(OUTLIER_SHARE_ROBUST * 100, 'g')})")
     return Profile(
@@ -208,7 +208,7 @@ def _plan_column(name: str, train_series: pd.Series, cfg: PrepConfig, transform:
                           "reason": "Pozitif ve büyüklük mertebeleri arasında değişen bir düzey serisi; farktan önce "
                                     "log alınır (log farkı ≈ dönemlik büyüme)."})  # fmt: skip
         steps.append({"step": "diff", "params": {},
-                      "reason": "ADF ve KPSS birlikte birim kök gösteriyor; doğrusal modelde düzey yerine birinci "
+                      "reason": "ADF ve KPSS birlikte unit root gösteriyor; doğrusal modelde düzey yerine birinci "
                                 "fark kullanılır."})  # fmt: skip
         changed = np.log(train_series.where(train_series > 0)) if positive_range else train_series
         prof = profile(changed.diff(), name, "diff", cfg.outlier_k)  # subsequent decisions are based on the transformed series
@@ -230,7 +230,7 @@ def _plan_column(name: str, train_series: pd.Series, cfg: PrepConfig, transform:
         power = "yeo_johnson"
     if power != "none":
         steps.append({"step": power, "params": {},
-                      "reason": f"Çarpıklık {tr_num(prof.skew, '+.2f')}; " + ("pozitif ve büyüklük mertebeleri arasında "
+                      "reason": f"Skewness {tr_num(prof.skew, '+.2f')}; " + ("pozitif ve büyüklük mertebeleri arasında "
                                 "değişen seri için log dönüşümü."
                                 if power == "log" else "negatif değer içeren ya da çarpık seri için Yeo–Johnson "
                                 "(λ eğitim penceresinde tahmin edilir).")})  # fmt: skip

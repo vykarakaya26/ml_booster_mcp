@@ -115,7 +115,7 @@ def test_distribution_diagnostics_classify_stationarity_and_tails():
     assert diagnose(walk, "walk", transform="log_diff").recommendations == ()  # already transformed
     assert diagnose(noise, "noise").stationarity == "stationary"
     d = diagnose(tails, "tails")
-    assert d.excess_kurtosis > 3 and any("Kalın kuyruk" in r for r in d.recommendations)
+    assert d.excess_kurtosis > 3 and any("Heavy tail" in r for r in d.recommendations)
     assert diagnose(pd.Series([1.0, 2.0]), "short").stationarity == "inconclusive"
 
 
