@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from datetime import UTC, date, datetime
 
+import numpy as np
 import pandas as pd
 
 from mlbooster.application.dto import FetchRequest, PanelResult
@@ -13,6 +14,7 @@ from mlbooster.application.use_cases.market_share import AnalyzeMarketShare, Sou
 from mlbooster.application.use_cases.series import FetchSeries
 from mlbooster.domain.model import HealthResult, HealthStatus, Source
 from mlbooster.domain.observations import KEY_COLUMNS, empty_observations
+from mlbooster.domain.services.search_share import SectorSearchTerms
 
 
 class FakeProvider:
@@ -262,3 +264,39 @@ class FakeDocumentReader:
     def read(self, url):
         self.calls.append(url)
         return self.pages
+
+
+class FakeTermLookup:
+    """TrendsLookup fake: synthetic Top 25 lists and weekly rows, counts what would have been billed."""
+
+    def __init__(self, listed=None):
+        day = date(2026, 10, 20)
+        self.lists = listed if listed is not None else [
+            ("top", day, "togg", 12), ("top", day, "tesla", 5), ("top", day, "migros'ta kampanya", 9),
+            ("top", day, "sıfır araba fiyatları", 8),
+        ]  # fmt: skip
+        self.bytes_billed = 0
+        self.queries = 0
+
+    def listed_terms(self):
+        self.queries += 1
+        self.bytes_billed += 1024**3
+        return pd.DataFrame(self.lists, columns=["table", "refresh_date", "term", "rank"])
+
+    def interest(self, table, terms):
+        self.queries += 1
+        weeks = pd.date_range("2024-01-07", periods=120, freq="7D").date
+        frames = []
+        for term, day in terms.items():
+            scores = np.linspace(10, 100, len(weeks))
+            frames.append(pd.DataFrame({"term": term, "refresh_date": day, "week": weeks, "region_code": "", "region_name": None, "score": scores / 2}))
+            frames.append(pd.DataFrame({"term": term, "refresh_date": day, "week": weeks, "region_code": "TR-34", "region_name": "İstanbul", "score": scores}))
+        return pd.concat(frames, ignore_index=True)
+
+
+class StaticSearchTerms:
+    def load(self):
+        return {
+            "otomotiv": SectorSearchTerms(generic=("sıfır araba", "ötv"), brands=("Togg", "Tesla", "Renault")),
+            "perakende": SectorSearchTerms(generic=("aktüel",), brands=("Migros", "BİM")),
+        }

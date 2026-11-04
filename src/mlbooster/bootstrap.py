@@ -6,9 +6,11 @@ outermost layer.
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass
 from functools import cached_property
 
+from mlbooster.application.errors import ProviderNotImplemented
 from mlbooster.application.ports import (
     CatalogOverrides,
     CatalogRepository,
@@ -45,15 +47,20 @@ from mlbooster.application.use_cases import (
     RejectEvidence,
     ResolveBrand,
     RunHealthChecks,
+    SearchInterest,
     SearchSeries,
+    SearchTermCatalog,
     SetFeatureSeries,
     SourceShareTable,
     StoreEntityDirectory,
+    TrendsLookup,
 )
 from mlbooster.domain.errors import InvalidInput
 from mlbooster.infrastructure.catalog_yaml import YamlCatalogRepository
 from mlbooster.infrastructure.document_reader import PdfDocumentReader
+from mlbooster.infrastructure.providers.bigquery_terms import open_term_lookup
 from mlbooster.infrastructure.providers.registry import ProviderRegistry
+from mlbooster.infrastructure.search_terms_yaml import YamlSearchTerms
 from mlbooster.infrastructure.secret_store import EnvSecretProvider
 from mlbooster.infrastructure.settings import Settings
 from mlbooster.infrastructure.storage.evidence_store import DuckDbEvidenceStore
@@ -74,6 +81,8 @@ class Container:
     updates: UpdateSource | None = None
     tables: TableReader | None = None
     evidence_store: EvidenceStore | None = None
+    search_terms: SearchTermCatalog | None = None
+    term_lookup: Callable[[], TrendsLookup] | None = None  # opened on first use: nothing runs without an explicit request
     documents: DocumentReader | None = None
 
     @cached_property
@@ -157,11 +166,17 @@ class Container:
 
     @cached_property
     def analyze_brand(self) -> AnalyzeBrand:
-        return AnalyzeBrand(self.catalog, self.resolve_brand, self.market_share, self.share_tables, self.list_evidence)
+        return AnalyzeBrand(self.catalog, self.resolve_brand, self.market_share, self.share_tables, self.list_evidence, lambda: self.search_interest)
 
     @cached_property
     def brand_features(self) -> BuildBrandFeatures:
-        return BuildBrandFeatures(self.catalog, self.resolve_brand, self.share_tables, self.build_panel, self.panels)
+        return BuildBrandFeatures(self.catalog, self.resolve_brand, self.share_tables, self.build_panel, self.panels, lambda: self.search_interest)
+
+    @cached_property
+    def search_interest(self) -> SearchInterest:
+        if self.term_lookup is None or self.search_terms is None:
+            raise ProviderNotImplemented("Arama ilgisi bu kurulumda yapılandırılmamış")
+        return SearchInterest(self.catalog, self.search_terms, self.term_lookup())
 
     @cached_property
     def plan_evidence(self) -> PlanEvidenceSearch:
@@ -229,4 +244,6 @@ def build_container(settings: Settings | None = None) -> Container:
         updates=GitHubReleaseSource(settings.data_dir / "update_check.json"),
         tables=LocalTableReader(),
         evidence_store=DuckDbEvidenceStore(settings.data_dir / "evidence"),
+        search_terms=YamlSearchTerms(settings.catalog_dir / "search_terms.yaml"),
+        term_lookup=lambda: open_term_lookup(catalog.load().source("bq_trends")),
     )

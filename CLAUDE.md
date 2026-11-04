@@ -29,7 +29,7 @@ src/mlbooster/
                      # use_cases/ (catalog, series, discovery, panel, health, analysis, modeling, market_share, brand, evidence,
                      # files: ExportTable). Depends only on domain.
   infrastructure/    # port implementations: providers/ (evds3, sdmx, tuik, bddk, tbb, bkm, tsb, odmd, epdk, btk, epias,
-                     # bigquery_trends + google_auth/bigquery_rest, registry), http_client.py (SecureHttpClient),
+                     # bigquery_trends + bigquery_terms + google_auth/bigquery_rest, registry), http_client.py (SecureHttpClient),
                      # catalog_yaml.py (pydantic → domain), secret_store.py, settings.py, storage/,
                      # update_check.py (GitHub tags), table_reader.py (user CSV/JSON input; CLI only),
                      # document_reader.py (text layer of one allowed PDF; storage/ holds evidence_store.py)
@@ -198,6 +198,13 @@ Rules:
    Live 2026-11-03 (verified): tables are not clustered (~0.25 GiB billed per listed day) → lists are read in 7-day
    chunks; each term has 261 weeks × 81 provinces, no country-level row, null = low volume (0 in the total);
    partitions appear 2 days late (publication_lag_days 2, history revision_days 3).
+   Search interest in the brand flow (application/use_cases/search_interest.py, domain/services/search_share.py,
+   providers/bigquery_terms.py, catalog_data/search_terms.yaml): opt-in (`search_interest`, default off; the output always
+   says not_run / done / unavailable). Live 2026-11-04: every (term, province) series peaks at exactly 100, so scores
+   compare neither across terms nor provinces: `arama_payi` is withheld, never compute it. Comparable: list days, list
+   rank, a term against its own past. The interest level is not a feature: the backfill is rescaled to the current peak,
+   so past values carry look-ahead; only changes and ratios to the term's own past go to the panel. `refresh_date IN
+   UNNEST(@days)` prunes partitions (0.38 GiB per day). Terms are found / related / not_found, nothing is filled.
 
 ## Observation (silver) schema (domain/observations.py; Parquet schema in storage/observation_store.py)
 source_id, dataset_id, series_id, entity_id, entity_name, metric, date (period end), freq, value, unit,

@@ -98,7 +98,7 @@ pip install "git+https://github.com/vykarakaya26/ml_booster_mcp.git"
 claude mcp add mlbooster -- mlbooster-mcp
 ```
 
-Araçlar: `list_sectors`, `list_sources`, `show_map`, `search_series`, `discover_series`, `set_feature_series`, `fetch_series`, `build_panel`, `audit_panel`, `prepare_panel`, `engineer_features`, `analyze_brand`, `build_brand_features`, `evidence_policy`, `read_evidence_pdf`, `record_share_evidence`, `list_share_evidence`, `reject_share_evidence`, `analyze_market_share`, `analyze_source_market_share`, `health`, `check_updates`.
+Araçlar: `list_sectors`, `list_sources`, `show_map`, `search_series`, `discover_series`, `set_feature_series`, `fetch_series`, `build_panel`, `audit_panel`, `prepare_panel`, `engineer_features`, `analyze_brand`, `build_brand_features`, `analyze_search_interest`, `evidence_policy`, `read_evidence_pdf`, `record_share_evidence`, `list_share_evidence`, `reject_share_evidence`, `analyze_market_share`, `analyze_source_market_share`, `health`, `check_updates`.
 
 Seri kodlarını keşfetmek için TCMB'nin resmi EVDS-MCP sunucusu da eklenebilir:
 `claude mcp add --transport http evds https://mcp.tcmb.gov.tr/tcmb-mcp/evds/mcp`
@@ -118,6 +118,7 @@ mlbooster audit --sector otomotiv --json audit.json
 mlbooster prep --sector makro_genel --target tufe_yoy --train-end 2022-12 --out hazir.csv --json prep.json
 mlbooster features --sector makro_genel --target tufe_yoy --train-end 2022-12 --selected-out secilen.csv --json features.json
 mlbooster brand "Anadolu Sigorta" --features --json brand.json  # marka adından sektör, sıra, pay, rakip ve feature'lar
+mlbooster brand "Togg" --search-interest  # isteğe bağlı arama ilgisi: BigQuery projenize sorgu gönderir
 mlbooster evidence list "Migros"  # kayıtlı yayımlanmış pay bulguları; arama Claude'daki share-research agent'ı ile yapılır
 mlbooster market-share --input pay.csv --focus "Marka X" --unit adet --sector otomotiv --json share.json
 mlbooster market-share --source bddk --series BDDK.AKTIF --start 2019-01 --focus Katılım  # banka grubu payları (BDDK)

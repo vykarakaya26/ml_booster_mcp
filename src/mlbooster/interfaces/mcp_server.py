@@ -25,6 +25,7 @@ from mcp_types import ToolAnnotations
 
 from mlbooster.application.dto import FetchRequest
 from mlbooster.application.use_cases.panel import DEFAULT_START
+from mlbooster.application.use_cases.search_interest import search_section
 from mlbooster.bootstrap import Container, build_container
 from mlbooster.domain.errors import DomainError, InvalidInput
 from mlbooster.domain.services.evidence import EvidenceDraft
@@ -312,6 +313,7 @@ def analyze_brand(
     start: str | None = None,
     end: str | None = None,
     refresh: bool = False,
+    search_interest: bool = False,
 ) -> dict:
     """Marka ya da şirket adından pazar payı analizi: adı oyuncu düzeyinde kaynaklarda (ODMD, TBB, TSB, EPDK, BTK, BDDK)
     arar; sektör, sıra, pay, trend, yoğunlaşma, gerekçeli rakip seti, pay kazanan ve kaybedenler, kaynak atfı ve lisans
@@ -319,19 +321,33 @@ def analyze_brand(
     seçilen id ile choice vererek yeniden çağır; not_found ise hesaplanmış pay yoktur, sector_candidates ve available
     kullanıcıya aktarılır; asla pay tahmini yazma. evidence alanı web'de yayımlanmış bulguları ayrı bir blokta taşır: derlenmiş
     iddialardır, hesaplanmış pay değildir; ikisini birleştirme. Varsayılan dönem son beş yıldır (BTK'da üç yıl). İlk çağrı
-    kaynakları okuduğu için birkaç dakika sürebilir; sonrakiler yerel cache'ten yanıtlanır."""
-    return container().analyze_brand(query, choice, _iso(start, "start") if start else None, _iso(end, "end") if end else None, refresh)
+    kaynakları okuduğu için birkaç dakika sürebilir; sonrakiler yerel cache'ten yanıtlanır. search_interest alanı Google
+    Trends bloğudur: arama ilgisidir, pazar payı değildir; varsayılan olarak çalışmaz (status: not_run). search_interest=true
+    BigQuery sorgusu çalıştırır ve kullanıcının Google Cloud projesine işlenir; kullanıcı istemeden açma."""
+    return container().analyze_brand(query, choice, _iso(start, "start") if start else None, _iso(end, "end") if end else None, refresh, 3, search_interest)
 
 
 @server.tool(annotations=WRITES_LOCAL)
 @safe_tool
-def build_brand_features(query: str, choice: str | None = None, start: str | None = None, end: str | None = None) -> dict:
+def build_brand_features(query: str, choice: str | None = None, start: str | None = None, end: str | None = None, search_interest: bool = False) -> dict:
     """Marka için point-in-time aylık feature paneli üretir ve yerel veri dizinine Parquet olarak yazar: pay, pay değişimi,
     sıra, lider farkı, pazara göre büyüme, rakip payı ve sektörün makro feature'ları. Ad tek bir markaya gitmiyorsa
     analyze_brand ile aynı status çıktısını döndürür. Lisansı saklamaya izin vermeyen kaynakların kolonları dosyaya yazılmaz
-    (withheld)."""
-    out = container().brand_features(query, choice, _iso(start, "start") if start else None, _iso(end, "end") if end else None)
+    (withheld). search_interest=true Google Trends kolonlarını ekler (BigQuery sorgusu çalıştırır; kullanıcı istemeden açma)."""
+    out = container().brand_features(query, choice, _iso(start, "start") if start else None, _iso(end, "end") if end else None, search_interest=search_interest)
     return out if isinstance(out, dict) else brand_features_dict(out)
+
+
+@server.tool(annotations=READ_REMOTE)
+@safe_tool
+def analyze_search_interest(brand: str, sector: str | None = None, competitors: list[str] | None = None) -> dict:
+    """Marka, rakip ve kategori terimlerini Google Trends'in Türkiye Top 25 ve Rising listelerinde arar. Her terim için
+    found, related ya da not_found döner; liste günü, liste sırası, rakipler arası sıra, il yayılımı ve aylık feature'lar
+    verir. Arama ilgisidir, pazar payı değildir. Skorlar terim ve il bazında ayrı ölçeklendiği için arama payı hesaplanmaz
+    (withheld); kullanıcıya pay gibi sunma. Listede olmamak terimin aranmadığı anlamına gelmez; eksik terimi doldurma.
+    BigQuery sorgusu çalıştırır ve kullanıcının Google Cloud projesine işlenir (cost alanı); kullanıcı istemeden çağırma.
+    competitors verilmezse sektörün katalogdaki markaları kullanılır."""
+    return search_section(container().search_interest(brand, sector, competitors))
 
 
 @server.tool(annotations=READ_ONLY)

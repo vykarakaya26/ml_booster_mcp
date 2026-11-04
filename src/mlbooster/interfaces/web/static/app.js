@@ -784,10 +784,10 @@ views.pazar = async (root) => {
 
   // brand flow: name → candidates → report; a name that no source lists gets its limits, never a share
   const sectorLabel = (id) => state.sectors.find((s) => s.id === id)?.name || id;
-  const brandRequest = () => ({ query: state.share.brand.query, choice: state.share.brand.choice });
+  const brandRequest = () => ({ query: state.share.brand.query, choice: state.share.brand.choice, search_interest: state.share.brand.result?.search_interest?.status === "done" });
 
-  const askBrand = async (query, choice) => {
-    const r = await postJSON("/api/brand/analyze", { query, choice, refresh: brandRefresh.checked });
+  const askBrand = async (query, choice, searchInterest = false) => {
+    const r = await postJSON("/api/brand/analyze", { query, choice, refresh: brandRefresh.checked, search_interest: searchInterest });
     brandRefresh.checked = false;
     state.share = { ...state.share, mode, brand: { query, choice, result: r, features: null } };
     showBrand(r);
@@ -797,7 +797,49 @@ views.pazar = async (root) => {
     if (r.status === "resolved") renderBrand(r);
     else if (r.status === "ambiguous") renderCandidates(r);
     else if (r.status === "not_found") renderLimits(r);
-    else fill(out, emptyState("Pay hesaplanamadı", r.message), evidenceCard(r.evidence));
+    else fill(out, emptyState("Pay hesaplanamadı", r.message), evidenceCard(r.evidence), searchCard(r));
+  };
+
+  // Google Trends block: opt-in (BigQuery queries), kept apart from computed shares and published findings
+  const searchMessage = (r) => {
+    const s = r.search_interest;
+    const run = h("button", { type: "button", class: "ghost" }, "Arama ilgisini getir");
+    run.addEventListener("click", () => busy(run, "BigQuery sorgulanıyor", () => askBrand(r.query, state.share.brand.choice, true), out));
+    return [h("p", {}, s.message), h("div", { class: "button-row" }, run)];
+  };
+
+  const searchTerms = (s) => {
+    const terms = s.terms.filter((t) => t.status !== "not_found");
+    const missing = s.terms.filter((t) => t.status === "not_found").map((t) => t.label);
+    return [
+      terms.length ? table([
+        { label: "Tür", key: "mode_label" },
+        { label: "Terim", key: "label" },
+        { label: "Durum", key: "status_label" },
+        { label: "Liste günü", num: true, render: (t) => nf(0).format(t.list_days) },
+        { label: "En iyi sıra", num: true, render: (t) => (t.best_rank === null ? "—" : nf(0).format(t.best_rank)) },
+        { label: "Listedeki terimler", render: (t) => [...t.terms, ...t.related_terms].slice(0, 3).join(", ") },
+        { label: "Kendi geçmişine göre", num: true, render: (t) => (t.interest?.momentum == null ? "—" : `${nf(2).format(t.interest.momentum)} kat`) },
+      ], terms) : h("p", {}, "Aranan terimlerin hiçbiri listelere girmemiş."),
+      missing.length ? h("p", { class: "caption" }, `Listede yok: ${missing.join(", ")}. Listede olmamak terimin aranmadığı anlamına gelmez.`) : null,
+    ];
+  };
+
+  const searchCard = (r) => {
+    const s = r.search_interest;
+    if (!s) return null;
+    const done = s.status === "done";
+    const listed = done ? s.ranking.filter((x) => x.rank !== null) : [];
+    return h("section", { class: "card" },
+      h("div", { class: "card-head" }, h("div", {}, h("h2", {}, "Arama ilgisi"), h("p", {}, s.note))),
+      done ? [
+        h("p", {}, `Google Trends Türkiye listeleri, ${s.coverage.first_day} – ${s.coverage.last_day} (${nf(0).format(s.coverage.list_days)} günlük liste).`),
+        ...searchTerms(s),
+        listed.length ? h("p", {}, `Listelerde görünme sırası: ${listed.map((x) => `${x.rank}. ${x.label} (${nf(0).format(x.list_days)} gün)`).join(", ")}.`) : null,
+        s.provinces ? h("p", {}, `${r.brand?.name || s.brand} için ${nf(0).format(s.provinces.provinces_with_data)} ilde veri var. ${s.provinces.note}`) : null,
+        h("p", { class: "caption" }, s.withheld.arama_payi),
+        h("p", { class: "caption" }, `${s.attribution}. BigQuery: ${nf(2).format(s.cost.gib)} GiB, ${nf(0).format(s.cost.queries)} sorgu.`),
+      ] : searchMessage(r));
   };
 
   const candidateList = (matches, query) => h("ul", { class: "candidates" }, matches.map((m) => {
@@ -860,6 +902,7 @@ views.pazar = async (root) => {
     const found = r.evidence && r.evidence.current.length + r.evidence.historical.length > 0;
     fill(out,
       found ? evidenceCard(r.evidence) : null,
+      searchCard(r),
       h("section", { class: "card" },
         h("div", { class: "card-head" }, h("div", {}, h("h2", {}, "Oyuncu düzeyinde veri yok"), h("p", {}, r.message))),
         r.sector_candidates.length
@@ -978,6 +1021,7 @@ views.pazar = async (root) => {
         ], seg.segments),
         ss ? h("p", {}, term("shift_share", "Shift-share"), `: ${monthName(ss.from)} → ${monthName(ss.to)} arasında ${ppText(ss.total_pp, 2)}; ${ppText(ss.share_effect_pp, 2)} segment içi pay, ${ppText(ss.mix_effect_pp, 2)} segment karması etkisi.`) : null) : null,
       evidenceCard(r.evidence),
+      searchCard(r),
       brandFeatures(r),
       r.issues.length ? h("section", { class: "card" },
         h("div", { class: "card-head" }, h("div", {}, h("h2", {}, "Veri notları"), h("p", {}, "Sonucu yorumlarken dikkate alınması gereken durumlar."))),

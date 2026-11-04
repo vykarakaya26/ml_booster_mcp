@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass, field, replace
 from datetime import UTC, date, datetime, timedelta
 
@@ -19,6 +20,8 @@ from mlbooster.application.ports import (
 from mlbooster.application.use_cases.evidence import ListEvidence
 from mlbooster.application.use_cases.market_share import AnalyzeMarketShare, SourceShareTable
 from mlbooster.application.use_cases.panel import BuildPanel
+from mlbooster.application.use_cases.search_interest import SOURCE_ID as TRENDS_SOURCE
+from mlbooster.application.use_cases.search_interest import SearchInterest, run_search, search_not_run
 from mlbooster.application.use_cases.series import FetchSeries
 from mlbooster.domain.errors import DomainError, InvalidInput
 from mlbooster.domain.model import Catalog, Frequency, SeedSeries, SeriesKind, ShareSource, Source
@@ -48,6 +51,7 @@ from mlbooster.domain.services.calendar_tr import HOLIDAY_YEARS, uncovered_years
 from mlbooster.domain.services.evidence import HOW_TO_SEARCH
 from mlbooster.domain.services.feature_engineering import FeatureConfig, FeatureSpec, generate
 from mlbooster.domain.services.market_share import ShareConfig
+from mlbooster.domain.services.search_share import ARAMA_PAYI_WITHHELD, PROXY_NOTE
 from mlbooster.domain.validation import brand_choice, brand_query
 
 INDEX_WINDOW_DAYS = 270  # covers the latest published period of every source, quarterly reports included
@@ -297,12 +301,14 @@ class AnalyzeBrand:
         market_share: AnalyzeMarketShare,
         tables: SourceShareTable,
         evidence: ListEvidence | None = None,
+        search: Callable[[], SearchInterest] | None = None,
     ):
         self._catalog = catalog
         self._resolver = resolver
         self._share = market_share
         self._tables = tables
         self._evidence = evidence
+        self._search = search
         self._series = _BrandSeries(catalog, tables)
 
     def __call__(
@@ -313,19 +319,29 @@ class AnalyzeBrand:
         end: date | None = None,
         refresh: bool = False,
         trend_years: int = 3,
+        search_interest: bool = False,
     ) -> dict:
+        """`search_interest` runs BigQuery queries on the user's project, so it is asked for explicitly."""
         resolution, scan = self._resolver.resolution(query, choice, refresh)
         if resolution.status != RESOLVED:
-            return self._resolver.describe(resolution, scan)
+            out = self._resolver.describe(resolution, scan)
+            if resolution.status == NOT_FOUND:
+                sectors = [s["sector"] for s in out["sector_candidates"]]
+                out["search_interest"] = self._search_block(search_interest, resolution.query, sectors[0] if sectors else None)
+            return out
         match = resolution.match
         share = self._series.share_source(match)
         period = self._series.period(share, start, end)
         plans, skipped = self._series.plan(match, period, refresh)
         results = self._analyses(match, plans, period, trend_years, skipped)
         if not results:
-            return self._no_data(resolution, match, period, skipped)
+            return self._no_data(resolution, match, period, skipped) | {"search_interest": self._search_block(search_interest, match.name, match.sector)}
         segments = self._segments(match, share, results[0][0], period)
-        return self._assemble(resolution, scan, share, results, segments, skipped, period)
+        out = self._assemble(resolution, scan, share, results, segments, skipped, period)
+        return out | {"search_interest": self._search_block(search_interest, match.name, match.sector, [c["entity"] for c in out["competitors"]])}
+
+    def _search_block(self, run: bool, name: str, sector: str | None, competitors: list[str] | None = None) -> dict:
+        return run_search(self._search, name, sector, competitors) if run else search_not_run()
 
     def _analyses(self, match: BrandMatch, plans: list[SeriesPlan], period: BrandPeriod, trend_years: int, skipped: dict) -> list[tuple[SeriesPlan, dict]]:
         out = []
@@ -438,12 +454,21 @@ class BuildBrandFeatures:
     """Monthly point-in-time panel of a resolved brand plus the macro features of its sector. The full brand metrics
     come from the primary series; the other series add their share only."""
 
-    def __init__(self, catalog: CatalogRepository, resolver: ResolveBrand, tables: SourceShareTable, build_panel: BuildPanel, panels: PanelStore):
+    def __init__(
+        self,
+        catalog: CatalogRepository,
+        resolver: ResolveBrand,
+        tables: SourceShareTable,
+        build_panel: BuildPanel,
+        panels: PanelStore,
+        search: Callable[[], SearchInterest] | None = None,
+    ):
         self._catalog = catalog
         self._resolver = resolver
         self._tables = tables
         self._build = build_panel
         self._panels = panels
+        self._search = search
         self._series = _BrandSeries(catalog, tables)
 
     def __call__(
@@ -454,8 +479,10 @@ class BuildBrandFeatures:
         end: date | None = None,
         refresh: bool = False,
         save: bool = True,
+        search_interest: bool = False,
     ) -> BrandFeatures | dict:
-        """Returns the resolution as a dict if the text does not lead to one brand."""
+        """Returns the resolution as a dict if the text does not lead to one brand. `search_interest` adds the Google
+        Trends columns; it runs BigQuery queries on the user's project, so it is asked for explicitly."""
         resolution, scan = self._resolver.resolution(query, choice, refresh)
         if resolution.status != RESOLVED:
             return self._resolver.describe(resolution, scan)
@@ -482,9 +509,29 @@ class BuildBrandFeatures:
         panel.index.name = "date"
         result = BrandFeatures(match.as_dict(), panel, specs, skipped, _notes(grid), _source_notes(catalog, match, is_proxy), is_proxy)
         result.withheld = _withheld(catalog, sector, specs)
+        self._add_search(result, match, grid, search_interest)
         if save:
             result.location = self._panels.save(result.panel_id, result.storable)
         return result
+
+    def _add_search(self, result: BrandFeatures, match: BrandMatch, grid: pd.DatetimeIndex, run: bool) -> None:
+        """Search-interest columns, kept apart from the share columns (family search_interest, always a proxy)."""
+        if not run:
+            result.notes.append("Arama ilgisi feature'ları üretilmedi; isteğe bağlıdır ve BigQuery sorgusu çalıştırır.")
+            return
+        try:
+            if self._search is None:
+                raise InvalidInput("Arama ilgisi bu kurulumda kullanılamıyor")
+            found = self._search()(match.name, match.sector)
+        except DomainError as exc:
+            result.skipped["search_interest"] = str(exc)
+            return
+        for name, description in found["feature_notes"].items():
+            result.panel[name] = found["features"][name].reindex(grid)
+            result.specs.append(FeatureSpec(name, "search_interest", (name,), description))
+        result.notes += [PROXY_NOTE, ARAMA_PAYI_WITHHELD]
+        if found["feature_notes"]:
+            result.sources.append(report.source_note(self._catalog.load().source(TRENDS_SOURCE), True))
 
     def _metrics(self, catalog: Catalog, match: BrandMatch, plans: list[SeriesPlan], period: BrandPeriod, skipped: dict) -> tuple[pd.DataFrame | None, dict[str, pd.Series], bool]:
         source = catalog.source(match.source)
