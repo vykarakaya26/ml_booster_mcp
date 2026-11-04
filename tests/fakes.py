@@ -278,6 +278,9 @@ class FakeTermLookup:
         self.bytes_billed = 0
         self.queries = 0
 
+    def data_source(self):
+        return {"mode": "bigquery", "label": "BigQuery'den canlı sorgu."}
+
     def listed_terms(self):
         self.queries += 1
         self.bytes_billed += 1024**3
@@ -292,6 +295,23 @@ class FakeTermLookup:
             frames.append(pd.DataFrame({"term": term, "refresh_date": day, "week": weeks, "region_code": "", "region_name": None, "score": scores / 2}))
             frames.append(pd.DataFrame({"term": term, "refresh_date": day, "week": weeks, "region_code": "TR-34", "region_name": "İstanbul", "score": scores}))
         return pd.concat(frames, ignore_index=True)
+
+
+class FakeMirrorSource:
+    """MirrorSource fake: downloads two days into the state it was given."""
+
+    def __init__(self, state):
+        self.state, self.synced, self.estimates = state, 0, 0
+
+    def estimate(self):
+        self.estimates += 1
+        return {"bytes": int(42.2 * 1024**3), "days": 33}
+
+    def sync(self):
+        self.synced += 1
+        for day in (date(2026, 11, 1), date(2026, 11, 2)):
+            self.state.write_list("top", day, pd.DataFrame({"term": ["togg"], "rank": [1]}))
+        return {"days_added": 2, "bytes_billed": 2 * 1024**3, "queries": 4}
 
 
 class StaticSearchTerms:

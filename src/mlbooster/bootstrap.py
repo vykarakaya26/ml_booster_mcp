@@ -54,11 +54,13 @@ from mlbooster.application.use_cases import (
     SourceShareTable,
     StoreEntityDirectory,
     TrendsLookup,
+    TrendsMirrorControl,
 )
+from mlbooster.application.use_cases.trends_mirror import MirrorSource, MirrorState
 from mlbooster.domain.errors import InvalidInput
 from mlbooster.infrastructure.catalog_yaml import YamlCatalogRepository
 from mlbooster.infrastructure.document_reader import PdfDocumentReader
-from mlbooster.infrastructure.providers.bigquery_terms import open_term_lookup
+from mlbooster.infrastructure.providers.bigquery_mirror import TermLookups
 from mlbooster.infrastructure.providers.registry import ProviderRegistry
 from mlbooster.infrastructure.search_terms_yaml import YamlSearchTerms
 from mlbooster.infrastructure.secret_store import EnvSecretProvider
@@ -67,6 +69,7 @@ from mlbooster.infrastructure.storage.evidence_store import DuckDbEvidenceStore
 from mlbooster.infrastructure.storage.observation_store import ParquetObservationStore
 from mlbooster.infrastructure.storage.panel_store import ParquetPanelStore
 from mlbooster.infrastructure.storage.raw_store import RawStore
+from mlbooster.infrastructure.storage.trends_mirror import TrendsMirror
 from mlbooster.infrastructure.table_reader import LocalTableReader
 from mlbooster.infrastructure.update_check import GitHubReleaseSource
 
@@ -83,6 +86,8 @@ class Container:
     evidence_store: EvidenceStore | None = None
     search_terms: SearchTermCatalog | None = None
     term_lookup: Callable[[], TrendsLookup] | None = None  # opened on first use: nothing runs without an explicit request
+    mirror_state: MirrorState | None = None
+    mirror_source: Callable[[], MirrorSource] | None = None
     documents: DocumentReader | None = None
 
     @cached_property
@@ -172,11 +177,18 @@ class Container:
     def brand_features(self) -> BuildBrandFeatures:
         return BuildBrandFeatures(self.catalog, self.resolve_brand, self.share_tables, self.build_panel, self.panels, lambda: self.search_interest)
 
-    @cached_property
+    @property
     def search_interest(self) -> SearchInterest:
+        """Built per use: the user's answer about the local copy may change while the process runs."""
         if self.term_lookup is None or self.search_terms is None:
             raise ProviderNotImplemented("Arama ilgisi bu kurulumda yapılandırılmamış")
         return SearchInterest(self.catalog, self.search_terms, self.term_lookup())
+
+    @cached_property
+    def trends_mirror(self) -> TrendsMirrorControl:
+        if self.mirror_state is None or self.mirror_source is None:
+            raise ProviderNotImplemented("Yerel kopya bu kurulumda yapılandırılmamış")
+        return TrendsMirrorControl(self.mirror_state, self.mirror_source)
 
     @cached_property
     def plan_evidence(self) -> PlanEvidenceSearch:
@@ -235,6 +247,8 @@ class _NoEvidence:
 def build_container(settings: Settings | None = None) -> Container:
     settings = settings or Settings.from_env()
     catalog = YamlCatalogRepository(settings.catalog_dir, settings.overrides_path)
+    mirror = TrendsMirror(settings.data_dir / "mirror" / "bq_trends")
+    lookups = TermLookups(lambda: catalog.load().source("bq_trends"), mirror)
     return Container(
         catalog=catalog,
         overrides=catalog,
@@ -245,5 +259,7 @@ def build_container(settings: Settings | None = None) -> Container:
         tables=LocalTableReader(),
         evidence_store=DuckDbEvidenceStore(settings.data_dir / "evidence"),
         search_terms=YamlSearchTerms(settings.catalog_dir / "search_terms.yaml"),
-        term_lookup=lambda: open_term_lookup(catalog.load().source("bq_trends")),
+        term_lookup=lookups.current,
+        mirror_state=mirror,
+        mirror_source=lookups.local,
     )

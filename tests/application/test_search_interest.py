@@ -31,6 +31,9 @@ class FakeLookup:
     queries: int = 0
     asked: list = field(default_factory=list)
 
+    def data_source(self):
+        return {"mode": "bigquery", "label": "canlı"}
+
     def listed_terms(self):
         self.bytes_billed += 1000
         self.queries += 1

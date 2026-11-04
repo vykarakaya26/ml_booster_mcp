@@ -427,6 +427,18 @@ def create_app(container_factory: Callable[[], Container] = build_container, tok
 
         return await call(run)
 
+    async def trends_mirror(request: Request) -> dict:
+        """The local copy of the Google Trends tables: every step is a click of the user."""
+        data = await _body(request)
+        action = _str(data, "action", "status")
+        steps = {
+            "status": lambda c: c.status(offer=True), "enable": lambda c: c.enable(), "update": lambda c: c.update(),
+            "decline": lambda c: c.decline(), "disable": lambda c: c.disable(),
+        }  # fmt: skip
+        if action not in steps:
+            raise InvalidInput("Geçersiz işlem")
+        return await call(lambda: steps[action](container().trends_mirror))
+
     def _brand_panel(query, choice, start, end, save, search_interest=False):
         result = container().brand_features(query, choice, start, end, save=save, search_interest=search_interest)
         if isinstance(result, dict):  # the text does not lead to one brand
@@ -477,6 +489,7 @@ def create_app(container_factory: Callable[[], Container] = build_container, tok
         Route("/api/brand/analyze", endpoint(brand_analyze), methods=["POST"]),
         Route("/api/brand/features", endpoint(brand_features), methods=["POST"]),
         Route("/api/brand/export", endpoint(brand_export), methods=["POST"]),
+        Route("/api/trends-mirror", endpoint(trends_mirror), methods=["POST"]),
         Route("/api/health", endpoint(health)),
         Mount("/static", StaticFiles(directory=STATIC_DIR), name="static"),
     ]

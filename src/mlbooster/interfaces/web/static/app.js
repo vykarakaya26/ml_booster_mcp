@@ -825,6 +825,48 @@ views.pazar = async (root) => {
     ];
   };
 
+  // local copy of the Trends tables: asked after a search-interest run, every step is the user's click
+  const mirrorPanel = (r) => {
+    const box = h("div", { class: "stack" });
+    const ask = (action) => postJSON("/api/trends-mirror", { action });
+    const button = (label, working, fn, cls = "ghost") => {
+      const b = h("button", { type: "button", class: cls }, label);
+      b.addEventListener("click", () => busy(b, working, fn));
+      return b;
+    };
+    const days = (m) => `${nf(0).format(m.days)} gün (${m.first_day} – ${m.last_day}), ${nf(1).format(m.disk_mb)} MB`;
+    const show = (m, note = null) => {
+      const noteLine = note ? h("p", { class: "caption" }, note) : null;
+      if (m.state === "on") {
+        const askDelete = h("button", { type: "button", class: "ghost" }, "Kapat ve sil");
+        askDelete.addEventListener("click", () => fill(box,
+          h("p", {}, `Yerel kopya silinecek: ${days(m)}. 30 günden eski listeler BigQuery'den geri alınamaz.`),
+          h("div", { class: "button-row" },
+            button("Evet, sil", "Siliniyor", async () => show(await ask("disable"), "Yerel kopya kapatıldı ve silindi.")),
+            button("Vazgeç", "Hazırlanıyor", async () => show(m)))));
+        fill(box, h("p", {}, `Yerel kopya açık: ${days(m)}.`), noteLine,
+          h("div", { class: "button-row" }, button("Güncelle", "Eksik günler alınıyor", async () => {
+            const u = await ask("update");
+            show(u, `${nf(0).format(u.days_added)} yeni gün eklendi; BigQuery ${nf(2).format(u.gib)} GiB okudu.`);
+          }), askDelete));
+      } else if (m.state === "declined") {
+        fill(box, h("p", { class: "muted" }, "Yerel kopya kapalı; tercihiniz kaydedildi."), noteLine,
+          h("div", { class: "button-row" }, button("Yerel kopya seçeneğini göster", "Ölçülüyor", async () => show({ ...(await ask("status")), state: "off" }))));
+      } else {
+        fill(box, h("h3", {}, "Yerel kopya oluşturulsun mu?"), h("p", {}, m.offer), noteLine,
+          h("div", { class: "button-row" },
+            button("Yerel kopya oluştur", "Kopyalanıyor", async () => {
+              const u = await ask("enable");
+              show(u, `Kopya hazır: ${nf(0).format(u.days_added)} gün eklendi, BigQuery ${nf(2).format(u.gib)} GiB okudu.`);
+            }, ""),
+            button("Şimdi değil", "Kaydediliyor", async () => show(await ask("decline")))));
+      }
+    };
+    fill(box, h("p", { class: "muted" }, "Yerel kopya durumu okunuyor."));
+    ask("status").then((m) => show(m)).catch((err) => fill(box, h("p", { class: "muted" }, err.message)));
+    return box;
+  };
+
   const searchCard = (r) => {
     const s = r.search_interest;
     if (!s) return null;
@@ -833,12 +875,13 @@ views.pazar = async (root) => {
     return h("section", { class: "card" },
       h("div", { class: "card-head" }, h("div", {}, h("h2", {}, "Arama ilgisi"), h("p", {}, s.note))),
       done ? [
-        h("p", {}, `Google Trends Türkiye listeleri, ${s.coverage.first_day} – ${s.coverage.last_day} (${nf(0).format(s.coverage.list_days)} günlük liste).`),
+        h("p", {}, `Google Trends Türkiye listeleri, ${s.coverage.first_day} – ${s.coverage.last_day} (${nf(0).format(s.coverage.list_days)} günlük liste). ${s.data_source.label}`),
         ...searchTerms(s),
         listed.length ? h("p", {}, `Listelerde görünme sırası: ${listed.map((x) => `${x.rank}. ${x.label} (${nf(0).format(x.list_days)} gün)`).join(", ")}.`) : null,
         s.provinces ? h("p", {}, `${r.brand?.name || s.brand} için ${nf(0).format(s.provinces.provinces_with_data)} ilde veri var. ${s.provinces.note}`) : null,
         h("p", { class: "caption" }, s.withheld.arama_payi),
         h("p", { class: "caption" }, `${s.attribution}. BigQuery: ${nf(2).format(s.cost.gib)} GiB, ${nf(0).format(s.cost.queries)} sorgu.`),
+        mirrorPanel(r),
       ] : searchMessage(r));
   };
 
