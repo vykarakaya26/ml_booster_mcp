@@ -30,6 +30,7 @@ from mlbooster.interfaces.presenters import (
     brand_features_dict,
     evidence_lines,
     features_dict,
+    mirror_lines,
     prep_dict,
     quality_dict,
     search_lines,
@@ -43,6 +44,8 @@ map_app = typer.Typer(help="Sektör → kaynak haritası", no_args_is_help=True)
 evidence_app = typer.Typer(help="Yayımlanmış pazar payı bulguları (derlenmiş; hesaplanmış pay değildir)", no_args_is_help=True)
 app.add_typer(catalog_app, name="catalog")
 app.add_typer(map_app, name="map")
+mirror_app = typer.Typer(help="Google Trends tablolarının isteğe bağlı yerel kopyası", no_args_is_help=True)
+app.add_typer(mirror_app, name="trends-mirror")
 app.add_typer(evidence_app, name="evidence")
 
 
@@ -530,6 +533,68 @@ def brand(
     else:
         typer.echo(result["message"])
         _echo_search(result)
+
+
+def _echo_sync(out: dict) -> None:
+    typer.echo(f"{out['days_added']} yeni gün eklendi; BigQuery {tr_num(out['gib'], '.2f')} GiB okudu ({out['queries']} sorgu).")
+    for line in mirror_lines(out):
+        typer.echo(line)
+
+
+@mirror_app.command("status")
+def mirror_status(offer: Annotated[bool, typer.Option("--offer", help="Kopyanın okuyacağı veriyi ücretsiz dry run ile ölç")] = False):
+    """Yerel kopyanın durumu: açık mı, kaç gün, diskte ne kadar yer kaplıyor."""
+    try:
+        status = container().trends_mirror.status(offer)
+    except DomainError as exc:
+        _fail(exc)
+    for line in mirror_lines(status):
+        typer.echo(line)
+
+
+@mirror_app.command("enable")
+def mirror_enable(yes: Annotated[bool, typer.Option("--yes", help="Onay sorma (betikler için)")] = False):
+    """Yerel kopyayı açar: Türkiye satırlarını indirir. Ne yapacağını ve ne okuyacağını söyler, onay ister."""
+    try:
+        if not yes:
+            status = container().trends_mirror.status(offer=True)
+            if status["state"] == "on":
+                typer.echo("Yerel kopya zaten açık; yeni günler için: mlbooster trends-mirror update")
+                return
+            typer.echo(status["offer"])
+            if not typer.confirm("Yerel kopya oluşturulsun mu?"):
+                container().trends_mirror.decline()
+                typer.echo("Oluşturulmadı; tercihiniz kaydedildi.")
+                return
+        typer.echo("Kopyalanıyor (birkaç dakika sürebilir)", err=True)
+        out = container().trends_mirror.enable()
+    except DomainError as exc:
+        _fail(exc)
+    _echo_sync(out)
+
+
+@mirror_app.command("update")
+def mirror_update():
+    """Yerel kopyaya yalnızca eksik günleri ekler."""
+    try:
+        out = container().trends_mirror.update()
+    except DomainError as exc:
+        _fail(exc)
+    _echo_sync(out)
+
+
+@mirror_app.command("disable")
+def mirror_disable(yes: Annotated[bool, typer.Option("--yes", help="Onay sorma (betikler için)")] = False):
+    """Yerel kopyayı kapatır ve siler. Sonraki aramalar yeniden doğrudan BigQuery'ye gider."""
+    try:
+        status = container().trends_mirror.status()
+        if not yes and not typer.confirm(f"Yerel kopya silinecek ({status['days']} gün, {tr_num(status['disk_mb'], '.1f')} MB). 30 günden eski listeler BigQuery'den geri alınamaz. Devam edilsin mi?"):
+            typer.echo("Silinmedi.")
+            return
+        out = container().trends_mirror.disable()
+    except DomainError as exc:
+        _fail(exc)
+    typer.echo(f"Yerel kopya kapatıldı ve silindi ({tr_num(out['removed_mb'], '.1f')} MB).")
 
 
 @evidence_app.command("list")

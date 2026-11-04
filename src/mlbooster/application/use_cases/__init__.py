@@ -34,6 +34,7 @@ from mlbooster.application.use_cases.search_interest import (
     search_section,
 )
 from mlbooster.application.use_cases.series import DiscoverSeries, FetchSeries
+from mlbooster.application.use_cases.trends_mirror import TrendsMirrorControl
 
 __all__ = [
     "AnalyzeBrand",
@@ -68,5 +69,6 @@ __all__ = [
     "SourceShareTable",
     "StoreEntityDirectory",
     "TrendsLookup",
+    "TrendsMirrorControl",
     "search_section",
 ]

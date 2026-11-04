@@ -41,6 +41,8 @@ EPİAŞ servisleri tek istekte en fazla 3 ay (üretim) ya da 1 yıl (PTF, SMF, t
 3. `.env` dosyasına `BQ_PROJECT_ID=<proje-kimliği>` yazın. Sorgular bu projeye faturalanır; ayda 1 TiB ücretsizdir ve her sorgu `BQ_MAX_BYTES_BILLED` tavanıyla (varsayılan 5 GiB) sınırlanır.
 4. `mlbooster health --source bq_trends` ile bağlantıyı kontrol edin.
 
+Yerel kopya (isteğe bağlı): `mlbooster trends-mirror enable` Google Trends'in Türkiye satırlarını yerel depoya indirir; liste geçmişi 30 günle sınırlı kalmaz. İlk kopya yaklaşık 42 GiB okur (ücretsiz aylık 1 TiB kotadan düşer), yaklaşık 8 dakika sürer ve diskte yaklaşık 16 MB yer kaplar; sonraki güncellemeler yalnızca yeni günleri okur. Kapatmak ve silmek için `mlbooster trends-mirror disable`. Kullanıcı onaylamadan kopya alınmaz. Veri setinin koşulları yerel saklamayı yasaklamıyor, ama açıkça da izin vermiyor.
+
 ## 2a. Claude Code plugin'i (önerilen)
 
 [uv](https://docs.astral.sh/uv/) gerekir; MCP sunucusu `uvx` ile otomatik kurulur.
@@ -98,7 +100,7 @@ pip install "git+https://github.com/vykarakaya26/ml_booster_mcp.git"
 claude mcp add mlbooster -- mlbooster-mcp
 ```
 
-Araçlar: `list_sectors`, `list_sources`, `show_map`, `search_series`, `discover_series`, `set_feature_series`, `fetch_series`, `build_panel`, `audit_panel`, `prepare_panel`, `engineer_features`, `analyze_brand`, `build_brand_features`, `analyze_search_interest`, `evidence_policy`, `read_evidence_pdf`, `record_share_evidence`, `list_share_evidence`, `reject_share_evidence`, `analyze_market_share`, `analyze_source_market_share`, `health`, `check_updates`.
+Araçlar: `list_sectors`, `list_sources`, `show_map`, `search_series`, `discover_series`, `set_feature_series`, `fetch_series`, `build_panel`, `audit_panel`, `prepare_panel`, `engineer_features`, `analyze_brand`, `build_brand_features`, `analyze_search_interest`, `trends_mirror_status`, `trends_mirror_update`, `evidence_policy`, `read_evidence_pdf`, `record_share_evidence`, `list_share_evidence`, `reject_share_evidence`, `analyze_market_share`, `analyze_source_market_share`, `health`, `check_updates`.
 
 Seri kodlarını keşfetmek için TCMB'nin resmi EVDS-MCP sunucusu da eklenebilir:
 `claude mcp add --transport http evds https://mcp.tcmb.gov.tr/tcmb-mcp/evds/mcp`
