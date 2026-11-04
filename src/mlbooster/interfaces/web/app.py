@@ -49,6 +49,7 @@ from mlbooster.interfaces.presenters import (
     STATUS_LABELS,
     TREND_LABELS,
     VERIFICATION_LABELS,
+    brand_features_dict,
     health_dict,
     quality_dict,
     sector_map_dict,
@@ -358,6 +359,8 @@ def create_app(container_factory: Callable[[], Container] = build_container, tok
 
         return await call(run)
 
+    labels = {"trend": TREND_LABELS, "hhi_class": HHI_CLASS_LABELS, "basis": BASIS_LABELS, "severity": SEVERITY_LABELS}
+
     async def market_share(request: Request) -> dict:
         data = await _body(request, MAX_TABLE_BODY_BYTES)
         text = data.get("text")
@@ -378,7 +381,6 @@ def create_app(container_factory: Callable[[], Container] = build_container, tok
 
         def run():
             result = container().market_share.from_text(text, fmt, config)
-            labels = {"trend": TREND_LABELS, "hhi_class": HHI_CLASS_LABELS, "basis": BASIS_LABELS, "severity": SEVERITY_LABELS}
             return result | {"generated_at": _now(), "labels": labels}
 
         return await call(run)
@@ -403,10 +405,56 @@ def create_app(container_factory: Callable[[], Container] = build_container, tok
         def run():
             result = container().market_share.from_source(source, series, config, start, end, refresh=refresh)
             result["meta"]["unit"] = UNITS.get(result["meta"]["unit"], result["meta"]["unit"])
-            labels = {"trend": TREND_LABELS, "hhi_class": HHI_CLASS_LABELS, "basis": BASIS_LABELS, "severity": SEVERITY_LABELS}
             return result | {"generated_at": _now(), "labels": labels}
 
         return await call(run)
+
+    def _brand_args(data: dict) -> tuple[str, str | None, date | None, date | None]:
+        return _str(data, "query", required=True), _str(data, "choice"), _date(data, "start", None), _date(data, "end", None)
+
+    async def brand_analyze(request: Request) -> dict:
+        data = await _body(request)
+        query, choice, start, end = _brand_args(data)
+        refresh = _bool(data, "refresh", False)
+        trend_years = _int(data, "trend_years", 3, 1, 10)
+
+        def run():
+            result = container().analyze_brand(query, choice, start, end, refresh, trend_years)
+            for summary in result.get("series", []):
+                summary["unit"] = UNITS.get(summary["unit"], summary["unit"])
+            return result | {"generated_at": _now(), "labels": labels}
+
+        return await call(run)
+
+    def _brand_panel(query, choice, start, end, save):
+        result = container().brand_features(query, choice, start, end, save=save)
+        if isinstance(result, dict):  # the text does not lead to one brand
+            raise InvalidInput(result["message"])
+        return result
+
+    async def brand_features(request: Request) -> dict:
+        args = _brand_args(await _body(request))
+        return await call(lambda: brand_features_dict(_brand_panel(*args, save=True)) | {"generated_at": _now()})
+
+    async def brand_export(request: Request) -> Response:
+        data = await _body(request)
+        args = _brand_args(data)
+        fmt = _str(data, "format", "csv")
+        if fmt not in {"csv", "parquet"}:
+            raise InvalidInput("Biçim csv ya da parquet olmalı.")
+
+        def run():
+            result = _brand_panel(*args, save=False)
+            buf = io.BytesIO()
+            if fmt == "csv":
+                buf.write(result.storable.to_csv(date_format="%Y-%m-%d").encode("utf-8"))
+            else:
+                result.storable.to_parquet(buf)
+            return buf.getvalue(), result.panel_id
+
+        content, stem = await call(run)
+        media = "text/csv; charset=utf-8" if fmt == "csv" else "application/vnd.apache.parquet"
+        return Response(content, media_type=media, headers={"content-disposition": f'attachment; filename="{stem}.{fmt}"'})
 
     async def health(request: Request) -> list[dict]:
         source = request.query_params.get("source") or None
@@ -423,6 +471,9 @@ def create_app(container_factory: Callable[[], Container] = build_container, tok
         Route("/api/market-share", endpoint(market_share), methods=["POST"]),
         Route("/api/market-share/source", endpoint(market_share_source), methods=["POST"]),
         Route("/api/share-series", endpoint(share_series)),
+        Route("/api/brand/analyze", endpoint(brand_analyze), methods=["POST"]),
+        Route("/api/brand/features", endpoint(brand_features), methods=["POST"]),
+        Route("/api/brand/export", endpoint(brand_export), methods=["POST"]),
         Route("/api/health", endpoint(health)),
         Mount("/static", StaticFiles(directory=STATIC_DIR), name="static"),
     ]

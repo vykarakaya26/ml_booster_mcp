@@ -382,6 +382,7 @@ class AnalyzeBrand:
             "competitors": report.merge_competitors([(p.seed.code, r) for p, r in results], segments, exclude, display),
             "movers": report.movers(primary, set(primary_plan.siblings), display),
             "share_history": primary["shares"],
+            "series_names": {code: seed.name for code in share.series if (seed := catalog.source(match.source).seed(code))},
             "segments": segments["segments"] if segments else None,
             "period": {"requested_start": period.start.isoformat(), "first": primary["meta"]["first"], "last": primary["meta"]["last"]},
             "sources": _source_notes(catalog, match, is_proxy), "is_proxy": is_proxy,
@@ -401,6 +402,15 @@ class BrandFeatures:
     is_proxy: bool = False
     location: str | None = None
     withheld: list[str] = field(default_factory=list)  # columns not written to disk: their source's terms forbid storing
+
+    @property
+    def panel_id(self) -> str:
+        return panel_id(self.brand["name"], self.brand["id"])
+
+    @property
+    def storable(self) -> pd.DataFrame:
+        """The panel as it may leave memory (saved or exported)."""
+        return self.panel.drop(columns=self.withheld)
 
 
 class BuildBrandFeatures:
@@ -450,9 +460,9 @@ class BuildBrandFeatures:
             specs.append(FeatureSpec(name, "base", (name,), f"Markanın {name.removeprefix('marka_pay_')} serisindeki payı (%)"))
         panel.index.name = "date"
         result = BrandFeatures(match.as_dict(), panel, specs, skipped, _notes(grid), _source_notes(catalog, match, is_proxy), is_proxy)
+        result.withheld = _withheld(catalog, sector, specs)
         if save:
-            result.withheld = _withheld(catalog, sector, specs)
-            result.location = self._panels.save(panel_id(match.name, match.id), panel.drop(columns=result.withheld))
+            result.location = self._panels.save(result.panel_id, result.storable)
         return result
 
     def _metrics(self, catalog: Catalog, match: BrandMatch, plans: list[SeriesPlan], period: BrandPeriod, skipped: dict) -> tuple[pd.DataFrame | None, dict[str, pd.Series], bool]:

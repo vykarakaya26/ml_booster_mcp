@@ -20,7 +20,7 @@ sector-analysis ──► evds-series-discovery ──► data-quality-audit ─
 | 3 | `data-quality-audit` | Sektör paneli | `audit.json`, kalite raporu | Structural break ve outlier dönemleri, güncelliğini yitirmiş seriler |
 | 4 | `data-prep` | Panel, hedef, eğitim sonu, model ailesi | `prepared.csv`, `prep.json` | Dağılıma göre hazırlanmış panel |
 | 5 | `feature-engineering` | Panel (ön işlemeyle), hedef, horizon, eğitim sonu | `features_selected.csv`, `features.json` | Seçilen feature'lar |
-| — | `market-share` | Oyuncu bazlı tablo, sektör | `share.json`, rekabet raporu | Pazar büyümesinin makro sürücüleri, rakip seti |
+| — | `market-share` | Marka adı ya da oyuncu bazlı tablo, sektör | `brand.json` ya da `share.json`, rekabet raporu | Pazar büyümesinin makro sürücüleri, rakip seti |
 
 ## Ortak kurallar
 1. **Tek eğitim penceresi:** `prep --train-end` ve `features --train-end` aynı tarihtir. Ön işleme parametreleri ve
@@ -38,4 +38,4 @@ sector-analysis ──► evds-series-discovery ──► data-quality-audit ─
 | "Otomotiv sektörü için uçtan uca analiz ve ML'e hazır veri" | 1 → 3 → 4 → 5, ardından gerekiyorsa `market-share` |
 | "Enflasyon modelim için hangi feature'ları kullanmalıyım?" | 4 → 5 (makro_genel) |
 | "Panelim modele hazır mı?" | 3 → 4 |
-| "Marka X'in pazar payı ve rakipleri" | `market-share`, `--sector` ile makro sürücüler |
+| "Marka X'in pazar payı ve rakipleri" | `market-share`, marka akışı: `mlb brand "<ad>" --features` |

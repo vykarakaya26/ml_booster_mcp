@@ -68,13 +68,14 @@ def test_competitors_leave_out_siblings_residual_rows_and_inactive_players(resul
     assert {c["entity"] for c in merge_competitors([("A", result)], exclude={"Lider"})} == {"Üçüncü"}
 
 
-def test_segment_overlap_reason_is_merged(result):
-    segments = {"competitors": {"candidates": [
-        {"entity": "Üçüncü", "reasons": ["segment karması en çok örtüşen oyunculardan (%80)", "pazar lideri"]},
-    ]}}  # fmt: skip
-    row = next(c for c in merge_competitors([("A", result)], segments) if c["entity"] == "Üçüncü")
-    assert {"series": "segment", "reason": "segment karması en çok örtüşen oyunculardan (%80)"} in row["reasons"]
-    assert sum(r["series"] == "segment" for r in row["reasons"]) == 1
+def test_segment_overlap_counts_only_players_ranked_near_the_brand(result):
+    tiny = [{**result["players"][0], "entity": f"Küçük{i}", "share": 1 - i / 100} for i in range(8)]
+    result["players"] += tiny
+    segments = {"segments": {"overlap": {"Üçüncü": 0.8, "Lider": 0.3, "Küçük7": 1.0}}}
+    merged = {c["entity"]: c for c in merge_competitors([("A", result)], segments)}
+    assert {"series": "segment", "reason": "segment karması örtüşüyor (%80)"} in merged["Üçüncü"]["reasons"]
+    assert not any(r["series"] == "segment" for r in merged["Lider"]["reasons"])
+    assert "Küçük7" not in merged  # same mix, but far from the brand in the ranking
 
 
 def test_issues_are_listed_once_with_their_series():

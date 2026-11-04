@@ -31,6 +31,7 @@ from mlbooster.domain.services.feature_engineering import FeatureConfig
 from mlbooster.domain.services.market_share import ShareConfig
 from mlbooster.domain.services.preprocessing import PrepConfig
 from mlbooster.interfaces.presenters import (
+    brand_features_dict,
     features_dict,
     health_dict,
     prep_dict,
@@ -53,7 +54,8 @@ server = MCPServer(
     instructions=(
         "Türkiye için ücretsiz veri kaynaklarını haritalar ve ML'e hazır aylık panel üretir. "
         "Önce list_sectors / show_map ile kaynakları incele; EVDS serilerini search_series ve discover_series ile "
-        "bul, fetch_series ile çek, build_panel ile sektör panelini üret. Ürün ML'e hazır feature'larda biter; forecast "
+        "bul, fetch_series ile çek, build_panel ile sektör panelini üret. Bir marka ya da şirket sorulursa analyze_brand "
+        "ile başla. Ürün ML'e hazır feature'larda biter; forecast "
         "ve model karşılaştırması kapsam dışıdır. Verileri kullanırken kaynak atfı zorunludur. Oturum başında check_updates ile yeni sürüm olup olmadığını kontrol et ve varsa kullanıcıya "
         "bir kez bildir."
     ),
@@ -296,6 +298,35 @@ def analyze_source_market_share(
     first = _iso(start, "start")
     last = _iso(end, "end") if end else None
     return container().market_share.from_source(source, series, config, first, last, sector, refresh)
+
+
+@server.tool(annotations=WRITES_LOCAL)
+@safe_tool
+def analyze_brand(
+    query: str,
+    choice: str | None = None,
+    start: str | None = None,
+    end: str | None = None,
+    refresh: bool = False,
+) -> dict:
+    """Marka ya da şirket adından pazar payı analizi: adı oyuncu düzeyinde kaynaklarda (ODMD, TBB, TSB, EPDK, BTK, BDDK)
+    arar; sektör, sıra, pay, trend, yoğunlaşma, gerekçeli rakip seti, pay kazanan ve kaybedenler, kaynak atfı ve lisans
+    notunu döndürür. status alanını kontrol et: ambiguous ise matches listesindeki adayları kullanıcıya göster ve
+    seçilen id ile choice vererek yeniden çağır; not_found ise pay yoktur, sector_candidates ve available kullanıcıya
+    aktarılır; asla pay tahmini yazma. Varsayılan dönem son beş yıldır (BTK'da üç yıl). İlk çağrı kaynakları okuduğu için
+    birkaç dakika sürebilir; sonrakiler yerel cache'ten yanıtlanır."""
+    return container().analyze_brand(query, choice, _iso(start, "start") if start else None, _iso(end, "end") if end else None, refresh)
+
+
+@server.tool(annotations=WRITES_LOCAL)
+@safe_tool
+def build_brand_features(query: str, choice: str | None = None, start: str | None = None, end: str | None = None) -> dict:
+    """Marka için point-in-time aylık feature paneli üretir ve yerel veri dizinine Parquet olarak yazar: pay, pay değişimi,
+    sıra, lider farkı, pazara göre büyüme, rakip payı ve sektörün makro feature'ları. Ad tek bir markaya gitmiyorsa
+    analyze_brand ile aynı status çıktısını döndürür. Lisansı saklamaya izin vermeyen kaynakların kolonları dosyaya yazılmaz
+    (withheld)."""
+    out = container().brand_features(query, choice, _iso(start, "start") if start else None, _iso(end, "end") if end else None)
+    return out if isinstance(out, dict) else brand_features_dict(out)
 
 
 @server.tool(annotations=READ_REMOTE)

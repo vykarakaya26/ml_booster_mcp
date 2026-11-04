@@ -10,10 +10,12 @@ from datetime import date
 
 from mlbooster.domain.numfmt import tr_num, tr_pct
 from mlbooster.domain.services.brand_resolution import is_placeholder
+from mlbooster.domain.services.market_share import OVERLAP_MIN
 
 AROUND_RANKS = 5  # gainers and losers are looked for this many places above and below the brand
 MAX_MOVERS = 3
 MAX_COMPETITORS = 10
+MAX_OVERLAPS = 3
 
 _POSITION_FIELDS = ("share", "d_prev_pp", "d_year_pp", "rank_year_ago", "relative_share", "trend", "trend_pp_per_year",
                     "trend_t", "volatility_pp", "growth_yoy_pct", "growth_vs_market_pp")  # fmt: skip
@@ -106,12 +108,21 @@ def merge_competitors(
         for candidate in result.get("competitors", {}).get("candidates", []):
             for reason in candidate["reasons"]:
                 add(candidate["entity"], code, reason)
-    for candidate in (segments or {}).get("competitors", {}).get("candidates", []):
-        for reason in candidate["reasons"]:
-            if reason.startswith("segment"):
-                add(candidate["entity"], "segment", reason)
+    for entity, value in _overlapping(primary, segments, exclude):
+        add(entity, "segment", f"segment karması örtüşüyor ({tr_pct(value * 100, '.0f')})")
     ranked = sorted(merged.values(), key=lambda c: (-len(c["series"]), -len(c["reasons"]), -(c["share"] or 0), c["entity"]))
     return ranked[:MAX_COMPETITORS]
+
+
+def _overlapping(primary: dict, segments: dict | None, exclude: set[str]) -> list[tuple[str, float]]:
+    """Players ranked near the brand with the most similar segment mix; many small players can match the mix exactly."""
+    overlaps = ((segments or {}).get("segments") or {}).get("overlap", {})
+    focus = primary["meta"]["focus"]
+    ranked = _rivals(primary["players"], focus, exclude - {focus})
+    i = next(k for k, p in enumerate(ranked) if p["entity"] == focus)
+    near = ranked[max(0, i - AROUND_RANKS) : i + AROUND_RANKS + 1]
+    found = [(p["entity"], overlaps[p["entity"]], p["share"]) for p in near if overlaps.get(p["entity"], 0) >= OVERLAP_MIN]
+    return [(entity, value) for entity, value, _ in sorted(found, key=lambda x: (-x[1], -x[2]))[:MAX_OVERLAPS]]
 
 
 def merged_issues(results: list[tuple[str, dict]]) -> list[dict]:
