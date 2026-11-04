@@ -82,6 +82,14 @@ def command(executable: str, plugin_dir: str, brand: str, sector: str | None) ->
     ]  # fmt: skip
 
 
+def clear_child_files(scratch: Path) -> None:
+    """WebFetch keeps raw copies of the files it opens in Claude Code's folder for the working directory, and page text
+    must not stay on disk. The working directory is ours alone, so only that folder goes; nothing else is touched."""
+    config = Path(os.environ.get("CLAUDE_CONFIG_DIR") or Path.home() / ".claude")
+    folder = config / "projects" / re.sub(r"[^A-Za-z0-9]", "-", str(scratch.resolve()))
+    shutil.rmtree(folder, ignore_errors=True)
+
+
 def _executable() -> str | None:
     found = shutil.which("claude")
     if found:
@@ -203,7 +211,10 @@ class ClaudeCodeRunner:
                     fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
                 except OSError:
                     return ResearchOutcome("failed", "Bu bilgisayarda başka bir web araması sürüyor; bitmesini bekleyin.")
-            return self._run_child(ready, brand, sector, on_event, cancel, scratch)
+            try:
+                return self._run_child(ready, brand, sector, on_event, cancel, scratch)
+            finally:
+                clear_child_files(scratch)
 
     def _run_child(self, ready: RunnerReadiness, brand: str, sector: str | None, on_event, cancel: threading.Event, scratch: Path) -> ResearchOutcome:
         refused: list[str] = []

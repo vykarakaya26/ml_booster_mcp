@@ -1,4 +1,5 @@
 import json
+import re
 import stat
 import sys
 import threading
@@ -74,6 +75,21 @@ def test_child_runs_on_the_login_with_only_the_agents_tools(runner, tmp_path, mo
     assert argv[argv.index("--tools") + 1] == "WebSearch,WebFetch" and argv[argv.index("--permission-mode") + 1] == "dontAsk"
     assert argv[argv.index("--agent") + 1] == "ml-booster:share-research" and "--max-turns" in argv and "--max-budget-usd" in argv
     assert "Bash" not in " ".join(argv) and "--dangerously-skip-permissions" not in argv
+
+
+def test_files_the_child_kept_are_deleted_and_nothing_else(runner, tmp_path, monkeypatch):
+    config = tmp_path / "config"
+    monkeypatch.setenv("CLAUDE_CONFIG_DIR", str(config))
+    made = runner([INIT, RESULT])
+    scratch = (tmp_path / "data" / "research")
+    scratch.mkdir(parents=True)
+    ours = config / "projects" / re.sub(r"[^A-Za-z0-9]", "-", str(scratch.resolve())) / "session" / "tool-results"
+    other = config / "projects" / "-Users-someone-project"
+    ours.mkdir(parents=True)
+    other.mkdir(parents=True)
+    (ours / "webfetch.pdf").write_bytes(b"%PDF-")
+    _run(made)
+    assert not ours.exists() and other.exists()
 
 
 def test_a_hostile_name_stays_one_argument_and_a_json_value():
