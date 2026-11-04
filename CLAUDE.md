@@ -23,23 +23,25 @@ src/mlbooster/
                      # (single period-string parser), numfmt.py (Turkish number formatting for messages),
                      # observations.py (observation frame contract), services/ (frequency, deflation, features,
                      # chunking, sector_map, quality, distribution, preprocessing, feature_engineering,
-                     # calendar_tr, market_share, brand_resolution, brand_report, brand_features). Allowed: stdlib + pandas/numpy.
+                     # calendar_tr, market_share, brand_resolution, brand_report, brand_features, evidence). Allowed: stdlib + pandas/numpy.
                      # NO I/O.
   application/       # ports.py (Protocols), dto.py (FetchRequest: input validation gate), errors.py,
-                     # use_cases/ (catalog, series, discovery, panel, health, analysis, modeling, market_share, brand,
+                     # use_cases/ (catalog, series, discovery, panel, health, analysis, modeling, market_share, brand, evidence,
                      # files: ExportTable). Depends only on domain.
   infrastructure/    # port implementations: providers/ (evds3, sdmx, tuik, bddk, tbb, bkm, tsb, odmd, epdk, btk, epias,
                      # bigquery_trends + google_auth/bigquery_rest, registry), http_client.py (SecureHttpClient),
                      # catalog_yaml.py (pydantic → domain), secret_store.py, settings.py, storage/,
-                     # update_check.py (GitHub tags), table_reader.py (user CSV/JSON input; CLI only)
+                     # update_check.py (GitHub tags), table_reader.py (user CSV/JSON input; CLI only),
+                     # document_reader.py (text layer of one allowed PDF; storage/ holds evidence_store.py)
   interfaces/        # cli.py (typer), mcp_server.py (MCPServer), presenters.py, web/ (Starlette JSON API + static
                      # JS/CSS, no build step; labels.py derives readable feature names) — call use cases only
                      # (tests/test_architecture.py forbids container().<port> access)
   bootstrap.py       # composition root: the single wiring point
-  catalog_data/      # sources/*.yaml, sectors/*.yaml, brands.yaml (package-data); user override: ~/.mlbooster/catalog/overrides.yaml
+  catalog_data/      # sources/*.yaml, sectors/*.yaml, brands.yaml, evidence_sources.yaml (package-data); user override: ~/.mlbooster/catalog/overrides.yaml
 skills/              # Claude Code plugin skills (sector-analysis, data-quality-audit, data-prep, feature-engineering,
                      # evds-series-discovery, market-share); _shared/ = stdlib-only report library
                      # + bin/mlb CLI wrapper
+agents/              # plugin agents (share-research: published market share evidence)
 .claude-plugin/      # plugin.json (mcpServers: uvx --from ${CLAUDE_PLUGIN_ROOT}) + marketplace.json; there is NO
                      # .mcp.json at the root — if there were, sessions opened in the repo folder would treat it as a
                      # project MCP server and run it without ${CLAUDE_PLUGIN_ROOT}
@@ -223,6 +225,16 @@ entity-level source gets `not_found`, the sector candidates and what is availabl
 `segments` (series of one unit that split the market), `history_years`. Brand features are monthly and point-in-time;
 the competitor set of a period comes from that period's ranking. Saved brand panels leave out columns built from a
 source with `storage.observations: false` (BKM).
+
+## Published share evidence
+The search runs only in the plugin agent `agents/share-research.md` (WebSearch, WebFetch and the evidence MCP tools; no
+shell, no local files). The package holds the rules (`evidence_sources.yaml`, `domain/services/evidence.py`), the records
+(`data_dir/evidence/share_evidence.duckdb`, one connection per call because CLI, MCP and panel are separate processes) and
+the presentation; it has no LLM and no search API, so CLI and panel only show records. The tier comes from the domain,
+never from the caller; unlisted domains are refused. A record is a compiled claim, not a computed share: it never enters
+the observation store, panels or features (tests/test_architecture.py), figures are never averaged and contradictions are
+shown as published. Rejected claims keep only their id and reason. `read_evidence_pdf` reads one PDF on an allowed domain
+and stores nothing. kap.org.tr: one disclosure link, no quote, never read by the tool.
 
 ## Acceptance criteria (MVP)
 - 10 adapters (EVDS3 ✓, TÜİK ✓, BDDK ✓, TBB ✓, EPİAŞ ✓ code / healthcheck needs the user's account, EPDK ✓, BTK ✓, TSB ✓,

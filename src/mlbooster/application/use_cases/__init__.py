@@ -14,6 +14,14 @@ from mlbooster.application.use_cases.catalog import (
     ListSources,
 )
 from mlbooster.application.use_cases.discovery import SearchSeries, SetFeatureSeries
+from mlbooster.application.use_cases.evidence import (
+    EvidenceTable,
+    ListEvidence,
+    PlanEvidenceSearch,
+    ReadEvidenceDocument,
+    RecordEvidence,
+    RejectEvidence,
+)
 from mlbooster.application.use_cases.files import ExportTable
 from mlbooster.application.use_cases.health import CheckForUpdates, RunHealthChecks
 from mlbooster.application.use_cases.market_share import AnalyzeMarketShare, SourceShareTable
@@ -31,14 +39,20 @@ __all__ = [
     "CheckForUpdates",
     "DiscoverSeries",
     "EngineerFeatures",
+    "EvidenceTable",
     "ExportTable",
     "FetchSeries",
     "GetSectorMap",
+    "ListEvidence",
     "ListReadyProviders",
     "ListSectors",
     "ListShareSeries",
     "ListSources",
+    "PlanEvidenceSearch",
     "PreparePanel",
+    "ReadEvidenceDocument",
+    "RecordEvidence",
+    "RejectEvidence",
     "ResolveBrand",
     "RunHealthChecks",
     "SearchSeries",

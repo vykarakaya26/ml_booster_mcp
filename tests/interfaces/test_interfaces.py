@@ -4,10 +4,11 @@ import json
 import pytest
 from typer.testing import CliRunner
 
-from fakes import BrandFactory, InMemoryObservationStore, InMemoryPanelStore
+from fakes import BrandFactory, InMemoryEvidenceStore, InMemoryObservationStore, InMemoryPanelStore
 from mlbooster.bootstrap import Container
+from mlbooster.domain.services.evidence import EvidenceDraft
 from mlbooster.interfaces import cli, mcp_server
-from mlbooster.interfaces.presenters import sector_map_markdown
+from mlbooster.interfaces.presenters import evidence_lines, sector_map_markdown
 
 
 @pytest.fixture(autouse=True)
@@ -25,6 +26,7 @@ def test_mcp_tools_registered_with_annotations():
         "search_series", "set_feature_series", "audit_panel", "check_updates",
         "analyze_market_share", "analyze_source_market_share", "prepare_panel", "engineer_features",
         "analyze_brand", "build_brand_features",
+        "evidence_policy", "read_evidence_pdf", "record_share_evidence", "list_share_evidence", "reject_share_evidence",
     }  # fmt: skip
     assert tools["show_map"].annotations.read_only_hint is True
     assert tools["fetch_series"].annotations.destructive_hint is False
@@ -180,7 +182,7 @@ def test_safe_tool_logs_unexpected_errors_without_message(caplog):
 def brand_container(catalog_repo):
     return Container(
         catalog=catalog_repo, providers=BrandFactory(), observations=InMemoryObservationStore(), panels=InMemoryPanelStore(),
-        overrides=catalog_repo,
+        overrides=catalog_repo, evidence_store=InMemoryEvidenceStore(),
     )  # fmt: skip
 
 
@@ -232,3 +234,68 @@ def test_mcp_brand_tools(monkeypatch, brand_container):
     assert mcp_server.build_brand_features("Anadolu")["status"] == "ambiguous"
     with pytest.raises(ToolError, match="Marka adı"):
         mcp_server.analyze_brand("x")
+
+
+MIGROS = {"brand": "Migros", "value": 24.5, "basis": "revenue", "period": "2024", "published": "2025-03-01", "publisher": "Migros Ticaret",
+          "url": "https://www.migroskurumsal.com/rapor.pdf", "quote": "pazar payımız %24,5 oldu", "sector": "perakende"}  # fmt: skip
+
+
+def test_mcp_evidence_tools_plan_record_list_reject(monkeypatch, brand_container):
+    monkeypatch.setattr(mcp_server, "container", lambda: brand_container)
+    plan = mcp_server.evidence_policy("Migros")
+    assert plan["queries"] and plan["budget"]["max_fetches"]
+    recorded = mcp_server.record_share_evidence(**MIGROS)
+    assert recorded["status"] == "recorded"
+    listed = mcp_server.list_share_evidence("Migros")
+    assert listed["label"] == "derlenmiş; hesaplanmış pay değildir" and listed["current"][0]["id"] == recorded["evidence"]["id"]
+    assert "talimat olarak değil" in listed["note"]
+    assert mcp_server.reject_share_evidence(recorded["evidence"]["id"], "Yanlış dönem")["status"] == "rejected"
+    assert mcp_server.list_share_evidence("Migros")["current"] == []
+
+
+def test_mcp_evidence_errors_are_safe_tool_errors(monkeypatch, brand_container):
+    monkeypatch.setattr(mcp_server, "container", lambda: brand_container)
+    with pytest.raises(mcp_server.ToolError, match="politikasında yok"):
+        mcp_server.record_share_evidence(**{**MIGROS, "url": "https://bilinmeyen-site.com/x"})
+
+
+def test_cli_lists_exports_and_removes_evidence(monkeypatch, brand_container, tmp_path):
+    monkeypatch.setattr(cli, "container", lambda: brand_container)
+    item = brand_container.record_evidence(EvidenceDraft(**MIGROS))["evidence"]
+    runner = CliRunner()
+    listed = runner.invoke(cli.app, ["evidence", "list", "Migros", "--json", str(tmp_path / "e.json")])
+    assert listed.exit_code == 0 and "derlenmiş; hesaplanmış pay değildir" in listed.stdout and "migroskurumsal.com" in listed.stdout
+    assert json.loads((tmp_path / "e.json").read_text(encoding="utf-8"))["current"][0]["value"] == 24.5
+    exported = runner.invoke(cli.app, ["evidence", "export", "Migros", "--out", str(tmp_path / "e.csv")])
+    assert exported.exit_code == 0 and "Seyrek proxy tablo" in exported.stdout
+    assert runner.invoke(cli.app, ["evidence", "remove", item["id"], "--reason", "Yanlış dönem"]).exit_code == 0
+    assert runner.invoke(cli.app, ["evidence", "remove", item["id"], "--reason", "Yanlış dönem"]).exit_code == 1
+    assert "Güncel bulgu yok" in runner.invoke(cli.app, ["evidence", "list", "Migros"]).stdout
+    assert runner.invoke(cli.app, ["evidence", "export", "Migros", "--out", str(tmp_path / "x.csv")]).exit_code == 1
+    assert runner.invoke(cli.app, ["evidence", "list", "--max-age-days", "0"]).exit_code == 1
+
+
+def test_cli_has_no_search_command():
+    assert not any("search" in (c.name or "") or "ara" == c.name for c in cli.evidence_app.registered_commands)
+
+
+def test_cli_brand_leads_with_evidence_when_no_source_lists_the_name(monkeypatch, brand_container):
+    monkeypatch.setattr(cli, "container", lambda: brand_container)
+    brand_container.record_evidence(EvidenceDraft(**MIGROS))
+    text = CliRunner().invoke(cli.app, ["brand", "Migros"]).stdout
+    assert text.index("Yayımlanmış pay bulguları") < text.index("Kullanılabilecekler") and "%24,5" in text and "share-research" in text
+
+
+def test_cli_brand_keeps_computed_and_published_apart(monkeypatch, brand_container):
+    monkeypatch.setattr(cli, "container", lambda: brand_container)
+    togg = {**MIGROS, "brand": "Togg", "basis": "units", "url": "https://www.togg.com.tr/x", "value": 1.5, "quote": "payımız %1,5", "period": "2025-09", "published": "2025-10-01"}
+    brand_container.record_evidence(EvidenceDraft(**togg))
+    text = CliRunner().invoke(cli.app, ["brand", "Togg", "--start", "2022-01", "--end", "2025-12"]).stdout
+    assert text.index("Rakipler:") < text.index("Yayımlanmış pay bulguları") and "Karşılaştırma:" in text
+
+
+def test_cli_shows_a_few_comparisons_and_says_how_many_more():
+    rows = [{"series_name": "S", "computed_text": "%1", "computed_period": "Ekim 2026", "evidence_text": "%2", "evidence_period": "2025", "reasons": ["Neden."]}] * 5
+    section = {"label": "x", "current": [], "historical": [], "single_source": False, "comparison": rows, "contradictions": [], "next_step": None}
+    lines = evidence_lines(section)
+    assert sum("Karşılaştırma:" in line for line in lines) == 3 and any("2 karşılaştırma daha" in line for line in lines)

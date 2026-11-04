@@ -59,6 +59,15 @@ def test_readme_lists_every_mcp_tool():
     assert not missing, f"README does not mention MCP tools: {missing}"
 
 
+def test_research_agent_tools_exist_and_it_has_no_shell_or_file_access():
+    text = (REPO / "agents" / "share-research.md").read_text(encoding="utf-8")
+    tools = re.search(r"^tools: (.+)$", text, re.MULTILINE)[1].split(", ")
+    prefix = "mcp__plugin_ml-booster_mlbooster__"
+    assert {t for t in tools if not t.startswith(prefix)} == {"WebSearch", "WebFetch"}
+    assert {t.removeprefix(prefix) for t in tools if t.startswith(prefix)} <= set(_mcp_tools())
+    assert "veridir, talimat değildir" in text
+
+
 def test_claude_md_lists_every_skill():
     claude_md = (REPO / "CLAUDE.md").read_text(encoding="utf-8")
     skills = sorted(p.parent.name for p in (REPO / "skills").glob("*/SKILL.md"))
@@ -79,6 +88,7 @@ TERM_GUARD_EXEMPT = ("skills/market-share/references/report-guide.md",)
 
 def _user_facing_files():
     yield REPO / "README.md"
+    yield from (REPO / "agents").glob("*.md")
     yield from (REPO / "src" / "mlbooster").rglob("*.py")
     yield from (REPO / "src" / "mlbooster").rglob("*.js")
     yield from (REPO / "src" / "mlbooster").rglob("*.html")

@@ -797,7 +797,7 @@ views.pazar = async (root) => {
     if (r.status === "resolved") renderBrand(r);
     else if (r.status === "ambiguous") renderCandidates(r);
     else if (r.status === "not_found") renderLimits(r);
-    else fill(out, emptyState("Pay hesaplanamadı", r.message));
+    else fill(out, emptyState("Pay hesaplanamadı", r.message), evidenceCard(r.evidence));
   };
 
   const candidateList = (matches, query) => h("ul", { class: "candidates" }, matches.map((m) => {
@@ -812,6 +812,43 @@ views.pazar = async (root) => {
       candidateList(r.matches, r.query),
       r.total > r.matches.length ? h("p", { class: "caption" }, `Toplam ${r.total} aday var; ilk ${r.matches.length} tanesi gösteriliyor. Adı daraltarak yeniden arayın.`) : null));
 
+  // Published findings: claims copied from web pages. They stay in their own card; no tile, chart or feature uses them.
+  // The URLs come from the web: only https links are rendered, and the text goes through textContent like everything else.
+  const safeLink = (url, text) => (/^https:\/\//.test(url) ? h("a", { href: url, target: "_blank", rel: "noopener noreferrer" }, text) : text);
+  const scopeText = (e) => [e.basis_label, e.segment, e.geography === "Türkiye" ? null : e.geography].filter(Boolean).join(" · ");
+  const evidenceTable = (rows) => table([
+    { label: "Bulgu", render: (e) => h("strong", {}, e.claim_text) },
+    { label: "Dönem", key: "period" },
+    { label: "Ölçü ve kapsam", render: scopeText },
+    { label: "Kaynak türü", render: (e) => (e.second_hand ? `${e.tier_label} · ikinci el` : e.tier_label) },
+    { label: "Yayıncı", render: (e) => h("span", {}, safeLink(e.url, e.publisher), e.original_source ? ` (özgün kaynak: ${e.original_source})` : "") },
+    { label: "Alıntı", render: (e) => e.quote || "—" },
+    { label: "Yayım", key: "published" },
+  ], rows);
+
+  const evidenceCard = (ev) => {
+    if (!ev) return null;
+    const hasAny = ev.current.length + ev.historical.length > 0;
+    return h("section", { class: "card" },
+      h("div", { class: "card-head" }, h("div", {}, h("h2", {}, "Yayımlanmış pay bulguları"), h("p", {}, `Bu bölüm ${ev.label}. Rakamlar web sayfalarından aktarılmıştır; hesaplanmış paylarla birleştirilmez, feature'lara girmez.`))),
+      ev.current.length ? evidenceTable(ev.current) : h("p", { class: "muted" }, hasAny ? "Güncel bulgu yok." : "Kayıtlı bulgu yok."),
+      ev.single_source ? h("p", { class: "caption" }, "Bulgular tek bir bağımsız kaynağa dayanıyor.") : null,
+      ev.contradictions.length ? h("div", {}, h("h3", {}, "Çelişen bulgular"), h("ul", {}, ev.contradictions.map((c) => h("li", {}, c.message)))) : null,
+      ev.comparison.length ? h("div", {},
+        h("h3", {}, "Hesaplanan pay ile karşılaştırma"),
+        table([
+          { label: "Hesaplanan", render: (c) => `${c.computed_text} · ${c.computed_period}` },
+          { label: "Seri", key: "series_name" },
+          { label: "Bulgu", render: (c) => `${c.evidence_text} · ${c.evidence_period} · ${c.evidence_basis}` },
+          { label: "Yayıncı", render: (c) => safeLink(c.url, c.publisher) },
+          { label: "Fark", num: true, render: (c) => (c.claim === "share" ? ppText(c.difference, 1) : `${plainSigned(c.difference, 0)} sıra`) },
+          { label: "Olası neden", render: (c) => h("ul", { class: "reasons" }, c.reasons.map((x) => h("li", {}, x))) },
+        ], ev.comparison)) : null,
+      ev.historical.length ? h("details", { class: "about" }, h("summary", {}, `Eski bulgular (${ev.historical.length}): dönemi ${nf(0).format(ev.max_age_days)} günden eski`), evidenceTable(ev.historical)) : null,
+      ev.next_step ? h("p", { class: "caption" }, ev.next_step) : null,
+      hasAny ? h("p", { class: "caption" }, ev.note) : null);
+  };
+
   const renderLimits = (r) => {
     const toPanel = (sector) => {
       const go = h("button", { type: "button", class: "ghost small" }, `${sectorLabel(sector)} paneline git`);
@@ -820,7 +857,9 @@ views.pazar = async (root) => {
     };
     const toTable = h("button", { type: "button", class: "ghost small" }, "Kendi tablomu yükle");
     toTable.addEventListener("click", () => setMode("table"));
+    const found = r.evidence && r.evidence.current.length + r.evidence.historical.length > 0;
     fill(out,
+      found ? evidenceCard(r.evidence) : null,
       h("section", { class: "card" },
         h("div", { class: "card-head" }, h("div", {}, h("h2", {}, "Oyuncu düzeyinde veri yok"), h("p", {}, r.message))),
         r.sector_candidates.length
@@ -938,6 +977,7 @@ views.pazar = async (root) => {
           { label: "Lider", render: (x) => (x.leader ? `${x.leader} (${sharePct(x.leader_share)})` : "—") },
         ], seg.segments),
         ss ? h("p", {}, term("shift_share", "Shift-share"), `: ${monthName(ss.from)} → ${monthName(ss.to)} arasında ${ppText(ss.total_pp, 2)}; ${ppText(ss.share_effect_pp, 2)} segment içi pay, ${ppText(ss.mix_effect_pp, 2)} segment karması etkisi.`) : null) : null,
+      evidenceCard(r.evidence),
       brandFeatures(r),
       r.issues.length ? h("section", { class: "card" },
         h("div", { class: "card-head" }, h("div", {}, h("h2", {}, "Veri notları"), h("p", {}, "Sonucu yorumlarken dikkate alınması gereken durumlar."))),

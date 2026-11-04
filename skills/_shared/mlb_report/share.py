@@ -45,6 +45,13 @@ def month(iso: str | None) -> str:
     return f"{names[m - 1]} {y}"
 
 
+def safe_link(url: str | None, text: str) -> str:
+    """A link taken from the web: https only, otherwise plain text. Both parts are escaped."""
+    if url and urlsplit(url).scheme == "https":
+        return f'<a href="{H.esc(url)}" rel="noopener noreferrer">{H.esc(text)}</a>'
+    return H.esc(text)
+
+
 def trend_badge(label: str) -> str:
     cls, icon, text = TREND.get(label, ("info", "·", label))
     return f'<span class="badge {cls}"><span aria-hidden="true">{icon}</span> {H.esc(text)}</span>'
