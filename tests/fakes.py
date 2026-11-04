@@ -6,8 +6,11 @@ from datetime import UTC, date, datetime
 
 import pandas as pd
 
-from mlbooster.application.dto import FetchRequest
+from mlbooster.application.dto import FetchRequest, PanelResult
 from mlbooster.application.errors import ProviderNotImplemented, ProviderUnavailable
+from mlbooster.application.use_cases.brand import AnalyzeBrand, BuildBrandFeatures, ResolveBrand, StoreEntityDirectory
+from mlbooster.application.use_cases.market_share import AnalyzeMarketShare, SourceShareTable
+from mlbooster.application.use_cases.series import FetchSeries
 from mlbooster.domain.model import HealthResult, HealthStatus, Source
 from mlbooster.domain.observations import KEY_COLUMNS, empty_observations
 
@@ -196,3 +199,66 @@ class BrandFactory:
         if source.id in self.down or source.id not in PLAYERS:
             raise ProviderUnavailable(f"{source.id} yanıt vermedi")
         return BrandProvider(source, self.calls, self.proxy)
+
+
+class InMemoryEvidenceStore:
+    def __init__(self):
+        self.items, self.rejected = {}, {}
+
+    def add(self, evidence):
+        if evidence.id in self.items:
+            return False
+        self.items[evidence.id] = evidence
+        return True
+
+    def list(self, brand_keys=None):
+        return [e for e in self.items.values() if brand_keys is None or e.brand_key in brand_keys]
+
+    def remove(self, evidence_id, reason, at):
+        item = self.items.pop(evidence_id, None)
+        if item is not None:
+            self.rejected[evidence_id] = reason
+        return item
+
+    def rejection(self, evidence_id):
+        return self.rejected.get(evidence_id)
+
+
+class StaticCatalog:
+    def __init__(self, catalog):
+        self.catalog = catalog
+
+    def load(self):
+        return self.catalog
+
+
+class StubPanel:
+    def __init__(self, panel=None, skipped=None):
+        self.panel, self.skipped, self.calls = panel, skipped or {}, []
+
+    def __call__(self, sector_id, start, end, save=True):
+        self.calls.append((sector_id, start, save))
+        panel = self.panel if self.panel is not None else pd.DataFrame()
+        return PanelResult(sector_id, panel, self.skipped)
+
+
+class BrandWorld:
+    def __init__(self, catalog, panel=None, **kwargs):
+        self.factory, self.store, self.panels = BrandFactory(**kwargs), InMemoryObservationStore(), InMemoryPanelStore()
+        repo = StaticCatalog(catalog)
+        fetch = FetchSeries(repo, self.factory, self.store)
+        self.tables = SourceShareTable(repo, fetch, self.store)
+        self.directory = StoreEntityDirectory(repo, self.factory, fetch, self.store)
+        self.resolve = ResolveBrand(repo, self.directory, fetch)
+        self.analyze = AnalyzeBrand(repo, self.resolve, AnalyzeMarketShare(None, None, self.tables), self.tables)
+        self.panel = panel or StubPanel()
+        self.features = BuildBrandFeatures(repo, self.resolve, self.tables, self.panel, self.panels)
+
+
+class FakeDocumentReader:
+    def __init__(self, pages):
+        self.pages, self.calls = pages, []
+
+    def read(self, url):
+        self.calls.append(url)
+        return self.pages

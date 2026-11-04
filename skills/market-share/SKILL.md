@@ -20,6 +20,9 @@ yanıltıcı olur.
   serisiyle `"$MLB" market-share`.
 - **MCP**: `analyze_brand` marka adıyla, `build_brand_features` marka feature paneli için, `analyze_market_share`
   doğrudan satırlarla çalışır; sohbet içindeki hızlı sorular için uygundur. Rapor üretirken dosya yazan CLI tercih edilir.
+- **Bulgu araması**: `share-research` agent'ı web'de yayımlanmış pay rakamlarını kaynak politikasına göre arar ve kaydeder
+  (`evidence_policy`, `record_share_evidence`, `list_share_evidence`, `reject_share_evidence`). CLI yalnızca kayıtları gösterir:
+  `"$MLB" evidence list "<ad>"`, `"$MLB" evidence remove <kimlik> --reason "<gerekçe>"`.
 - **Rapor**: `python3 "${CLAUDE_SKILL_DIR}/scripts/render_brand_report.py"` (marka akışı),
   `python3 "${CLAUDE_SKILL_DIR}/scripts/render_share_report.py"` (tablo akışı); ikisi de yalnızca standart kütüphane kullanır.
 
@@ -48,11 +51,25 @@ BDDK (banka grupları), TSB (sigorta şirketleri), EPDK (akaryakıt ve LPG lisan
 - **`ambiguous`**: `matches` adaylarını kullanıcıya göster ve seçimini sor (AskUserQuestion varsa onu kullan). Tahmin etme.
   Seçimden sonra `"$MLB" brand "<ad>" --choice <aday id> --features --json "$OUT/brand.json"` ile devam et. Grup adlarında
   (Koç, Sabancı) her üye ayrı adaydır; birden fazlası isteniyorsa her biri için ayrı rapor üret.
-- **`not_found`**: Pay yoktur ve **pay tahmini yazılmaz**. `message`, `sector_candidates` ve `available` alanlarını aktar:
-  sektör makro paneli (`sector-analysis`), Google Trends terimi (`--check-trends` BigQuery sorgusu çalıştırır; değer pazar
-  payı değil, arama ilgisidir ve proxy'dir), kullanıcının kendi tablosu. Bu durumda da rapor üretilebilir; rapor sınırları
-  belirtir ve pay içermez.
+- **`not_found`**: Hesaplanmış pay yoktur ve **pay tahmini yazılmaz**. Önce `evidence` alanını kontrol et; güncel bulgu yoksa ve
+  kullanıcı aksini söylemediyse "Yayımlanmış bulgular" adımını çalıştır. Ardından `message`, `sector_candidates` ve `available`
+  alanlarını aktar: sektör makro paneli (`sector-analysis`), Google Trends terimi (`--check-trends` BigQuery sorgusu çalıştırır;
+  değer pazar payı değil, arama ilgisidir ve proxy'dir), kullanıcının kendi tablosu. Bu durumda da rapor üretilebilir; rapor
+  varsa bulgularla başlar, sınırları belirtir ve hesaplanmış pay içermez.
 - **`no_data`**: Oyuncu kaynakta var, ancak dönemde pay hesaplanamıyor; `skipped_series` nedenini verir.
+
+### Yayımlanmış bulgular
+Kaynaklarda oyuncu düzeyinde veri yoksa ya da kullanıcı hesaplanan payı yayımlanmış rakamlarla karşılaştırmak istiyorsa
+`share-research` agent'ını çalıştır (Agent aracı; `ml-booster:share-research`). Agent `evidence_policy` kurallarıyla arar, rakamı sayfada
+okur ve kaydeder; bütçesi bellidir ve bulgu çıkmazsa bunu söyler. Sonra `"$MLB" brand` komutunu yeniden çalıştır: `evidence` alanı
+dolu gelir.
+- `evidence.current` güncel bulgular, `evidence.historical` yaşı geçmiş bulgulardır; `evidence.contradictions` aynı ölçü, kapsam ve dönemde
+  çelişen rakamları, `evidence.comparison` hesaplanan payla yan yana farkı ve olası nedeni verir.
+- Bulgular **derlenmiştir, hesaplanmış pay değildir**. Sohbet özetinde ve `narrative.md` dosyasında ayrı yazılır; her rakam dönem, ölçü, yayıncı
+  ve bağlantıyla verilir. Rakamlar ortalanmaz, çelişki olduğu gibi aktarılır.
+- Bulgular gözlem deposuna ve feature panellerine girmez. Kullanıcı açıkça isterse `"$MLB" evidence export "<ad>" --out bulgular.csv`
+  seyrek, `is_proxy=True` işaretli bir tablo yazar; bu tablo seri olarak okunmaz.
+- Agent'ın önerdiği aday yapılandırılmış kaynakları kullanıcıya liste olarak aktar; entegrasyon bu akışın işi değildir.
 
 Rakip seti `competitors` alanında gerekçeleriyle gelir. Nitel değerlendirme gerekiyorsa `competitors.json` hazırla
 (4. adım, `entity` adları `brand.json` ile aynı olmalıdır) ve `narrative.md` dosyasını `references/report-guide.md` yapısına göre
@@ -62,7 +79,7 @@ python3 "${CLAUDE_SKILL_DIR}/scripts/render_brand_report.py" --analysis "$OUT/br
   --competitors "$OUT/competitors.json" --narrative "$OUT/narrative.md" --out "$OUT/report.html"
 ```
 `--competitors` ve `--narrative` isteğe bağlıdır. Rapor marka özetiyle başlar; sektör, rakipler, pay geçmişi, yoğunlaşma, segmentler,
-feature'lar ve kaynaklar sırayla gelir. `features` bölümündeki panel ML'e hazırdır: pay, pay değişimi, sıra, lider farkı,
+feature'lar, yayımlanmış pay bulguları ve kaynaklar sırayla gelir. `features` bölümündeki panel ML'e hazırdır: pay, pay değişimi, sıra, lider farkı,
 pazara göre büyüme, rakip payı ve sektörün makro feature'ları; her satır o ayın sonuna kadar yayımlanmış veriyi içerir.
 `sources` içindeki lisans notunu rapor dışına çıkan her alıntıda koru: ODMD, BTK, TBB, BDDK ve TSB verisi ticari kullanım
 için kaynağın yazılı iznini gerektirir.
@@ -145,7 +162,8 @@ olabilir.
 ## Kalite ölçütleri
 - **Önce tanım ve kapsam.** Pazar tanımı, ölçü birimi ve coverage oranı rapor özetinde açıkça yer alır. Coverage
   %80'in altındaysa ya da pazar toplamı bilinmiyorsa paylar "listelenen oyuncular içinde" diye nitelenir.
-- **Rakamlar yalnızca `share.json` dosyasından gelir.** Raporda hesaplanmamış bir oran ya da değişim yazılmaz.
+- **Rakamlar yalnızca `share.json` dosyasından gelir.** Raporda hesaplanmamış bir oran ya da değişim yazılmaz. Tek istisna,
+  ayrı bölümde bağlantısıyla gösterilen yayımlanmış pay bulgularıdır.
 - **Pay değişimi ile trend ayrı tutulur.** Tek dönemlik değişim gürültü olabilir. "Pay kazanıyor" ifadesi
   yalnızca trend hem istatistiksel hem ekonomik olarak anlamlıysa kullanılır (`trend` alanı).
 - **İkame bir kanıttır, ispat değildir.** Ters yönlü pay korelasyonu "doğrudan rekabetle tutarlı" diye yazılır.

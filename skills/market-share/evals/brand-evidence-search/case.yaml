@@ -1,0 +1,6 @@
+schema_version: "1.1"
+name: brand-evidence-search
+expected_outcome: |
+  share-research agent'ı Migros ve Togg için yayımlanmış pazar payı rakamlarını kaynak politikasına uyan sayfalardan bulur ve
+  kaydeder. Migros'ta oyuncu düzeyinde kaynak olmadığı için hesaplanmış pay üretilmez; Togg'da yayımlanmış rakam ODMD'den
+  hesaplanan payla yan yana konur. Her rakam bağlantı, dönem ve ölçüyle verilir; çelişkiler bildirilir, hiçbir rakam tahmin edilmez.

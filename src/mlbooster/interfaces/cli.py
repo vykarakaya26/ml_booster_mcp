@@ -28,6 +28,7 @@ from mlbooster.interfaces.presenters import (
     SEVERITY_LABELS,
     TREND_LABELS,
     brand_features_dict,
+    evidence_lines,
     features_dict,
     prep_dict,
     quality_dict,
@@ -38,8 +39,10 @@ from mlbooster.interfaces.presenters import (
 app = typer.Typer(help="ML Booster Map: Türkiye için ücretsiz veri kaynakları → ML'e hazır panel", no_args_is_help=True)
 catalog_app = typer.Typer(help="Kaynak kataloğu", no_args_is_help=True)
 map_app = typer.Typer(help="Sektör → kaynak haritası", no_args_is_help=True)
+evidence_app = typer.Typer(help="Yayımlanmış pazar payı bulguları (derlenmiş; hesaplanmış pay değildir)", no_args_is_help=True)
 app.add_typer(catalog_app, name="catalog")
 app.add_typer(map_app, name="map")
+app.add_typer(evidence_app, name="evidence")
 
 
 @cache
@@ -432,8 +435,16 @@ def _echo_candidates(out: dict) -> None:
     typer.echo('Seçim için: mlbooster brand "<ad>" --choice <aday kimliği>')
 
 
+def _echo_evidence(out: dict) -> None:
+    if section := out.get("evidence"):
+        for line in evidence_lines(section):
+            typer.echo(line)
+
+
 def _echo_limits(out: dict) -> None:
     typer.echo(out["message"])
+    if (section := out.get("evidence")) and (section["current"] or section["historical"]):
+        _echo_evidence(out)
     for s in out["sector_candidates"]:
         typer.echo(f"Sektör adayı: {s['name']} ({s['sector']}). {s['reason']}.")
     for m in out["others"]:
@@ -464,6 +475,7 @@ def _echo_brand(out: dict, top: int = 5) -> None:
             typer.secho(f"{SEVERITY_LABELS.get(i['severity'], i['severity']):<7} {i['message']}", fg=typer.colors.YELLOW)
     for src in out["sources"]:
         typer.echo(f"{src['attribution']}. Lisans: {src['license']}")
+    _echo_evidence(out)
 
 
 @app.command()
@@ -507,6 +519,51 @@ def brand(
         _echo_limits(result)
     else:
         typer.echo(result["message"])
+
+
+@evidence_app.command("list")
+def evidence_list(
+    brand_name: Annotated[str | None, typer.Argument(metavar="[MARKA]", help="Marka ya da şirket adı; verilmezse bütün bulgular")] = None,
+    max_age_days: Annotated[int | None, typer.Option(help="Güncel sayılacak azami yaş (gün); varsayılan katalogdadır")] = None,
+    json_out: Annotated[Path | None, typer.Option("--json", help="Sonucu bu JSON dosyasına yaz")] = None,
+):
+    """Kayıtlı pay bulgularını kaynaklarıyla listeler. Arama yapmaz; arama Claude Code'daki share-research agent'ı ile çalışır."""
+    try:
+        section = container().list_evidence(brand_name, max_age_days)
+    except DomainError as exc:
+        _fail(exc)
+    if json_out is not None:
+        _write_json(section, json_out)
+    for line in evidence_lines(section, historical=True):
+        typer.echo(line)
+
+
+@evidence_app.command("remove")
+def evidence_remove(
+    evidence_id: Annotated[str, typer.Argument(help="Bulgu kimliği (evidence list çıktısında köşeli parantez içinde)")],
+    reason: Annotated[str, typer.Option(help="Ret gerekçesi")],
+):
+    """Yanlış bir bulguyu siler; aynı iddia yeniden kaydedilemez."""
+    try:
+        out = container().reject_evidence(evidence_id, reason)
+    except DomainError as exc:
+        _fail(exc)
+    typer.echo(f"Silindi: {out['brand']} {out['claim']} ({out['publisher']}). Gerekçe: {out['reason']}")
+
+
+@evidence_app.command("export")
+def evidence_export(
+    brand_name: Annotated[str, typer.Argument(metavar="MARKA", help="Marka ya da şirket adı")],
+    out: Annotated[Path, typer.Option(help="Çıktı dosyası (.parquet/.csv)")],
+):
+    """Markanın pay bulgularını is_proxy=True işaretli seyrek bir tablo olarak yazar. Bu tablo panellere ve feature'lara girmez;
+    farklı sayfaların rakamları aynı tanıma sahip olmadığı için seri olarak okunmamalıdır."""
+    try:
+        container().export_table.check(out)
+        location = container().export_table(container().evidence_table(brand_name), out)
+    except DomainError as exc:
+        _fail(exc)
+    typer.echo(f"Seyrek proxy tablo → {location}")
 
 
 @app.command()

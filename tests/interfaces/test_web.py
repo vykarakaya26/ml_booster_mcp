@@ -1,15 +1,18 @@
 import io
 import json
 import re
+from datetime import date
 from pathlib import Path
 
 import pandas as pd
 import pytest
 from starlette.testclient import TestClient
 
-from fakes import BrandFactory, FakeProviderFactory, InMemoryObservationStore, InMemoryPanelStore
+from fakes import BrandFactory, FakeProviderFactory, InMemoryEvidenceStore, InMemoryObservationStore, InMemoryPanelStore
 from mlbooster.bootstrap import Container
+from mlbooster.domain.services.evidence import EvidenceDraft, build
 from mlbooster.interfaces.web import create_app
+from mlbooster.interfaces.web.app import STATIC_DIR
 
 TOKEN = "test-token"
 MONTHS = pd.date_range("2018-01-31", "2026-09-30", freq="ME")
@@ -377,12 +380,21 @@ def test_web_assets_offer_the_source_mode():
 # --- brand search ---------------------------------------------------------------------------------------------------
 
 
+def _published(catalog_repo):
+    catalog = catalog_repo.load()
+    draft = EvidenceDraft("Migros", 24.5, "revenue", "2025", "2026-03-01", "Migros Ticaret", "https://www.migroskurumsal.com/r.pdf", "pazar payımız %24,5 oldu")
+    return build(draft, catalog.evidence, catalog.brands, date(2026, 6, 1))[0]
+
+
 @pytest.fixture
 def brand_client(catalog_repo):
+    evidence = InMemoryEvidenceStore()
+    evidence.add(_published(catalog_repo))
+
     def factory():
         return Container(
             catalog=catalog_repo, providers=BrandFactory(), observations=InMemoryObservationStore(),
-            panels=InMemoryPanelStore(), overrides=catalog_repo,
+            panels=InMemoryPanelStore(), overrides=catalog_repo, evidence_store=evidence,
         )  # fmt: skip
 
     return TestClient(create_app(factory, token=TOKEN), base_url=BASE, raise_server_exceptions=False)
@@ -411,6 +423,12 @@ def test_brand_candidates_and_choice(brand_client):
 def test_brand_without_a_source_gets_limits(brand_client):
     out = brand_client.post("/api/brand/analyze", json={"query": "Migros"}, headers=AUTH).json()
     assert out["status"] == "not_found" and out["sector_candidates"][0]["sector"] == "perakende" and "position" not in out
+    assert out["evidence"]["current"][0]["url"].startswith("https://") and out["evidence"]["label"].startswith("derlenmiş")
+
+
+def test_panel_renders_web_links_as_data():
+    source = (STATIC_DIR / "app.js").read_text(encoding="utf-8")
+    assert 'rel: "noopener noreferrer"' in source and "/^https:\\/\\//.test(url)" in source and "innerHTML =" not in source
 
 
 def test_brand_features_and_export(brand_client):

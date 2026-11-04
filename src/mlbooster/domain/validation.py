@@ -18,6 +18,8 @@ _SERIES_CODE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.]{0,63}$")
 _SLUG = re.compile(r"^[a-z0-9][a-z0-9_]{0,31}$")
 _BRAND_CHOICE = re.compile(r"^[a-z0-9][a-z0-9_]{0,31}:[A-Za-z0-9_.]{1,64}(\+[A-Za-z0-9_.]{1,64}){0,7}$")
 
+_EVIDENCE_ID = re.compile(r"^[0-9a-f]{16}$")
+
 MIN_DATE = date(1950, 1, 1)
 MAX_SERIES_PER_REQUEST = 50
 BRAND_MAX = 80
@@ -73,6 +75,12 @@ def brand_choice(value: str) -> str:
     """Candidate id returned by the brand search: `<source>:<entity id>[+<entity id>...]`."""
     if not isinstance(value, str) or not _BRAND_CHOICE.fullmatch(value):
         raise InvalidInput(f"Geçersiz aday kimliği: {value!r} (beklenen biçim: kaynak:oyuncu_kimliği)")
+    return value
+
+
+def evidence_id(value: str) -> str:
+    if not isinstance(value, str) or not _EVIDENCE_ID.fullmatch(value):
+        raise InvalidInput(f"Geçersiz bulgu kimliği: {value!r} (beklenen biçim: 16 karakterlik onaltılık kimlik)")
     return value
 
 
