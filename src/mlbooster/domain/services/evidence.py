@@ -34,7 +34,7 @@ QUALIFIERS = {"exact": "", "about": "yaklaşık ", "over": "en az ", "under": "e
 CONFIDENCE = ("low", "medium", "high")
 BASIS_LABELS = {
     "revenue": "ciro", "units": "adet", "subscribers": "abone", "volume": "hacim", "premium": "prim", "assets": "aktif",
-    "loans": "kredi", "deposits": "mevduat", "stores": "mağaza sayısı", "passengers": "yolcu", "other": "diğer",
+    "loans": "kredi", "deposits": "mevduat", "stores": "mağaza sayısı", "passengers": "yolcu", "other": "ölçü belirtilmemiş",
 }  # fmt: skip
 _AMOUNTS = {"revenue", "premium", "assets", "loans", "deposits"}
 UNIT_BASES = {
@@ -49,6 +49,7 @@ RANK_MAX = 500
 MAX_TERMS = 5
 MAX_SNIPPETS = 12
 SNIPPET_MAX = 320
+PAGE_MAX = 3000
 DEFAULT_TERMS = ("pazar pay", "market share", "pazar lider")
 NEAR_PP = 1.0  # a computed and a published figure this close need no explanation
 SAME_PERIOD_DAYS = 31
@@ -191,6 +192,13 @@ def document_terms(brand: str, terms: list[str] | None, lexicon: BrandLexicon) -
     return folded or [fold(canonical_brand(brand, lexicon)), *DEFAULT_TERMS]
 
 
+def page_passage(pages: list[str], number: int) -> list[dict]:
+    """One page, for a table the short passages cut apart. Held to a few lines of a report, and never stored."""
+    if not 1 <= number <= len(pages):
+        raise InvalidInput(f"Belge {len(pages)} sayfadır; {number}. sayfa yok")
+    return [{"page": number, "text": " ".join(pages[number - 1].split())[:PAGE_MAX]}]
+
+
 def snippets(pages: list[str], terms: list[str], limit: int = MAX_SNIPPETS) -> list[dict]:
     """Short passages around the words, those with a figure first. They are returned to the reader and never stored."""
     found = []
@@ -319,7 +327,7 @@ def build(draft: EvidenceDraft, policy: EvidencePolicy, lexicon: BrandLexicon, t
     original = _text(draft.original_source, "Özgün kaynak", required=False)
     original_date = draft.original_date.strip() if isinstance(draft.original_date, str) and draft.original_date.strip() else None
     if original_date:
-        _period(original_date, "Özgün kaynağın tarihi")
+        period_span(original_date)  # a date, or the period of the data when the page gives no other date
     if verdict.tier.requires_original and not (original and original_date):
         raise InvalidInput("Basın kaynaklarında rakamın özgün kaynağı ve tarihi yazılmalıdır; özgün kaynağı belirtmeyen haber kaydedilmez")
     quote = _quote(draft, value, high, policy, verdict)
@@ -401,7 +409,8 @@ def _gap(a: ShareEvidence, b: ShareEvidence) -> float:
 def _same_scope(a: ShareEvidence, b: ShareEvidence) -> bool:
     return (
         a.claim == b.claim and a.basis == b.basis and fold(a.geography) == fold(b.geography) and fold(a.segment or "") == fold(b.segment or "")
-        and abs((a.period_end - b.period_end).days) <= SAME_PERIOD_DAYS and period_span(a.period)[1] == period_span(b.period)[1]
+        and (a.period_end.year, a.period_end.month) == (b.period_end.year, b.period_end.month)
+        and period_span(a.period)[1] == period_span(b.period)[1]
     )  # fmt: skip
 
 
@@ -449,10 +458,10 @@ def _closest(item: ShareEvidence, series: list[dict]) -> dict:
     return max(series, key=score)
 
 
-def _computed_at(item: ShareEvidence, chosen: dict, primary: dict, history: dict | None) -> tuple[float, date]:
-    """The computed share in the period of the claim if the history reaches it, else the latest one."""
-    if chosen is primary and history:
-        values = history["series"].get(primary["focus"], [])
+def _computed_at(item: ShareEvidence, chosen: dict, histories: dict[str, dict]) -> tuple[float, date]:
+    """The computed share in the period of the claim if the history of the series reaches it, else the latest one."""
+    if history := histories.get(chosen["series"]):
+        values = history["series"].get(chosen["focus"], [])
         month = item.period_end.strftime("%Y-%m")
         for day, value in zip(history["dates"], values, strict=False):
             if str(day)[:7] == month and value is not None:
@@ -481,12 +490,11 @@ def _reasons(item: ShareEvidence, chosen: dict, computed_at: date, gap: float) -
     return reasons
 
 
-def compare(items: list[ShareEvidence], series: list[dict], history: dict | None = None) -> list[dict]:
+def compare(items: list[ShareEvidence], series: list[dict], histories: dict[str, dict] | None = None) -> list[dict]:
     """Computed and published figures side by side, one row per claim. Neither replaces the other."""
     rows = []
     if not series:
         return rows
-    primary = series[0]
     for item in items:
         chosen = _closest(item, series)
         if item.claim == RANK:
@@ -495,7 +503,7 @@ def compare(items: list[ShareEvidence], series: list[dict], history: dict | None
             text = f"{int(computed)}. sıra"
             difference = item.value - computed
         else:
-            computed, at = _computed_at(item, chosen, primary, history)
+            computed, at = _computed_at(item, chosen, histories or {})
             low, high = _bounds(item)
             gap = max(low - computed, computed - high, 0.0)
             text = f"%{tr_num(computed, '.1f')}"
@@ -515,7 +523,7 @@ def section(
     policy: EvidencePolicy,
     today: date,
     series: list[dict] | None = None,
-    history: dict | None = None,
+    histories: dict[str, dict] | None = None,
     max_age_days: int | None = None,
 ) -> dict:
     """The block every report shows under "Yayımlanmış pay bulguları". It stands apart from the computed fields."""
@@ -527,7 +535,7 @@ def section(
     return {
         "label": LABEL, "note": UNTRUSTED_NOTE, "max_age_days": age,
         "current": [as_dict(e, policy) for e in current], "historical": [as_dict(e, policy) for e in historical],
-        "contradictions": contradictions(current, policy.contradiction_pp), "comparison": compare(current, series or [], history),
+        "contradictions": contradictions(current, policy.contradiction_pp), "comparison": compare(current, series or [], histories),
         "independent_sources": independent,
         "single_source": independent == 1,
         "next_step": None if current else HOW_TO_SEARCH.format(brand=brand),

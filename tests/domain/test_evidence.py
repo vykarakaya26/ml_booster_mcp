@@ -225,6 +225,12 @@ def test_contradictions_are_reported_not_averaged(build, catalog):
     assert {e["value"] for e in out["current"]} == {24.5, 30.0}
 
 
+def test_neighbouring_months_are_no_contradiction(build):
+    august, _ = build(draft(period="2026-08", published="2026-10", value=7.3, quote="payı %7,3"))
+    september, _ = build(draft(period="2026-09", published="2026-10", value=9.8, quote="payı %9,8"))
+    assert not rules.contradictions([august, september], 1.0)
+
+
 def test_different_scope_or_close_figures_are_no_contradiction(build, catalog):
     a, _ = build(draft())
     other = draft(url="https://www.rekabet.gov.tr/x", publisher="Rekabet Kurumu", value=30, quote="pay %30")
@@ -258,14 +264,14 @@ def togg(**kwargs) -> EvidenceDraft:
 
 def test_comparison_uses_the_computed_share_of_the_same_period(build):
     item, _ = build(togg())
-    row = rules.compare([item], SERIES, HISTORY)[0]
+    row = rules.compare([item], SERIES, {"ODMD.TOPLAM": HISTORY})[0]
     assert row["computed"] == 2.0 and row["computed_period"] == "Aralık 2024" and row["difference"] == pytest.approx(0.4)
     assert row["reasons"] == ["Fark yuvarlama ve revizyon düzeyinde."]
 
 
 def test_comparison_explains_the_likely_reason(build):
     item, _ = build(togg(value=12, quote="payımız %12", basis="revenue", segment="elektrikli otomobil", period="2023-06", published="2024", geography="Avrupa"))
-    row = rules.compare([item], SERIES, HISTORY)[0]
+    row = rules.compare([item], SERIES, {"ODMD.TOPLAM": HISTORY})[0]
     assert row["series"] == "ODMD.OTOMOBIL" and row["computed"] == 4.1 and row["difference"] == pytest.approx(7.9)
     text = " ".join(row["reasons"])
     assert all(word in text for word in ("Ölçü farklı", "Dönem farklı", "Kapsam farklı", "Coğrafya farklı"))
@@ -311,6 +317,13 @@ def test_snippets_put_passages_with_a_figure_first_and_keep_them_short():
     assert rules.snippets(PAGES, ["migros"], limit=1) == [out[0]]
     assert len(rules.snippets(["x migros " * 200], ["migros"])[0]["text"]) <= rules.SNIPPET_MAX
     assert rules.snippets(PAGES, ["bulunmaz"]) == []
+
+
+def test_page_passage_reads_one_page_within_a_limit():
+    assert rules.page_passage(PAGES, 2)[0] == {"page": 2, "text": "B Migros'un pazar payı %24,5 olmuştur. C"}
+    assert len(rules.page_passage(["x " * 5000], 1)[0]["text"]) == rules.PAGE_MAX
+    with pytest.raises(InvalidInput, match="3. sayfa yok"):
+        rules.page_passage(PAGES, 3)
 
 
 def test_document_terms_default_to_the_brand_and_stay_bounded(catalog):

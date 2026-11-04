@@ -21,6 +21,7 @@ SEVERITY_LABELS = {"high": "kritik", "medium": "uyarı", "info": "bilgi"}
 TREND_LABELS = {"gaining": "pay kazanıyor", "losing": "pay kaybediyor", "flat": "yatay", "insufficient_data": "yetersiz gözlem"}
 HHI_CLASS_LABELS = {"low": "düşük", "moderate": "orta", "high": "yüksek"}
 BASIS_LABELS = {"period": "dönemlik", "ttm": "TTM (son 12 ay toplamı)"}
+MAX_COMPARISON_LINES = 3
 
 
 def _auth_label(source: Source) -> str:
@@ -252,8 +253,10 @@ def evidence_lines(section: dict, historical: bool = False) -> list[str]:
         lines.append("  Güncel bulgu yok.")
     if section["single_source"]:
         lines.append("  Bulgular tek bir bağımsız kaynağa dayanıyor.")
-    for c in section["comparison"]:
+    for c in section["comparison"][:MAX_COMPARISON_LINES]:
         lines.append(f"  Karşılaştırma: {c['series_name']} {c['computed_text']} ({c['computed_period']}) / bulgu {c['evidence_text']} ({c['evidence_period']}). {' '.join(c['reasons'])}")
+    if (more := len(section["comparison"]) - MAX_COMPARISON_LINES) > 0:
+        lines.append(f"  {more} karşılaştırma daha var: --json çıktısı, panel ve rapor hepsini gösterir.")
     lines += [f"  Çelişki: {c['message']}" for c in section["contradictions"]]
     if historical:
         for e in section["historical"]:

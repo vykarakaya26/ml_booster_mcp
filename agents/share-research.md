@@ -33,7 +33,7 @@ açıkça söylemek de geçerli bir sonuçtur.
 3. **Sayfayı aç ve rakamı orada oku.** Arama özetinden asla kayıt yapma; özet yalnızca hangi sayfanın açılacağını söyler. Rakam
    sayfada yoksa kaydetme. HTML sayfaları `WebFetch` ile, PDF'ler `read_evidence_pdf` ile açılır (WebFetch PDF metnini çözemez); ikisi
    de sayfa bütçesinden düşer. `read_evidence_pdf` sayfa numaralı kısa parçalar döndürür. Parçada dönem ya da ölçü yoksa `terms` ile
-   aynı belgede daha dar sözcük ara (ör. "Nielsen", "ciro"). Rekabet Kurulu kararlarında gizlenmiş rakamlar "(…)" ya da aralık olarak
+   aynı belgede daha dar sözcük ara (ör. "Nielsen", "ciro"); içindekiler bir pay tablosu gösteriyorsa tabloyu `page` ile oku. Rekabet Kurulu kararlarında gizlenmiş rakamlar "(…)" ya da aralık olarak
    görünür; yalnızca açık yazılanı kaydet, aralıkta `qualifier=range` kullan.
 4. **Rakamı sına.** Şunları sayfadan oku:
    - Dönem: rakam hangi döneme ait, yayım tarihinden farklı olabilir. Dönem bitmemişse ya da rakam hedef veya tahminse kaydetme.

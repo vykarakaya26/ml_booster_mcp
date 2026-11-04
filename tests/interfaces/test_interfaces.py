@@ -8,7 +8,7 @@ from fakes import BrandFactory, InMemoryEvidenceStore, InMemoryObservationStore,
 from mlbooster.bootstrap import Container
 from mlbooster.domain.services.evidence import EvidenceDraft
 from mlbooster.interfaces import cli, mcp_server
-from mlbooster.interfaces.presenters import sector_map_markdown
+from mlbooster.interfaces.presenters import evidence_lines, sector_map_markdown
 
 
 @pytest.fixture(autouse=True)
@@ -292,3 +292,10 @@ def test_cli_brand_keeps_computed_and_published_apart(monkeypatch, brand_contain
     brand_container.record_evidence(EvidenceDraft(**togg))
     text = CliRunner().invoke(cli.app, ["brand", "Togg", "--start", "2022-01", "--end", "2025-12"]).stdout
     assert text.index("Rakipler:") < text.index("Yayımlanmış pay bulguları") and "Karşılaştırma:" in text
+
+
+def test_cli_shows_a_few_comparisons_and_says_how_many_more():
+    rows = [{"series_name": "S", "computed_text": "%1", "computed_period": "Ekim 2026", "evidence_text": "%2", "evidence_period": "2025", "reasons": ["Neden."]}] * 5
+    section = {"label": "x", "current": [], "historical": [], "single_source": False, "comparison": rows, "contradictions": [], "next_step": None}
+    lines = evidence_lines(section)
+    assert sum("Karşılaştırma:" in line for line in lines) == 3 and any("2 karşılaştırma daha" in line for line in lines)

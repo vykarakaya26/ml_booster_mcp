@@ -70,7 +70,7 @@ class ReadEvidenceDocument:
         self._catalog = catalog
         self._reader = reader
 
-    def __call__(self, brand: str, url: str, terms: list[str] | None = None) -> dict:
+    def __call__(self, brand: str, url: str, terms: list[str] | None = None, page: int | None = None) -> dict:
         catalog = self._catalog.load()
         name = brand_query(brand)
         words = rules.document_terms(name, terms, catalog.brands)
@@ -79,7 +79,7 @@ class ReadEvidenceDocument:
         if not verdict.quote_allowed:
             raise InvalidInput(f"{host} içeriği bu araçla okunmaz; yalnızca bağlantısı kaydedilir")
         pages = self._reader.read(address)
-        passages = rules.snippets(pages, words)
+        passages = rules.snippets(pages, words) if page is None else rules.page_passage(pages, page)
         message = None if any(p.strip() for p in pages) else "Belgede metin katmanı yok (taranmış PDF); rakam okunamaz."
         return {"url": address, "tier": verdict.tier.id, "pages": len(pages), "terms": words, "passages": passages, "message": message, "note": rules.UNTRUSTED_NOTE}
 
@@ -114,11 +114,11 @@ class ListEvidence:
             return self.section([brand_query(brand)], max_age_days=max_age_days)
         return rules.section("<marka>", self._store.list(), catalog.evidence, date.today(), max_age_days=_age(max_age_days))
 
-    def section(self, names: list[str], series: list[dict] | None = None, history: dict | None = None, max_age_days: int | None = None) -> dict:
+    def section(self, names: list[str], series: list[dict] | None = None, histories: dict[str, dict] | None = None, max_age_days: int | None = None) -> dict:
         """`names` are the spellings of one brand; the first one is shown."""
         catalog = self._catalog.load()
         keys = list(dict.fromkeys(rules.brand_key(n, catalog.brands) for n in names))
-        return rules.section(names[0], self._store.list(keys), catalog.evidence, date.today(), series, history, _age(max_age_days))
+        return rules.section(names[0], self._store.list(keys), catalog.evidence, date.today(), series, histories, _age(max_age_days))
 
 
 def _age(max_age_days: int | None) -> int | None:

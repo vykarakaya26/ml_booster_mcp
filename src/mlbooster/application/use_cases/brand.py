@@ -366,11 +366,11 @@ class AnalyzeBrand:
             "evidence": self._published(resolution, match),
         }  # fmt: skip
 
-    def _published(self, resolution: BrandResolution, match: BrandMatch, series: list[dict] | None = None, history: dict | None = None) -> dict | None:
+    def _published(self, resolution: BrandResolution, match: BrandMatch, series: list[dict] | None = None, histories: dict[str, dict] | None = None) -> dict | None:
         """Published figures of the brand. They travel in their own block: no computed field is built from them."""
         if self._evidence is None:
             return None
-        return self._evidence.section([match.name, resolution.query, *match.entity_names], series, history)
+        return self._evidence.section([match.name, resolution.query, *match.entity_names], series, histories)
 
     def _assemble(
         self,
@@ -408,7 +408,7 @@ class AnalyzeBrand:
             "sources": _source_notes(catalog, match, is_proxy), "is_proxy": is_proxy,
             "issues": report.merged_issues([(p.seed.code, r) for p, r in results]),
             "skipped_series": skipped,
-            "evidence": self._published(resolution, match, summaries, primary["shares"]),
+            "evidence": self._published(resolution, match, summaries, {p.seed.code: r["shares"] for p, r in results}),
         }  # fmt: skip
 
 

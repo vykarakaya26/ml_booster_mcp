@@ -88,6 +88,7 @@ TERM_GUARD_EXEMPT = ("skills/market-share/references/report-guide.md",)
 
 def _user_facing_files():
     yield REPO / "README.md"
+    yield from (REPO / "agents").glob("*.md")
     yield from (REPO / "src" / "mlbooster").rglob("*.py")
     yield from (REPO / "src" / "mlbooster").rglob("*.js")
     yield from (REPO / "src" / "mlbooster").rglob("*.html")
