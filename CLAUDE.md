@@ -205,6 +205,13 @@ Rules:
    rank, a term against its own past. The interest level is not a feature: the backfill is rescaled to the current peak,
    so past values carry look-ahead; only changes and ratios to the term's own past go to the panel. `refresh_date IN
    UNNEST(@days)` prunes partitions (0.38 GiB per day). Terms are found / related / not_found, nothing is filled.
+   Local copy (opt-in, off by default; storage/trends_mirror.py, providers/bigquery_mirror.py, use_cases/trends_mirror.py):
+   nothing copies without the user's yes (panel offer, `mlbooster trends-mirror enable`, MCP trends_mirror_update after
+   asking; never unprompted). Stored under <data_dir>/mirror/bq_trends (0700), answer in bq_trends.json. Only TR rows and
+   used columns. A cold first copy reads 42.2 GiB, about 8 min, 16 MB; updates read only new days (~1.3 GiB per day).
+   Search interest then reads the copy first (`data_source` says which). getQueryResults has no totalBytesBilled:
+   bigquery_rest falls back to the bytes processed. Dataset terms neither forbid nor explicitly allow retention
+   ("as is" listing, Trends FAQ: Google ToS + attribution); recorded in bq_trends.yaml.
 
 ## Observation (silver) schema (domain/observations.py; Parquet schema in storage/observation_store.py)
 source_id, dataset_id, series_id, entity_id, entity_name, metric, date (period end), freq, value, unit,
