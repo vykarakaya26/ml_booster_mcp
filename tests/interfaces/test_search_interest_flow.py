@@ -107,7 +107,7 @@ def test_feature_panel_columns_are_opt_in_and_marked(container, lookup):
     built = container.brand_features("Togg", save=False, search_interest=True)
     summary = brand_features_dict(built)
     columns = {c["name"]: c for c in summary["brand_columns"]}
-    assert columns["marka_ilgisi"]["family"] == "search_interest" and "marka_ilgisi" in built.panel.columns
+    assert columns["marka_ilgi_degisim"]["family"] == "search_interest" and "marka_ilgi_degisim" in built.panel.columns
     assert "arama_payi" not in built.panel.columns and "arama_payi" not in columns
     assert any("pazar payı değildir" in n for n in built.notes)
     assert any(s["id"] == "bq_trends" and s["is_proxy"] for s in built.sources)
@@ -116,7 +116,7 @@ def test_feature_panel_columns_are_opt_in_and_marked(container, lookup):
 def test_feature_panel_reports_a_missing_setup(catalog_repo):
     c = Container(catalog=catalog_repo, providers=BrandFactory(), observations=InMemoryObservationStore(), panels=InMemoryPanelStore(), overrides=catalog_repo)
     built = c.brand_features("Togg", save=False, search_interest=True)
-    assert "search_interest" in built.skipped and "marka_ilgisi" not in built.panel.columns
+    assert "search_interest" in built.skipped and "marka_ilgi_degisim" not in built.panel.columns
 
 
 def test_search_lines():
@@ -164,7 +164,7 @@ def test_web_api_is_opt_in(client, lookup):
     res = client.post("/api/brand/features", json={"query": "Togg", "search_interest": True, **PERIOD}, headers=HEADERS)
     assert res.status_code == 200 and "search_interest" in res.json()["families"]
     res = client.post("/api/brand/export", json={"query": "Togg", "search_interest": True, "format": "csv", **PERIOD}, headers=HEADERS)
-    assert res.status_code == 200 and b"marka_ilgisi" in res.content
+    assert res.status_code == 200 and b"marka_ilgi_degisim" in res.content and b"marka_ilgisi" not in res.content
 
 
 def render(path: Path, out: Path) -> str:

@@ -145,7 +145,7 @@ def test_monthly_features_interest_columns():
     brand = weekly("2026-01-03", [10.0] * 13 + [20.0] * 13)
     generic = {"g": weekly("2026-01-03", [5.0] * 26)}
     frame = monthly_features(brand, generic, months_of_lists({}), ["b"], [], 2, date(2026, 12, 31))
-    assert {"marka_ilgisi", "marka_ilgi_degisim", "generic_ilgi", "marka_generic_orani"} == set(frame.columns)
+    assert {"marka_ilgi_degisim", "generic_ilgi", "marka_generic_orani"} == set(frame.columns)  # no level: it carries look-ahead
     assert not {"arama_payi", "liste_gun_sayisi"} & set(frame.columns)
     assert frame["generic_ilgi"].dropna().eq(1.0).all()  # a flat category stays at its usual level
     assert frame["marka_generic_orani"].iloc[-1] > 1  # the brand is above its own past, the category is not

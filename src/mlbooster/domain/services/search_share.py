@@ -48,8 +48,6 @@ NOT_FOUND_NOTE = (
     "anlamına gelmez."
 )
 FEATURE_COLUMNS = {
-    "marka_ilgisi": "Markanın haftalık arama ilgisinin aylık ortalaması (0–100, yalnızca kendi geçmişiyle karşılaştırılır; "
-                    "düzey point-in-time değildir)",
     "marka_ilgi_degisim": "Marka ilgisinin bir önceki aya göre log değişimi (ölçekten bağımsız)",
     "generic_ilgi": "Kategori terimlerinin kendi geçmiş ortalamalarına oranının ortalaması (1 = olağan düzey)",
     "marka_generic_orani": "Markanın kendi geçmişine oranı ÷ generic_ilgi (1'den büyükse marka kategoriden güçlü)",
@@ -220,7 +218,7 @@ def monthly_features(
     lag = publication_lag_days
     own = to_monthly(brand, Frequency.WEEKLY, publication_lag_days=lag) if not brand.empty else pd.Series(dtype=float)
     if not own.empty:
-        columns["marka_ilgisi"] = own
+        # The level is left out: Google rescales the whole backfill to its current peak, so a past value carries look-ahead.
         columns["marka_ilgi_degisim"] = np.log(own.where(own > 0)).diff()
     ratios = [_own_ratio(to_monthly(s, Frequency.WEEKLY, publication_lag_days=lag)) for s in generics.values() if not s.empty]
     if ratios:
