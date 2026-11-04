@@ -1,8 +1,11 @@
 import asyncio
+import json
 
 import pytest
 from typer.testing import CliRunner
 
+from fakes import BrandFactory, InMemoryObservationStore, InMemoryPanelStore
+from mlbooster.bootstrap import Container
 from mlbooster.interfaces import cli, mcp_server
 from mlbooster.interfaces.presenters import sector_map_markdown
 
@@ -21,6 +24,7 @@ def test_mcp_tools_registered_with_annotations():
         "list_sectors", "list_sources", "show_map", "discover_series", "fetch_series", "build_panel", "health",
         "search_series", "set_feature_series", "audit_panel", "check_updates",
         "analyze_market_share", "analyze_source_market_share", "prepare_panel", "engineer_features",
+        "analyze_brand", "build_brand_features",
     }  # fmt: skip
     assert tools["show_map"].annotations.read_only_hint is True
     assert tools["fetch_series"].annotations.destructive_hint is False
@@ -121,8 +125,6 @@ def test_cli_market_share_from_bddk_source(monkeypatch, tmp_path):
         assert again.exit_code == 0 and route.call_count == 10  # served from the local store
     assert "Kaynak: BDDK" in out.output and "5 oyuncu" in out.output and "Mevduat-Kamu" in out.output
     assert "%37,72" in out.output  # 21,491,757 / 56,982,049 million TL, Sep 2026
-    import json
-
     meta = json.loads((tmp_path / "o.json").read_text(encoding="utf-8"))["meta"]
     assert meta["kind"] == "stock" and meta["source"]["series"] == "BDDK.AKTIF" and meta["has_total"]
 
@@ -172,3 +174,61 @@ def test_safe_tool_logs_unexpected_errors_without_message(caplog):
         broken()
     assert "broken" in caplog.text and "RuntimeError" in caplog.text
     assert "/Users/someone" not in caplog.text
+
+
+@pytest.fixture
+def brand_container(catalog_repo):
+    return Container(
+        catalog=catalog_repo, providers=BrandFactory(), observations=InMemoryObservationStore(), panels=InMemoryPanelStore(),
+        overrides=catalog_repo,
+    )  # fmt: skip
+
+
+def test_cli_brand_prints_position_competitors_and_licence(monkeypatch, brand_container, tmp_path):
+    monkeypatch.setattr(cli, "container", lambda: brand_container)
+    target = tmp_path / "o.json"
+    out = CliRunner().invoke(cli.app, ["brand", "Togg", "--start", "2022-01", "--end", "2025-12", "--features", "--out", str(tmp_path / "p.csv"), "--json", str(target)])
+    assert out.exit_code == 0, out.output
+    assert "Otomotiv sektöründe" in out.output and "Rakipler:" in out.output and "Kaynak: Otomotiv Distribütörleri" in out.output
+    assert "Feature paneli:" in out.output
+    data = json.loads(target.read_text(encoding="utf-8"))
+    assert data["status"] == "resolved" and data["features"]["brand_columns"][0]["name"] == "marka_pay"
+    assert data["features"]["export"] == str(tmp_path / "p.csv")
+
+
+def test_cli_brand_lists_candidates_and_continues_with_a_choice(monkeypatch, brand_container):
+    monkeypatch.setattr(cli, "container", lambda: brand_container)
+    out = CliRunner().invoke(cli.app, ["brand", "Anadolu"])
+    assert out.exit_code == 0 and "tsb:1005" in out.output and "--choice" in out.output and "sırada" not in out.output
+    chosen = CliRunner().invoke(cli.app, ["brand", "Anadolu", "--choice", "tsb:1005", "--start", "2022-01", "--end", "2025-12"])
+    assert chosen.exit_code == 0 and "sırada" in chosen.output
+
+
+def test_cli_brand_reports_limits_without_a_share(monkeypatch, brand_container):
+    monkeypatch.setattr(cli, "container", lambda: brand_container)
+    out = CliRunner().invoke(cli.app, ["brand", "Migros", "--check-trends"])
+    assert out.exit_code == 0 and "pazar payı hesaplanmadı" in out.output and "Perakende" in out.output
+    assert "BQT.ILGI.MIGROS" in out.output and "sırada" not in out.output
+    empty = CliRunner().invoke(cli.app, ["brand", "Togg", "--start", "2000-01", "--end", "2000-12"])
+    assert empty.exit_code == 0 and "alınamadı" in empty.output
+
+
+def test_cli_brand_refuses_a_bad_output_path_and_text(monkeypatch, brand_container):
+    monkeypatch.setattr(cli, "container", lambda: brand_container)
+    assert CliRunner().invoke(cli.app, ["brand", "Togg", "--features", "--out", "x.xlsx"]).exit_code != 0
+    assert CliRunner().invoke(cli.app, ["brand", "x"]).exit_code != 0
+
+
+def test_mcp_brand_tools(monkeypatch, brand_container):
+    from mcp.server.mcpserver.exceptions import ToolError
+
+    monkeypatch.setattr(mcp_server, "container", lambda: brand_container)
+    out = mcp_server.analyze_brand("Togg", start="2022-01-01", end="2025-12-31")
+    assert out["status"] == "resolved" and out["position"]["rank"] == 3
+    assert mcp_server.analyze_brand("Anadolu")["status"] == "ambiguous"
+    assert mcp_server.analyze_brand("Migros")["status"] == "not_found"
+    panel = mcp_server.build_brand_features("Togg", start="2022-01-01", end="2025-12-31")
+    assert panel["months"] > 12 and panel["path"].startswith("memory://marka_togg_") and panel["tail"][-1]["marka_pay"] > 0
+    assert mcp_server.build_brand_features("Anadolu")["status"] == "ambiguous"
+    with pytest.raises(ToolError, match="Marka adı"):
+        mcp_server.analyze_brand("x")

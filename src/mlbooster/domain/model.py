@@ -297,6 +297,13 @@ class ShareSource:
     is_proxy: bool = False
     notes: str | None = None
     series: tuple[str, ...] = ()  # catalog series with entity rows that the source's provider returns
+    entities_from: tuple[str, ...] = ()  # series that together list every player; empty = the first of `series`
+    segments: tuple[str, ...] = ()  # series of one unit that split the market (product or branch mix)
+    history_years: int | None = None  # brand analysis history when shorter than the default (large report files)
+
+    @property
+    def index_series(self) -> tuple[str, ...]:
+        return self.entities_from or self.series[:1]
 
 
 @dataclass(frozen=True)
@@ -317,9 +324,38 @@ class Sector:
 
 
 @dataclass(frozen=True)
+class BrandTarget:
+    """Entities of one source that stand for a brand (e.g. a mobile and a fixed-line operator of one company)."""
+
+    source: str
+    entities: tuple[str, ...]
+
+
+@dataclass(frozen=True)
+class BrandEntry:
+    """Catalog knowledge about a name. One target: an alias of a brand; several: a group whose members are offered
+    as candidates; none: a known brand without an entity-level source (`sector` tells where it belongs)."""
+
+    name: str
+    aliases: tuple[str, ...] = ()
+    targets: tuple[BrandTarget, ...] = ()
+    sector: str | None = None
+    note: str | None = None
+
+
+@dataclass(frozen=True)
+class BrandLexicon:
+    entries: tuple[BrandEntry, ...] = ()
+    legal_tokens: frozenset[str] = frozenset()  # company form words, dropped from every name
+    generic_tokens: frozenset[str] = frozenset()  # sector words that do not identify a brand on their own
+    sector_keywords: tuple[tuple[str, tuple[str, ...]], ...] = ()  # (sector id, folded words that hint at it)
+
+
+@dataclass(frozen=True)
 class Catalog:
     sources: dict[str, Source]
     sectors: dict[str, Sector]
+    brands: BrandLexicon = BrandLexicon()
 
     def __post_init__(self) -> None:
         errors = [
@@ -328,6 +364,25 @@ class Catalog:
             for ref in sector.referenced_sources()
             if ref not in self.sources
         ]
+        errors += [
+            f"{sector.id}: {code} serisi market_share_sources.series listesinde yok"
+            for sector in self.sectors.values()
+            for share in sector.market_share_sources
+            for code in (*share.entities_from, *share.segments)
+            if code not in share.series
+        ]
+        errors += [
+            f"{entry.name}: bilinmeyen kaynak {target.source}"
+            for entry in self.brands.entries
+            for target in entry.targets
+            if target.source not in self.sources
+        ]
+        errors += [
+            f"{entry.name}: bilinmeyen sektör {sector}"
+            for entry in self.brands.entries
+            if (sector := entry.sector) is not None and sector not in self.sectors
+        ]
+        errors += [f"marka sözlüğü: bilinmeyen sektör {s}" for s, _ in self.brands.sector_keywords if s not in self.sectors]
         if errors:
             raise InconsistentCatalog("Katalogda referans hataları var: " + "; ".join(errors))
 

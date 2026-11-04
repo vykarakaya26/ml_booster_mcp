@@ -10,7 +10,7 @@ macro_features:
   - {name: prim_uretimi_reel_yoy, source: tsb, series: TSB.PRIM.TOPLAM, transform: yoy_pct, real: true}  # sector total (aggregate rows only)
 sector_sources: [tsb, odmd]
 market_share_sources:
-  - {source: tsb, metric: "prim üretimi payı, şirket bazında, yıl başından birikimli (TSB.PRIM.TOPLAM.YTD, *.HAYATDISI.YTD, *.HAYAT.YTD, *.TRAFIK.YTD, *.KASKO.YTD, *.SAGLIK.YTD, *.YANGIN.YTD ...); aylık seriler (TSB.PRIM.*) panel ve tahmin içindir", series: [TSB.PRIM.TOPLAM.YTD, TSB.PRIM.HAYATDISI.YTD, TSB.PRIM.HAYAT.YTD, TSB.PRIM.TRAFIK.YTD, TSB.PRIM.KASKO.YTD, TSB.PRIM.SAGLIK.YTD, TSB.PRIM.YANGIN.YTD, TSB.PRIM.GENEL_ZARARLAR.YTD, TSB.PRIM.KAZA.YTD, TSB.PRIM.TARIM.YTD]}
+  - {source: tsb, metric: "prim üretimi payı, şirket bazında, yıl başından birikimli (TSB.PRIM.TOPLAM.YTD, *.HAYATDISI.YTD, *.HAYAT.YTD, *.TRAFIK.YTD, *.KASKO.YTD, *.SAGLIK.YTD, *.YANGIN.YTD ...); aylık seriler (TSB.PRIM.*) panel ve tahmin içindir", series: [TSB.PRIM.TOPLAM.YTD, TSB.PRIM.HAYATDISI.YTD, TSB.PRIM.HAYAT.YTD, TSB.PRIM.TRAFIK.YTD, TSB.PRIM.KASKO.YTD, TSB.PRIM.SAGLIK.YTD, TSB.PRIM.YANGIN.YTD, TSB.PRIM.GENEL_ZARARLAR.YTD, TSB.PRIM.KAZA.YTD, TSB.PRIM.TARIM.YTD], segments: [TSB.PRIM.TRAFIK.YTD, TSB.PRIM.KASKO.YTD, TSB.PRIM.SAGLIK.YTD, TSB.PRIM.YANGIN.YTD, TSB.PRIM.GENEL_ZARARLAR.YTD, TSB.PRIM.KAZA.YTD, TSB.PRIM.TARIM.YTD, TSB.PRIM.HAYAT.YTD]}
 ml_use_cases: ["Prim tahmini", "Hasar enflasyonu", "Fiyatlama"]
 feature_recipes:
   - {name: kur_sepeti_logdiff, op: mean, inputs: [usdtry_logdiff, eurtry_logdiff], note: "Hasar maliyetinde ithal parça payı için kur sepeti"}

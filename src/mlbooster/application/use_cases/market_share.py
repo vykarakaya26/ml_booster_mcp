@@ -9,6 +9,7 @@ from pathlib import Path
 import pandas as pd
 
 from mlbooster.application.dto import FetchRequest
+from mlbooster.application.errors import ProviderError
 from mlbooster.application.ports import CatalogRepository, ObservationStore, TableReader
 from mlbooster.application.use_cases.panel import BuildPanel, _asked_from, _covers_start, _is_stale
 from mlbooster.application.use_cases.series import FetchSeries
@@ -47,18 +48,15 @@ class SourceShareTable:
             known = ", ".join(s.code for s in source.series) or "yok"
             raise InvalidInput(f"{source.id} kataloğunda {code} serisi yok. Katalogdaki seriler: {known}")
         period = DateRange(start, end or date.today())
-        cached = pd.DataFrame() if refresh else self._levels(source.id, code)
-        if cached.empty or not (
-            _covers_start(cached, period.start) or _asked_from(self._store.requested_start(source.id, code, "level"), period.start)
-        ):
-            self._fetch(FetchRequest.create(source.id, [code], period.start, period.end), refresh=refresh)
-        elif _is_stale(cached):
-            since = max(period.start, pd.Timestamp(cached["date"].max()).date() - timedelta(days=REVISION_DAYS))
-            self._fetch(FetchRequest.create(source.id, [code], since, period.end))
-        df = self._levels(source.id, code)
-        if not df.empty:
-            dates = pd.to_datetime(df["date"])
-            df = df[(dates >= pd.Timestamp(period.start)) & (dates <= pd.Timestamp(period.end))]
+        fetch_error = None
+        if (since := self._due(source.id, code, period, refresh)) is not None:
+            try:
+                self._fetch(FetchRequest.create(source.id, [code], since, period.end), refresh=refresh)
+            except ProviderError as exc:
+                if self._in_period(source.id, code, period).empty:
+                    raise
+                fetch_error = str(exc)
+        df = self._in_period(source.id, code, period)
         if df.empty:
             raise InvalidInput(f"{code}: {period.start} – {period.end} aralığında gözlem yok")
         freq = Frequency(seed.freq)
@@ -69,9 +67,7 @@ class SourceShareTable:
         entity = df["entity_id"].fillna("") != ""
         if not entity.any():
             raise InvalidInput(f"{code} serisi oyuncu ya da grup kırılımı içermiyor; pazar payı için kırılımlı bir seri seçin")
-        # A renamed player (e.g. an insurer after a merger) keeps one label: its latest name in the cache.
-        named = df[entity & df["entity_name"].notna()].sort_values("date")
-        latest = named.groupby("entity_id")["entity_name"].last()
+        latest = _latest_names(df)
         names = df["entity_id"].map(latest).where(entity).fillna(df["entity_id"])
         if names[entity].str.casefold().isin([a.casefold() for a in TOTAL_ALIASES]).any():
             raise InvalidInput(f"{code}: oyuncu adı pazar toplamı işaretiyle çakışıyor")
@@ -87,13 +83,54 @@ class SourceShareTable:
         }  # fmt: skip
         if negative:
             meta["negative_rows"] = negative
+        if fetch_error:
+            meta["fetch_error"] = fetch_error
         if freq.is_high:
             meta["aggregated_from"] = freq.value
         return table.reset_index(drop=True), meta
 
+    def prefetch(self, source_id: str, series_ids: list[str], start: date, end: date | None = None, refresh: bool = False) -> None:
+        """Fetches the series that are not cached in one provider pass: the series of a source come from the same
+        monthly files, so asking for them one by one would download every file again."""
+        source = self._catalog.load().source(slug(source_id, "source"))
+        period = DateRange(start, end or date.today())
+        due = {code: since for code in series_ids if (since := self._due(source.id, series_code(code), period, refresh)) is not None}
+        if due:
+            self._fetch(FetchRequest.create(source.id, list(due), min(due.values()), period.end), refresh=refresh)
+
+    def labels(self, source_id: str, series_id: str, start: date, end: date | None = None) -> dict[str, str]:
+        """entity_id → the label the share table of this period uses for it (cached rows only)."""
+        period = DateRange(start, end or date.today())
+        df = self._in_period(slug(source_id, "source"), series_code(series_id), period)
+        return _latest_names(df).to_dict() if not df.empty else {}
+
+    def _due(self, source_id: str, code: str, period: DateRange, refresh: bool) -> date | None:
+        """Start to fetch the series from; None when the cache is enough."""
+        cached = pd.DataFrame() if refresh else self._levels(source_id, code)
+        if cached.empty or not (
+            _covers_start(cached, period.start) or _asked_from(self._store.requested_start(source_id, code, "level"), period.start)
+        ):
+            return period.start
+        if _is_stale(cached):
+            return max(period.start, pd.Timestamp(cached["date"].max()).date() - timedelta(days=REVISION_DAYS))
+        return None
+
+    def _in_period(self, source_id: str, code: str, period: DateRange) -> pd.DataFrame:
+        df = self._levels(source_id, code)
+        if df.empty:
+            return df
+        dates = pd.to_datetime(df["date"])
+        return df[(dates >= pd.Timestamp(period.start)) & (dates <= pd.Timestamp(period.end))]
+
     def _levels(self, source_id: str, code: str) -> pd.DataFrame:
         df = self._store.read(source_id, [code])
         return df[df["metric"] == "level"] if not df.empty else df
+
+
+def _latest_names(df: pd.DataFrame) -> pd.Series:
+    """entity_id → latest name: a renamed player (e.g. an insurer after a merger) keeps one label."""
+    named = df[(df["entity_id"].fillna("") != "") & df["entity_name"].notna()].sort_values("date")
+    return named.groupby("entity_id")["entity_name"].last()
 
 
 def _monthly(df: pd.DataFrame, freq: Frequency, kind: SeriesKind) -> pd.DataFrame:
@@ -184,6 +221,9 @@ class AnalyzeMarketShare:
         if meta.get("negative_rows"):
             out["issues"].append({"severity": "info", "check": "negative_values",
                                   "message": f"{meta['negative_rows']} satırda negatif net tutar (iptal, iade) vardı; pay hesabında sıfır kabul edildi."})  # fmt: skip
+        if meta.get("fetch_error"):
+            out["issues"].append({"severity": "medium", "check": "source_unavailable",
+                                  "message": f"Kaynak okunamadı, paylar yerel depodaki verilerle hesaplandı: {meta['fetch_error']}"})  # fmt: skip
         if meta["is_proxy"]:
             out["issues"].append({"severity": "medium", "check": "proxy",
                                   "message": "Seri doğrudan pazar verisi değil, proxy'dir; paylar yaklaşık olarak yorumlanmalıdır."})  # fmt: skip

@@ -7,7 +7,7 @@ import pandas as pd
 import pytest
 from starlette.testclient import TestClient
 
-from fakes import FakeProviderFactory, InMemoryObservationStore, InMemoryPanelStore
+from fakes import BrandFactory, FakeProviderFactory, InMemoryObservationStore, InMemoryPanelStore
 from mlbooster.bootstrap import Container
 from mlbooster.interfaces.web import create_app
 
@@ -372,3 +372,67 @@ def test_web_assets_offer_the_source_mode():
     js = (Path(__file__).parents[2] / "src/mlbooster/interfaces/web/static/app.js").read_text(encoding="utf-8")
     assert '"/api/market-share/source"' in js and '"/api/share-series"' in js and "Kaynaktan çek" in js
     assert ".innerHTML" not in js
+
+
+# --- brand search ---------------------------------------------------------------------------------------------------
+
+
+@pytest.fixture
+def brand_client(catalog_repo):
+    def factory():
+        return Container(
+            catalog=catalog_repo, providers=BrandFactory(), observations=InMemoryObservationStore(),
+            panels=InMemoryPanelStore(), overrides=catalog_repo,
+        )  # fmt: skip
+
+    return TestClient(create_app(factory, token=TOKEN), base_url=BASE, raise_server_exceptions=False)
+
+
+PERIOD = {"start": "2022-01", "end": "2025-12"}
+
+
+def test_brand_report_flow(brand_client):
+    res = brand_client.post("/api/brand/analyze", json={"query": "Togg", **PERIOD}, headers=AUTH)
+    assert res.status_code == 200, res.text
+    out = res.json()
+    assert out["status"] == "resolved" and out["position"]["rank"] == 3 and out["sources"][0]["attribution"].startswith("Kaynak:")
+    assert out["labels"]["trend"]["gaining"] and out["generated_at"]
+    assert out["series"][0]["unit"] == "adet"  # catalog unit shown through its Turkish label
+
+
+def test_brand_candidates_and_choice(brand_client):
+    out = brand_client.post("/api/brand/analyze", json={"query": "Anadolu"}, headers=AUTH).json()
+    assert out["status"] == "ambiguous" and "position" not in out
+    choice = out["matches"][0]["id"]
+    res = brand_client.post("/api/brand/analyze", json={"query": "Anadolu", "choice": choice, **PERIOD}, headers=AUTH)
+    assert res.json()["brand"]["id"] == choice
+
+
+def test_brand_without_a_source_gets_limits(brand_client):
+    out = brand_client.post("/api/brand/analyze", json={"query": "Migros"}, headers=AUTH).json()
+    assert out["status"] == "not_found" and out["sector_candidates"][0]["sector"] == "perakende" and "position" not in out
+
+
+def test_brand_features_and_export(brand_client):
+    body = {"query": "Togg", **PERIOD}
+    res = brand_client.post("/api/brand/features", json=body, headers=AUTH)
+    assert res.status_code == 200, res.text
+    assert res.json()["brand_columns"][0]["name"] == "marka_pay" and res.json()["path"].startswith("memory://")
+    assert not any("__" in c["name"] for c in res.json()["brand_columns"])  # derived columns stay out of the list
+    csv = brand_client.post("/api/brand/export", json=body, headers=AUTH)
+    assert csv.status_code == 200 and csv.text.startswith("date,marka_pay")
+    assert re.search(r'filename="marka_togg_[0-9a-f]{6}\.csv"', csv.headers["content-disposition"])
+    assert brand_client.post("/api/brand/export", json={**body, "format": "parquet"}, headers=AUTH).status_code == 200
+
+
+def test_brand_export_rejects_bad_input_and_unclear_names(brand_client):
+    assert brand_client.post("/api/brand/export", json={"query": "Togg", "format": "xlsx"}, headers=AUTH).status_code == 400
+    unclear = brand_client.post("/api/brand/export", json={"query": "Anadolu"}, headers=AUTH)
+    assert unclear.status_code == 400 and "aday seçin" in unclear.json()["error"]
+    assert brand_client.post("/api/brand/analyze", json={}, headers=AUTH).status_code == 400
+    bad = brand_client.post("/api/brand/analyze", json={"query": "Togg", "choice": "../x"}, headers=AUTH)
+    assert bad.status_code == 400
+
+
+def test_brand_routes_need_the_token(brand_client):
+    assert brand_client.post("/api/brand/analyze", json={"query": "Togg"}).status_code == 403

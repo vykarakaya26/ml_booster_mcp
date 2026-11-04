@@ -295,8 +295,14 @@ textarea { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-siz
 }
 @media (prefers-reduced-motion: reduce) { .spinner { animation: none; } }
 /* market share: data input mode (own table / catalog source) */
-.drop[hidden], .file-pick[hidden], .field[hidden] { display: none; }
+.drop[hidden], .file-pick[hidden], .field[hidden], .controls[hidden], .button-row[hidden] { display: none; }
 .inline-check { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--ink-2); cursor: pointer; }
 .inline-check input { width: 16px; height: 16px; min-height: 0; margin: 0; accent-color: var(--accent); }
 .file-pick .controls > .field { flex: 1 1 260px; min-width: 0; }
 .file-pick .controls select { width: 100%; }
+/* market share: brand search */
+.file-pick input[type="search"] { width: 100%; }
+.candidates { list-style: none; display: flex; flex-direction: column; gap: 8px; padding: 0; margin: 0; }
+.candidates button { width: 100%; justify-content: flex-start; text-align: left; }
+.cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; }
+.cols h3 { margin-bottom: 6px; }

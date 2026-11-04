@@ -19,8 +19,10 @@ from mlbooster.application.ports import (
     UpdateSource,
 )
 from mlbooster.application.use_cases import (
+    AnalyzeBrand,
     AnalyzeMarketShare,
     AuditPanel,
+    BuildBrandFeatures,
     BuildPanel,
     CheckForUpdates,
     DiscoverSeries,
@@ -33,10 +35,12 @@ from mlbooster.application.use_cases import (
     ListShareSeries,
     ListSources,
     PreparePanel,
+    ResolveBrand,
     RunHealthChecks,
     SearchSeries,
     SetFeatureSeries,
     SourceShareTable,
+    StoreEntityDirectory,
 )
 from mlbooster.infrastructure.catalog_yaml import YamlCatalogRepository
 from mlbooster.infrastructure.providers.registry import ProviderRegistry
@@ -126,10 +130,25 @@ class Container:
         return ListShareSeries(self.catalog, self.providers)
 
     @cached_property
+    def share_tables(self) -> SourceShareTable:
+        return SourceShareTable(self.catalog, self.fetch_series, self.observations)
+
+    @cached_property
     def market_share(self) -> AnalyzeMarketShare:
-        return AnalyzeMarketShare(
-            self.build_panel, self._tables, SourceShareTable(self.catalog, self.fetch_series, self.observations)
-        )
+        return AnalyzeMarketShare(self.build_panel, self._tables, self.share_tables)
+
+    @cached_property
+    def resolve_brand(self) -> ResolveBrand:
+        directory = StoreEntityDirectory(self.catalog, self.providers, self.fetch_series, self.observations)
+        return ResolveBrand(self.catalog, directory, self.fetch_series)
+
+    @cached_property
+    def analyze_brand(self) -> AnalyzeBrand:
+        return AnalyzeBrand(self.catalog, self.resolve_brand, self.market_share, self.share_tables)
+
+    @cached_property
+    def brand_features(self) -> BuildBrandFeatures:
+        return BuildBrandFeatures(self.catalog, self.resolve_brand, self.share_tables, self.build_panel, self.panels)
 
     @property
     def _tables(self) -> TableReader:

@@ -261,7 +261,7 @@ views.genel = async (root) => {
     h("section", { class: "hero" },
       h("span", { class: "eyebrow" }, "ML Booster Map"),
       h("h1", {}, "Bir sektör seçin; kaynağı belgelenmiş, ML'e hazır aylık paneli oluşturun"),
-      h("p", {}, "ML Booster; TCMB EVDS, TÜİK, BDDK, TBB, TSB, BTK, ODMD, EPDK, BKM, EPİAŞ, BIS ve OECD gibi ücretsiz kamu kaynaklarından sektörle ilgili feature'ları çeker ve point-in-time aylık bir panelde birleştirir. Ardından veri kalitesini denetler, ML'e hazır feature'ları dışa aktarır ve beş sektörde (bankacılık, sigorta, telekom, otomotiv, akaryakıt) pazar payını doğrudan kaynaktan hesaplar. Tüm işlemler bu bilgisayarda yapılır."),
+      h("p", {}, "ML Booster; TCMB EVDS, TÜİK, BDDK, TBB, TSB, BTK, ODMD, EPDK, BKM, EPİAŞ, BIS ve OECD gibi ücretsiz kamu kaynaklarından sektörle ilgili feature'ları çeker ve point-in-time aylık bir panelde birleştirir. Ardından veri kalitesini denetler, ML'e hazır feature'ları dışa aktarır ve beş sektörde (bankacılık, sigorta, telekom, otomotiv, akaryakıt) bir marka adından sektörü, payı ve rakipleri doğrudan kaynaktan çıkarır. Tüm işlemler bu bilgisayarda yapılır."),
       h("div", { class: "button-row" },
         h("button", { type: "button", onclick: () => go($("#sector").value) }, `${sectorName()} ile başla`),
         h("button", { type: "button", class: "ghost", onclick: () => openGlossary() }, "Terim sözlüğü"))),
@@ -638,7 +638,7 @@ views.pazar = async (root) => {
   const saved = state.share || {};
   const opts = { measure: "value", kind: "flow", basis: "auto", unit: "", trend_years: 3, ...saved.opts };
   let input = saved.input || null; // {text, name, kind: "file" | "paste" | "sample"}
-  let mode = saved.mode || "table"; // "table": user table · "source": catalog series with entity rows (e.g. BDDK)
+  let mode = saved.mode || "brand"; // "brand": brand search · "table": user table · "source": catalog series with entity rows
 
   const select = (label, value, options) => h("select", { "aria-label": label }, options.map(([v, l]) => h("option", { value: v, selected: v === value }, l)));
   const measure = select("Değer türü", opts.measure, [["value", "Tutar ya da adet"], ["share", "Yüzde pay"]]);
@@ -654,8 +654,17 @@ views.pazar = async (root) => {
   const run = h("button", { type: "button" }, "Analiz et");
   const sample = h("button", { type: "button", class: "ghost" }, "Örnek veriyi yükle");
   const out = h("div", { class: "stack" });
-  const modeTable = h("button", { type: "button", class: "ghost small" }, "Tablo yükle");
+  const modeBrand = h("button", { type: "button", class: "ghost small" }, "Marka ara");
+  const modeTable = h("button", { type: "button", class: "ghost small" }, "Kendi tablom");
   const modeSource = h("button", { type: "button", class: "ghost small" }, "Kaynaktan çek");
+  const brandInput = h("input", { type: "search", maxlength: 80, value: saved.brand?.query || "", placeholder: "ör. Togg, Garanti, Anadolu Sigorta, Turkcell, Opet", "aria-label": "Marka ya da şirket adı" });
+  const brandRun = h("button", { type: "submit" }, "Raporu hazırla");
+  const brandRefresh = h("input", { type: "checkbox" });
+  const brandBox = h("form", { class: "file-pick" },
+    h("div", { class: "controls" }, h("label", { class: "field" }, h("span", {}, "Marka ya da şirket adı"), brandInput)),
+    h("label", { class: "inline-check" }, brandRefresh, "Önbelleği yok say ve kaynaktan yeniden çek"),
+    h("div", { class: "button-row" }, brandRun),
+    h("p", { class: "caption" }, "Ad, oyuncu düzeyinde veri veren kaynaklarda aranır: ODMD (otomotiv), TBB ve BDDK (bankacılık), TSB (sigorta), EPDK (akaryakıt ve LPG), BTK (telekom). Dönem son beş yıldır (BTK'da üç yıl); üst çubuktaki aylar bu ekranda kullanılmaz. İlk arama kaynakları okuduğu için birkaç dakika sürebilir; sonraki aramalar yerel önbelleği kullanır."));
   const series = h("select", { "aria-label": "Kaynak serisi" }, h("option", { value: "" }, "Yükleniyor"));
   series.disabled = true;
   const refresh = h("input", { type: "checkbox" });
@@ -771,6 +780,181 @@ views.pazar = async (root) => {
     fillFocus([]);
     showStatus();
     analyze(sample);
+  });
+
+  // brand flow: name → candidates → report; a name that no source lists gets its limits, never a share
+  const sectorLabel = (id) => state.sectors.find((s) => s.id === id)?.name || id;
+  const brandRequest = () => ({ query: state.share.brand.query, choice: state.share.brand.choice });
+
+  const askBrand = async (query, choice) => {
+    const r = await postJSON("/api/brand/analyze", { query, choice, refresh: brandRefresh.checked });
+    brandRefresh.checked = false;
+    state.share = { ...state.share, mode, brand: { query, choice, result: r, features: null } };
+    showBrand(r);
+  };
+
+  const showBrand = (r) => {
+    if (r.status === "resolved") renderBrand(r);
+    else if (r.status === "ambiguous") renderCandidates(r);
+    else if (r.status === "not_found") renderLimits(r);
+    else fill(out, emptyState("Pay hesaplanamadı", r.message));
+  };
+
+  const candidateList = (matches, query) => h("ul", { class: "candidates" }, matches.map((m) => {
+    const pick = h("button", { type: "button", class: "ghost" }, h("strong", {}, m.name), ` · ${sectorLabel(m.sector)} · ${m.source.toUpperCase()}`);
+    pick.addEventListener("click", () => busy(pick, "Hazırlanıyor", () => askBrand(query, m.id), out));
+    return h("li", {}, pick);
+  }));
+
+  const renderCandidates = (r) => fill(out,
+    h("section", { class: "card" },
+      h("div", { class: "card-head" }, h("div", {}, h("h2", {}, "Hangisini kastettiniz?"), h("p", {}, r.message))),
+      candidateList(r.matches, r.query),
+      r.total > r.matches.length ? h("p", { class: "caption" }, `Toplam ${r.total} aday var; ilk ${r.matches.length} tanesi gösteriliyor. Adı daraltarak yeniden arayın.`) : null));
+
+  const renderLimits = (r) => {
+    const toPanel = (sector) => {
+      const go = h("button", { type: "button", class: "ghost small" }, `${sectorLabel(sector)} paneline git`);
+      go.addEventListener("click", () => { $("#sector").value = sector; $("#sector").dispatchEvent(new Event("change")); location.hash = "#panel"; });
+      return go;
+    };
+    const toTable = h("button", { type: "button", class: "ghost small" }, "Kendi tablomu yükle");
+    toTable.addEventListener("click", () => setMode("table"));
+    fill(out,
+      h("section", { class: "card" },
+        h("div", { class: "card-head" }, h("div", {}, h("h2", {}, "Oyuncu düzeyinde veri yok"), h("p", {}, r.message))),
+        r.sector_candidates.length
+          ? h("ul", {}, r.sector_candidates.map((s) => h("li", {}, h("strong", {}, `${s.name}: `), `${s.reason}.`)))
+          : h("p", { class: "muted" }, "Addan sektör çıkarılamadı; sol menüden bir sektör seçerek makro feature panelini hazırlayabilirsiniz."),
+        h("h3", {}, "Bunun yerine kullanılabilecekler"),
+        h("ul", {}, r.available.map((a) => h("li", {}, a.message, a.series ? ` Seri kodu: ${a.series}.` : ""))),
+        h("div", { class: "button-row" }, r.sector_candidates.map((s) => toPanel(s.sector)), toTable)),
+      r.others.length ? h("section", { class: "card" },
+        h("div", { class: "card-head" }, h("div", {}, h("h2", {}, "Adı benzeyen oyuncular"), h("p", {}, "Aradığınız marka bunlardan biriyse seçin."))),
+        candidateList(r.others, r.query)) : null);
+  };
+
+  const brandFeatures = (r) => {
+    const body = h("div", { class: "stack" });
+    const prepare = h("button", { type: "button" }, "Feature panelini hazırla");
+    const csv = h("button", { type: "button", class: "ghost" }, "CSV indir");
+    const parquet = h("button", { type: "button", class: "ghost" }, "Parquet indir");
+    const exportAs = (format, btn) => busy(btn, "Hazırlanıyor", async () => {
+      const res = await api("/api/brand/export", { ...brandRequest(), format });
+      const name = /filename="([^"]+)"/.exec(res.headers.get("content-disposition") || "")?.[1] || `marka_panel.${format}`;
+      downloadBlob(await res.blob(), name);
+    });
+    csv.addEventListener("click", () => exportAs("csv", csv));
+    parquet.addEventListener("click", () => exportAs("parquet", parquet));
+    const show = (f) => fill(body,
+      h("p", {}, `${monthName(f.first)} – ${monthName(f.last)} · ${nf(0).format(f.months)} ay · ${nf(0).format(f.columns)} kolon. Marka kolonlarının yanında ${nf(0).format(f.macro_columns)} makro feature ve bunların lag, rolling ve momentum türevleri bulunur.`),
+      table([{ label: "Kolon", render: (c) => h("code", {}, c.name) }, { label: "Tanım", key: "description" }], f.brand_columns),
+      f.notes.map((n) => h("p", { class: "caption" }, n)),
+      f.withheld.length ? h("p", { class: "caption" }, `Kullanım koşulları saklamaya izin vermediği için ${nf(0).format(f.withheld.length)} kolon dosyaya yazılmadı.`) : null,
+      h("div", { class: "button-row" }, csv, parquet));
+    prepare.addEventListener("click", () => busy(prepare, "Hazırlanıyor", async () => {
+      const f = await postJSON("/api/brand/features", brandRequest());
+      state.share.brand.features = f;
+      show(f);
+    }, body));
+    if (state.share.brand.features) show(state.share.brand.features);
+    else fill(body, h("p", { class: "muted" }, "Pay, pay değişimi, sıra, lider farkı, pazara göre büyüme ve rakip payı aylık ve point-in-time olarak hazırlanır; sektörün makro feature'ları eklenir."), h("div", { class: "button-row" }, prepare));
+    return h("section", { class: "card" },
+      h("div", { class: "card-head" }, h("div", {}, h("h2", {}, "ML'e hazır feature'lar"), h("p", {}, `${r.brand.name} için aylık panel. Her satır yalnızca o ayın sonuna kadar yayımlanmış veriyi içerir.`))),
+      body);
+  };
+
+  const renderBrand = (r) => {
+    const L = r.labels;
+    const p = r.position;
+    const conc = r.concentration;
+    const trendText = (s) => L.trend[s.trend] || s.trend;
+    const seriesName = (code) => (code === "segment" ? "Segment karması" : r.series_names[code] || code);
+    const basisText = L.basis[p.basis] || p.basis;
+    const period = `${monthName(r.period.first)} – ${monthName(r.period.last)}`;
+    const trendKind = { gaining: "ok", losing: "crit", flat: "none", insufficient_data: "none" };
+    let k = 0;
+    const history = Object.entries(r.share_history.series).map(([name, values]) => {
+      const isFocus = name === p.focus;
+      const color = SHARE_REST[name] || SHARE_COLORS[k++ % SHARE_COLORS.length];
+      return { name, values, color, width: isFocus ? 3.5 : null, dash: SHARE_REST[name] ? "4 4" : null };
+    });
+    const reasonLines = (c) => {
+      const groups = new Map();
+      for (const x of c.reasons) groups.set(x.reason, [...(groups.get(x.reason) || []), x.series]);
+      const lines = [...groups].map(([reason, codes]) => (codes.length > 1 ? `${reason}: ${codes.length} seride` : `${reason}: ${seriesName(codes[0])}`));
+      return lines.length > 4 ? [...lines.slice(0, 4), `${lines.length - 4} gerekçe daha`] : lines;
+    };
+    const moverList = (rows) => (rows.length
+      ? h("ul", {}, rows.map((x) => h("li", {}, h("strong", {}, x.entity), ` ${sharePct(x.share)} · ${ppText(x.d_year_pp, 2)}`)))
+      : h("p", { class: "muted" }, "Yakın sıralarda oyuncu yok."));
+    const seg = r.segments;
+    const ss = seg?.shift_share;
+    fill(out,
+      summary(
+        [h("strong", {}, r.headline)],
+        r.is_proxy ? "Bu sonuçlar proxy veriye dayanır; paylar yaklaşık olarak yorumlanmalıdır." : null,
+        `Yoğunlaşma: HHI ${num(conc.hhi, 0)} (${L.hhi_class[conc.class]}), ilk üç oyuncu ${sharePct(conc.cr3)}, ilk beş oyuncu ${sharePct(conc.cr5)}.`),
+      h("div", { class: "tiles" },
+        tile("Pay", sharePct(p.share), `${basisText} · ${monthName(p.last)}`, "Hesap"),
+        tile("Sıra", `${p.rank} / ${p.players}`, p.rank_year_ago ? `bir yıl önce ${p.rank_year_ago}. sıra` : "aktif oyuncular arasında", "Hesap"),
+        tile("Bir yıllık değişim", ppText(p.d_year_pp, 2), `trend: ${trendText(p)}`, "Hesap"),
+        tile("Lidere uzaklık", p.rank === 1 ? "Lider" : `${fx(1).format(p.gap_to_leader_pp)} puan`, p.rank === 1 ? `en yakın rakip: ${p.next_below || "—"}` : `lider: ${p.leader} ${sharePct(p.leader_share)}`, "Hesap"),
+        tile("HHI", num(conc.hhi, 0), `yoğunlaşma ${L.hhi_class[conc.class]}`, "Hesap")),
+      r.others.length ? h("p", { class: "caption" }, `Adı benzeyen diğer oyuncular: ${r.others.map((m) => m.name).join(", ")}. Aradığınız bunlardan biriyse adı daraltarak yeniden arayın.`) : null,
+      h("section", { class: "card" },
+        h("div", { class: "card-head" }, h("div", {}, h("h2", {}, `Sektör: ${r.sector.name}`), h("p", {}, r.sector.coverage), r.sector.notes ? h("p", {}, r.sector.notes) : null)),
+        table([
+          { label: "Seri", render: (s) => s.name },
+          { label: "Pay", num: true, render: (s) => sharePct(s.share, 2) },
+          { label: "Sıra", num: true, render: (s) => `${s.rank} / ${s.players}` },
+          { label: "Bir yıllık değişim", num: true, render: (s) => ppText(s.d_year_pp, 2) },
+          { label: term("share_trend", "Trend"), render: (s) => status(trendKind[s.trend] || "none", trendText(s)) },
+          { label: "Lider", render: (s) => (s.rank === 1 ? "—" : `${s.leader} ${sharePct(s.leader_share)}`) },
+          { label: "Dönem", render: (s) => monthName(s.last) },
+        ], r.series),
+        Object.keys(r.skipped_series).length ? h("p", { class: "caption" }, `Bu seriler rapora girmedi: ${Object.entries(r.skipped_series).map(([c, why]) => (c === "fetch" ? `kaynak okunamadı (${why})` : `${seriesName(c)} (${why})`)).join("; ")}.`) : null),
+      h("section", { class: "card" },
+        h("div", { class: "card-head" }, h("div", {}, h("h2", {}, `${r.brand.name} için rakip seti`), h("p", {}, "Rakipler veriden çıkarılır: pay sıralamasında komşuluk, pazar liderliği, ters yönlü pay değişimi (substitution correlation) ve segment karmasının örtüşmesi. Daha çok seride adı geçen oyuncu üstte yer alır."))),
+        r.competitors.length ? table([
+          { label: "Oyuncu", key: "entity" },
+          { label: "Pay", num: true, render: (c) => sharePct(c.share) },
+          { label: term("substitution", "Korelasyon (r)"), num: true, render: (c) => plainSigned(c.r, 2) },
+          { label: "Gerekçeler", render: (c) => h("ul", { class: "reasons" }, reasonLines(c).map((x) => h("li", {}, x))) },
+        ], r.competitors) : h("p", { class: "muted" }, "Veriden belirgin bir rakip adayı çıkmadı."),
+        h("div", { class: "cols" },
+          h("div", {}, h("h3", {}, "Yakın sıralarda pay kazananlar"), moverList(r.movers.gainers)),
+          h("div", {}, h("h3", {}, "Yakın sıralarda pay kaybedenler"), moverList(r.movers.losers)))),
+      h("section", { class: "card" },
+        h("div", { class: "card-head" }, h("div", {}, h("h2", {}, term("market_share", "Pay geçmişi")), h("p", {}, `${seriesName(p.series)} · ${basisText} tabanında yüzde pay. Kalın çizgi ${p.focus}.`))),
+        lineChart({ dates: r.share_history.dates, series: history, height: 320, format: (v) => sharePct(v, 1) })),
+      seg ? h("section", { class: "card" },
+        h("div", { class: "card-head" }, h("div", {}, h("h2", {}, "Segmentler"), h("p", {}, "Pazarı bölen serilerde ağırlık ve markanın payı."))),
+        table([
+          { label: "Segment", render: (x) => seriesName(x.segment) },
+          { label: "Ağırlık", num: true, render: (x) => sharePct(x.weight) },
+          { label: `${r.brand.name} payı`, num: true, render: (x) => sharePct(x.focus_share) },
+          { label: "Bir yıllık değişim", num: true, render: (x) => ppText(x.focus_share_d_pp) },
+          { label: "Lider", render: (x) => (x.leader ? `${x.leader} (${sharePct(x.leader_share)})` : "—") },
+        ], seg.segments),
+        ss ? h("p", {}, term("shift_share", "Shift-share"), `: ${monthName(ss.from)} → ${monthName(ss.to)} arasında ${ppText(ss.total_pp, 2)}; ${ppText(ss.share_effect_pp, 2)} segment içi pay, ${ppText(ss.mix_effect_pp, 2)} segment karması etkisi.`) : null) : null,
+      brandFeatures(r),
+      r.issues.length ? h("section", { class: "card" },
+        h("div", { class: "card-head" }, h("div", {}, h("h2", {}, "Veri notları"), h("p", {}, "Sonucu yorumlarken dikkate alınması gereken durumlar."))),
+        h("div", { class: "feature-list" }, r.issues.map((i) => h("div", { class: "feature-row" },
+          h("h3", {}, i.message), status(...(SEVERITY[i.severity] || ["none", i.severity])))))) : null,
+      h("section", { class: "card" },
+        h("div", { class: "card-head" }, h("div", {}, h("h2", {}, "Kaynak ve lisans"))),
+        r.sources.map((s) => h("p", {}, h("strong", {}, `${s.attribution}. `), s.license))),
+      stampBar({ sources: r.sources.map((s) => s.attribution.replace(/^Kaynak:\s*/, "")).join(", "), generated: stampTime(r.generated_at), period, missing: r.issues.some((i) => i.check === "missing_periods") ? "eksik dönem var (Veri notları)" : "yok" }),
+    );
+  };
+
+  brandBox.addEventListener("submit", (e) => {
+    e.preventDefault();
+    const query = brandInput.value.trim();
+    if (!query) { notice("Bir marka ya da şirket adı yazın."); return; }
+    busy(brandRun, "Hazırlanıyor", () => askBrand(query), out);
   });
 
   const render = (r, src, o) => {
@@ -924,9 +1108,10 @@ views.pazar = async (root) => {
   };
 
   fill(root,
-    viewHead("Pazar payı", "Pazar payı ve rakipler", "Kendi pazar payı tablonuzu yükleyin ya da oyuncu kırılımı olan bir katalog kaynağından (BDDK, TBB, TSB, BTK, ODMD, EPDK) veriyi çekin. Paylar, yoğunlaşma (HHI, CR3/CR5), pay kazanan ve kaybeden oyuncular, rakip seti ve segment bazında shift-share hesaplanır. Yüklenen tablo yalnızca bu bilgisayarda işlenir ve diske yazılmaz."),
+    viewHead("Pazar payı", "Pazar payı ve rakipler", "Bir marka ya da şirket adı yazın: sektörü, sırası, payı, rakipleri ve yoğunlaşması oyuncu düzeyinde veri veren kaynaklardan (ODMD, TBB, BDDK, TSB, EPDK, BTK) çıkarılır. Kendi tablonuzu da yükleyebilirsiniz; yüklenen tablo yalnızca bu bilgisayarda işlenir ve diske yazılmaz."),
     h("section", { class: "card" },
-      h("div", { class: "button-row", role: "group", "aria-label": "Veri girişi" }, modeTable, modeSource),
+      h("div", { class: "button-row", role: "group", "aria-label": "Veri girişi" }, modeBrand, modeTable, modeSource),
+      brandBox,
       sourcePick,
       h("div", { class: "drop" },
         h("div", {},
@@ -938,41 +1123,52 @@ views.pazar = async (root) => {
           inputStatus),
         h("div", {},
           h("label", { class: "field" }, h("span", {}, "ya da tabloyu yapıştırın"), paste))),
-      h("div", { class: "controls" },
+      h("div", { class: "controls", "data-share-options": "" },
         field("Değer türü", measure, true),
         field("Değerin niteliği", kind, true),
         field(term("ttm", "Pay tabanı"), basis),
         field("Birim", unit, true),
         field(term("share_trend", "Trend penceresi (yıl)"), years),
         field("Odak oyuncu", focus)),
-      h("div", { class: "button-row" }, run,
+      h("div", { class: "button-row", "data-share-options": "" }, run,
         h("span", { class: "caption" }, "Odak oyuncuyu değiştirdiğinizde analiz kendiliğinden yenilenir."))),
     out,
   );
   const drop = root.querySelector(".drop");
   const setMode = (next, keepResult = false) => {
     mode = next;
-    for (const [b, m] of [[modeTable, "table"], [modeSource, "source"]]) {
+    for (const [b, m] of [[modeBrand, "brand"], [modeTable, "table"], [modeSource, "source"]]) {
       b.classList.toggle("active", m === mode);
       b.setAttribute("aria-pressed", String(m === mode));
     }
-    drop.hidden = mode === "source";
+    brandBox.hidden = mode !== "brand";
+    drop.hidden = mode !== "table";
     sourcePick.hidden = mode !== "source";
-    for (const el of tableOnly) el.hidden = mode === "source";
+    for (const el of tableOnly) el.hidden = mode !== "table";
+    root.querySelectorAll("[data-share-options]").forEach((el) => { el.hidden = mode === "brand"; });
     if (!keepResult) {
       fillFocus([]);
-      fill(out, emptyState("Analiz henüz yapılmadı", mode === "source"
-        ? "Bir kaynak serisi seçip \"Analiz et\" düğmesine basın. Dönem, üst çubuktaki başlangıç ve bitiş aylarıdır."
-        : "Bir tablo seçip \"Analiz et\" düğmesine basın ya da \"Örnek veriyi yükle\" ile sentetik otomotiv verisini deneyin."));
+      fill(out, emptyState("Analiz henüz yapılmadı", {
+        brand: "Bir marka ya da şirket adı yazıp \"Raporu hazırla\" düğmesine basın.",
+        source: "Bir kaynak serisi seçip \"Analiz et\" düğmesine basın. Dönem, üst çubuktaki başlangıç ve bitiş aylarıdır.",
+        table: "Bir tablo seçip \"Analiz et\" düğmesine basın ya da \"Örnek veriyi yükle\" ile sentetik otomotiv verisini deneyin.",
+      }[mode]));
     }
   };
+  modeBrand.addEventListener("click", () => {
+    if (mode === "brand") return;
+    const last = state.share?.brand?.result;
+    setMode("brand", Boolean(last));
+    if (last) showBrand(last);
+  });
   modeTable.addEventListener("click", () => mode !== "table" && setMode("table"));
   modeSource.addEventListener("click", () => mode !== "source" && setMode("source"));
   series.addEventListener("change", () => { fillFocus([]); describeSeries(); });
 
-  const shown = saved.result && (saved.mode || "table") === mode;
-  setMode(mode, shown);
-  if (shown) render(saved.result, mode === "source" ? saved.sourceInput : saved.input, { ...opts });
+  const shown = mode === "brand" ? saved.brand?.result : saved.result && saved.mode === mode;
+  setMode(mode, Boolean(shown));
+  if (shown && mode === "brand") showBrand(saved.brand.result);
+  else if (shown) render(saved.result, mode === "source" ? saved.sourceInput : saved.input, { ...opts });
   loadShareSeries(saved.sourceInput?.series);
 };
 
