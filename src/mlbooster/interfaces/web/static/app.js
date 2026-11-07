@@ -797,7 +797,7 @@ views.pazar = async (root) => {
     if (r.status === "resolved") renderBrand(r);
     else if (r.status === "ambiguous") renderCandidates(r);
     else if (r.status === "not_found") renderLimits(r);
-    else fill(out, emptyState("Pay hesaplanamadı", r.message), evidenceCard(r.evidence), searchCard(r));
+    else fill(out, emptyState("Pay hesaplanamadı", r.message), evidenceCard(r.evidence, r.brand.name, r.brand.sector), searchCard(r));
   };
 
   // Google Trends block: opt-in (BigQuery queries), kept apart from computed shares and published findings
@@ -915,7 +915,53 @@ views.pazar = async (root) => {
     { label: "Yayım", key: "published" },
   ], rows);
 
-  const evidenceCard = (ev) => {
+  // Opt-in web search: the server runs the user's own Claude Code; this box starts it, follows it and refreshes the report.
+  let refreshedJob = null;
+  const webSearch = (name, sector) => {
+    const line = h("p", { class: "caption", "aria-live": "polite" });
+    const run = h("button", { type: "button", class: "ghost small" }, "Web'de kaynak ara");
+    const stop = h("button", { type: "button", class: "ghost small", hidden: true }, "Durdur");
+    const report = h("details", { class: "about", hidden: true }, h("summary", {}, "Agent'ın raporu"));
+    const show = (j) => {
+      run.hidden = j.running;
+      stop.hidden = !j.running;
+      if (j.status === "idle" || j.brand !== name) { line.textContent = ""; return; }
+      line.textContent = `${j.label}: ${nf(0).format(j.searches)} arama, ${nf(0).format(j.pages)} sayfa, ${nf(0).format(j.records)} kayıt.${j.message ? ` ${j.message}` : ""}`;
+      if (j.report) {
+        report.hidden = false;
+        report.replaceChildren(report.firstChild, h("p", { class: "report-text" }, j.report));
+      }
+    };
+    const follow = async () => {
+      if (!run.isConnected) return; // the screen changed; the job goes on and the next report shows its records
+      let j;
+      try { j = await getJSON("/api/research/status"); } catch (e) { line.textContent = e.message; return; }
+      show(j);
+      if (j.running) { setTimeout(follow, 2500); return; }
+      if (j.brand === name && j.id !== refreshedJob && j.status !== "idle") {
+        refreshedJob = j.id;
+        const b = state.share.brand;
+        await askBrand(b.query, b.choice);
+      }
+    };
+    run.addEventListener("click", async () => {
+      notice("");
+      run.disabled = true;
+      try { show(await postJSON("/api/research/start", { query: name, sector })); setTimeout(follow, 1500); }
+      catch (e) { line.textContent = e.message; }
+      run.disabled = false;
+    });
+    stop.addEventListener("click", async () => {
+      try { show(await postJSON("/api/research/cancel", {})); } catch (e) { line.textContent = e.message; }
+    });
+    setTimeout(follow, 0); // a search started earlier keeps being followed after a reload
+    return h("div", {},
+      h("div", { class: "button-row" }, run, stop),
+      h("p", { class: "caption" }, "Arama bu bilgisayardaki Claude Code'u kendi planınızla çalıştırır, birkaç dakika sürer ve siz başlatmadan çalışmaz. API key gerekmez."),
+      line, report);
+  };
+
+  const evidenceCard = (ev, name, sector) => {
     if (!ev) return null;
     const hasAny = ev.current.length + ev.historical.length > 0;
     return h("section", { class: "card" },
@@ -934,9 +980,22 @@ views.pazar = async (root) => {
           { label: "Olası neden", render: (c) => h("ul", { class: "reasons" }, c.reasons.map((x) => h("li", {}, x))) },
         ], ev.comparison)) : null,
       ev.historical.length ? h("details", { class: "about" }, h("summary", {}, `Eski bulgular (${ev.historical.length}): dönemi ${nf(0).format(ev.max_age_days)} günden eski`), evidenceTable(ev.historical)) : null,
-      ev.next_step ? h("p", { class: "caption" }, ev.next_step) : null,
-      hasAny ? h("p", { class: "caption" }, ev.note) : null);
+      hasAny ? h("p", { class: "caption" }, ev.note) : null,
+      webSearch(name, sector));
   };
+
+  // A group share is a computed sum of the brands of the source; every membership shows the document behind it.
+  const groupCard = (g) => (g ? h("section", { class: "card" },
+    h("div", { class: "card-head" }, h("div", {}, h("h2", {}, `${g.name}: ${g.label}`), h("p", {}, "Grup payı kaynakta yayımlanmaz; aşağıdaki markaların satışları toplanarak hesaplanır."))),
+    table([
+      { label: "Marka", render: (m) => (m.included ? m.name : `${m.name} (bu dönemde üye değil)`) },
+      { label: "Pay", num: true, render: (m) => sharePct(m.share, 2) },
+      { label: "Sıra", num: true, render: (m) => m.rank ?? "—" },
+      { label: "Bir yıllık değişim", num: true, render: (m) => ppText(m.d_year_pp, 2) },
+      { label: "Üyelik", render: (m) => (m.from ? `${m.from} tarihinden itibaren` : "başlangıcı doğrulanamadı") },
+      { label: "Dayanak", render: (m) => h("span", {}, safeLink(m.url, "belge"), ` · ${m.checked}`, m.note ? ` · ${m.note}` : "") },
+    ], g.members),
+    h("ul", {}, g.notes.map((n) => h("li", {}, n)))) : null);
 
   const renderLimits = (r) => {
     const toPanel = (sector) => {
@@ -948,10 +1007,11 @@ views.pazar = async (root) => {
     toTable.addEventListener("click", () => setMode("table"));
     const found = r.evidence && r.evidence.current.length + r.evidence.historical.length > 0;
     fill(out,
-      found ? evidenceCard(r.evidence) : null,
+      found ? evidenceCard(r.evidence, r.query, r.sector_candidates[0]?.sector) : null,
       searchCard(r),
       h("section", { class: "card" },
         h("div", { class: "card-head" }, h("div", {}, h("h2", {}, "Oyuncu düzeyinde veri yok"), h("p", {}, r.message))),
+        found ? null : webSearch(r.query, r.sector_candidates[0]?.sector),
         r.sector_candidates.length
           ? h("ul", {}, r.sector_candidates.map((s) => h("li", {}, h("strong", {}, `${s.name}: `), `${s.reason}.`)))
           : h("p", { class: "muted" }, "Addan sektör çıkarılamadı; sol menüden bir sektör seçerek makro feature panelini hazırlayabilirsiniz."),
@@ -1031,6 +1091,7 @@ views.pazar = async (root) => {
         tile("Lidere uzaklık", p.rank === 1 ? "Lider" : `${fx(1).format(p.gap_to_leader_pp)} puan`, p.rank === 1 ? `en yakın rakip: ${p.next_below || "—"}` : `lider: ${p.leader} ${sharePct(p.leader_share)}`, "Hesap"),
         tile("HHI", num(conc.hhi, 0), `yoğunlaşma ${L.hhi_class[conc.class]}`, "Hesap")),
       r.others.length ? h("p", { class: "caption" }, `Adı benzeyen diğer oyuncular: ${r.others.map((m) => m.name).join(", ")}. Aradığınız bunlardan biriyse adı daraltarak yeniden arayın.`) : null,
+      groupCard(r.group),
       h("section", { class: "card" },
         h("div", { class: "card-head" }, h("div", {}, h("h2", {}, `Sektör: ${r.sector.name}`), h("p", {}, r.sector.coverage), r.sector.notes ? h("p", {}, r.sector.notes) : null)),
         table([
@@ -1067,7 +1128,7 @@ views.pazar = async (root) => {
           { label: "Lider", render: (x) => (x.leader ? `${x.leader} (${sharePct(x.leader_share)})` : "—") },
         ], seg.segments),
         ss ? h("p", {}, term("shift_share", "Shift-share"), `: ${monthName(ss.from)} → ${monthName(ss.to)} arasında ${ppText(ss.total_pp, 2)}; ${ppText(ss.share_effect_pp, 2)} segment içi pay, ${ppText(ss.mix_effect_pp, 2)} segment karması etkisi.`) : null) : null,
-      evidenceCard(r.evidence),
+      evidenceCard(r.evidence, r.brand.name, r.brand.sector),
       searchCard(r),
       brandFeatures(r),
       r.issues.length ? h("section", { class: "card" },

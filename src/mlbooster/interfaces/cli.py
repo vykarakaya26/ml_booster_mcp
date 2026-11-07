@@ -14,6 +14,7 @@ import pandas as pd
 import typer
 
 from mlbooster.application.dto import FetchRequest
+from mlbooster.application.errors import ResearchUnavailable
 from mlbooster.application.use_cases.panel import DEFAULT_START
 from mlbooster.bootstrap import Container, build_container
 from mlbooster.domain.errors import DomainError
@@ -30,6 +31,7 @@ from mlbooster.interfaces.presenters import (
     brand_features_dict,
     evidence_lines,
     features_dict,
+    group_lines,
     mirror_lines,
     prep_dict,
     quality_dict,
@@ -467,6 +469,9 @@ def _echo_limits(out: dict) -> None:
 
 def _echo_brand(out: dict, top: int = 5) -> None:
     typer.echo(out["headline"])
+    if out.get("group"):
+        for line in group_lines(out["group"]):
+            typer.echo(line)
     typer.echo(f"Sektör: {out['sector']['name']} · dönem {out['period']['first']} – {out['period']['last']}")
     for s in out["series"]:
         d = "—" if s["d_year_pp"] is None else f"{tr_num(s['d_year_pp'], '+.2f')} puan"
@@ -490,6 +495,31 @@ def _echo_brand(out: dict, top: int = 5) -> None:
     _echo_search(out)
 
 
+def _search_web(result: dict) -> bool:
+    """Runs the opt-in web search for what the name led to. A search that cannot start leaves the report as it is."""
+    if result["status"] == "ambiguous":
+        typer.secho("Web araması için önce adayı seçin (--choice).", fg=typer.colors.YELLOW, err=True)
+        return False
+    brand = result.get("brand") or {}
+    candidates = result.get("sector_candidates") or [{}]
+    seen: list[tuple] = []
+
+    def progress(job: dict) -> None:
+        counts = (job["searches"], job["pages"], job["records"])
+        if not seen or seen[-1] != counts:
+            seen.append(counts)
+            typer.echo(f"{job['label']}: {job['searches']} arama, {job['pages']} sayfa, {job['records']} kayıt", err=True)
+
+    typer.echo("Web araması başlıyor: kendi Claude Code planınız kullanılır, birkaç dakika sürer. Durdurmak için Ctrl+C.", err=True)
+    try:
+        job = container().web_research.run(brand.get("name") or result["query"], brand.get("sector") or candidates[0].get("sector"), progress)
+    except ResearchUnavailable as exc:
+        typer.secho(f"Web araması başlatılamadı: {exc}", fg=typer.colors.YELLOW, err=True)
+        return False
+    typer.echo(f"{job['label']}: {job['searches']} arama, {job['pages']} sayfa, {job['records']} yeni kayıt. {job['message']}", err=True)
+    return True
+
+
 @app.command()
 def brand(
     name: Annotated[str, typer.Argument(help="Marka ya da şirket adı (ör. Togg, Garanti, Anadolu Sigorta)")],
@@ -500,17 +530,21 @@ def brand(
     trend_years: Annotated[int, typer.Option(help="Trend penceresi (yıl)")] = 3,
     features: Annotated[bool, typer.Option("--features", help="Marka feature panelini de üret ve yerel veri dizinine yaz")] = False,
     out: Annotated[Path | None, typer.Option(help="--features ile: paneli ayrıca bu dosyaya yaz (.parquet/.csv)")] = None,
+    web_search: Annotated[bool, typer.Option("--web-search", help="Yayımlanmış pay bulgularını Claude Code ile web'de ara (kendi planınızı kullanır, birkaç dakika sürer)")] = False,
     check_trends: Annotated[bool, typer.Option("--check-trends", help="Marka bulunmazsa terimi Google Trends listesinde ara (BigQuery sorgusu çalıştırır)")] = False,
     search_interest: Annotated[bool, typer.Option("--search-interest", help="Marka, rakip ve kategori terimlerini Google Trends listelerinde ara (BigQuery sorgusu çalıştırır; pazar payı değildir)")] = False,
     json_out: Annotated[Path | None, typer.Option("--json", help="Sonucu bu JSON dosyasına yaz")] = None,
 ):
     """Marka ya da şirket adından pazar payı raporu: adı oyuncu düzeyinde kaynaklarda arar; sektörü, sırayı, payı, rakipleri
-    ve yoğunlaşmayı çıkarır. Birden fazla aday varsa seçim ister; ad bulunamazsa pay üretmez, kullanılabilecek veriyi bildirir."""
+    ve yoğunlaşmayı çıkarır. Birden fazla aday varsa seçim ister; ad bulunamazsa pay üretmez, kullanılabilecek veriyi bildirir.
+    --web-search yayımlanmış bulguları Claude Code ile arar; sonuçlar hesaplanmış paylardan ayrı gösterilir."""
     try:
         if out is not None:
             container().export_table.check(out)
         typer.echo("Kaynaklar taranıyor (yerel cache kullanılır; ilk arama birkaç dakika sürebilir)", err=True)
         result = container().analyze_brand(name, choice, _date(start), _period_end(end), refresh, trend_years, search_interest)
+        if web_search and _search_web(result):
+            result = container().analyze_brand(name, choice, _date(start), _period_end(end), False, trend_years, search_interest)
         if result["status"] == "not_found" and check_trends:
             result = container().resolve_brand(name, check_trends=True) | {"search_interest": result["search_interest"]}
         if result["status"] == "resolved" and features:

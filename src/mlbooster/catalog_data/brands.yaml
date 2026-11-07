@@ -45,6 +45,52 @@ sector_keywords:
   perakende: [market, marketleri, magaza, magazacilik, perakende, giyim, tekstil, kozmetik, eticaret, restoran, gida]
   turizm: [turizm, otel, tur, seyahat, havayolu, havayollari]
   konut: [konut, insaat, gayrimenkul, emlak, yapi]
+# Groups and distributors whose share is computed as the sum of their brands in one source. Every membership carries the
+# document that shows it and the day it was opened. `from`/`to` limit it; without `from` the start could not be dated and
+# the report says so. A membership nobody could open is left out, not guessed.
+groups:
+  - id: dogus_otomotiv
+    name: Doğuş Otomotiv
+    aliases: [Doğuş, Doğuş Otomotiv Servis ve Ticaret, DOAS]
+    source: odmd
+    note: "Doğuş Otomotiv'in sitesi otomatik erişime kapalı olduğu için üyelikler KAP şirket sayfasından doğrulandı; distribütörlük başlangıç tarihleri açılamadı."
+    members:
+      - {entity: VOLKSWAGEN, name: Volkswagen, url: "https://kap.org.tr/tr/sirket-bilgileri/genel/4028e4a240e8d16e0140e951bf04007b", checked: 2026-11-04, note: "ODMD binek ve ticari araçları Volkswagen adı altında verir"}
+      - {entity: AUDI, name: Audi, url: "https://kap.org.tr/tr/sirket-bilgileri/genel/4028e4a240e8d16e0140e951bf04007b", checked: 2026-11-04}
+      - {entity: SKODA, name: Škoda, url: "https://kap.org.tr/tr/sirket-bilgileri/genel/4028e4a240e8d16e0140e951bf04007b", checked: 2026-11-04, note: "Distribütör Yüce Auto; Doğuş Otomotiv'in payı %50 (iştirak). Satışın tamamı toplama girer"}
+      - {entity: SEAT, name: SEAT, url: "https://kap.org.tr/tr/sirket-bilgileri/genel/4028e4a240e8d16e0140e951bf04007b", checked: 2026-11-04}
+      - {entity: CUPRA, name: Cupra, url: "https://kap.org.tr/tr/sirket-bilgileri/genel/4028e4a240e8d16e0140e951bf04007b", checked: 2026-11-04}
+      - {entity: PORSCHE, name: Porsche, url: "https://kap.org.tr/tr/sirket-bilgileri/genel/4028e4a240e8d16e0140e951bf04007b", checked: 2026-11-04}
+      - {entity: BENTLEY, name: Bentley, url: "https://kap.org.tr/tr/sirket-bilgileri/genel/4028e4a240e8d16e0140e951bf04007b", checked: 2026-11-04}
+      - {entity: LAMBORGHINI, name: Lamborghini, url: "https://kap.org.tr/tr/sirket-bilgileri/genel/4028e4a240e8d16e0140e951bf04007b", checked: 2026-11-04}
+  - id: tofas
+    name: Tofaş
+    aliases: [Tofaş Türk Otomobil Fabrikası, TOASO]
+    source: odmd
+    members:
+      - {entity: FIAT, name: Fiat, url: "https://www.tofas.com.tr/Pages/default.aspx", checked: 2026-11-04}
+      - {entity: ALFA_ROMEO, name: Alfa Romeo, url: "https://www.tofas.com.tr/Pages/default.aspx", checked: 2026-11-04}
+      - {entity: JEEP, name: Jeep, url: "https://www.tofas.com.tr/Pages/default.aspx", checked: 2026-11-04}
+      - {entity: PEUGEOT, name: Peugeot, from: 2025-05-01, url: "https://www.tofas.com.tr/en/InvestorRelations/Presentations/Documents/TOFAS_Investor_Presentation_May25.pdf", checked: 2026-11-04}
+      - {entity: CITROEN, name: Citroën, from: 2025-05-01, url: "https://www.tofas.com.tr/en/InvestorRelations/Presentations/Documents/TOFAS_Investor_Presentation_May25.pdf", checked: 2026-11-04}
+      - {entity: OPEL, name: Opel, from: 2025-05-01, url: "https://www.tofas.com.tr/en/InvestorRelations/Presentations/Documents/TOFAS_Investor_Presentation_May25.pdf", checked: 2026-11-04}
+      - {entity: DS, name: DS Automobiles, from: 2025-05-01, url: "https://www.tofas.com.tr/en/InvestorRelations/Presentations/Documents/TOFAS_Investor_Presentation_May25.pdf", checked: 2026-11-04}
+  - id: oyak_renault
+    name: Oyak Renault (MAİS)
+    aliases: [Oyak Renault, MAİS, Mais Motorlu Araçlar]
+    source: odmd
+    note: "Oyak Renault üretim şirketidir; Renault, Dacia ve Alpine satışlarını MAİS yapar."
+    members:
+      - {entity: RENAULT, name: Renault, url: "https://www.oyak.com.tr/oyak-sirketleri/faaliyet-alanlari/otomotiv", checked: 2026-11-04}
+      - {entity: DACIA, name: Dacia, url: "https://www.oyak.com.tr/oyak-sirketleri/faaliyet-alanlari/otomotiv", checked: 2026-11-04}
+      - {entity: ALPINE, name: Alpine, url: "https://www.oyak.com.tr/oyak-sirketleri/faaliyet-alanlari/otomotiv", checked: 2026-11-04}
+  - id: toyota_turkiye
+    name: Toyota Türkiye
+    aliases: [Toyota Türkiye Pazarlama ve Satış]
+    source: odmd
+    members:
+      - {entity: TOYOTA, name: Toyota, url: "https://www.toyota.com.tr/toyotada-kariyer/sirketimiz-ve-ik-misyonumuz", checked: 2026-11-04}
+      - {entity: LEXUS, name: Lexus, url: "https://turkiye.lexus.com.tr/lexus_fiyat_listesi/lexus-fiyatlistesi.html", checked: 2026-11-04}
 brands:
   # Banks (TBB bank codes)
   - {name: Ziraat Bankası, aliases: [Ziraat, Ziraat Bank, TC Ziraat], targets: [{source: tbb, entities: ["3"]}]}
@@ -71,7 +117,8 @@ brands:
   - {name: Land Rover, aliases: [Range Rover, LandRover], targets: [{source: odmd, entities: [LAND_ROVER]}]}
   - {name: KG Mobility, aliases: [KGM, SsangYong, Ssang Yong], targets: [{source: odmd, entities: [KG_MOBILITY_SSANGYONG]}]}
   - {name: Omoda & Jaecoo, aliases: [Omoda, Jaecoo], targets: [{source: odmd, entities: [OMODA_JAECOO]}]}
-  - {name: Fiat, aliases: [Tofaş], targets: [{source: odmd, entities: [FIAT]}]}
+  - {name: Fiat, targets: [{source: odmd, entities: [FIAT]}]}
+  - {name: Hyundai, aliases: [Hyundai Assan], targets: [{source: odmd, entities: [HYUNDAI]}]}
   - {name: Ford, aliases: [Ford Otosan, Otosan], targets: [{source: odmd, entities: [FORD]}]}
   # Fuel and LPG (EPDK holder keys)
   - {name: Petrol Ofisi, aliases: [PO, POAŞ, Petrol Ofisi AŞ], targets: [{source: epdk, entities: [PETROL_OFISI]}]}

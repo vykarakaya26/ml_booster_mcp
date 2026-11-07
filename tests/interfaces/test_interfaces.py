@@ -4,7 +4,8 @@ import json
 import pytest
 from typer.testing import CliRunner
 
-from fakes import BrandFactory, InMemoryEvidenceStore, InMemoryObservationStore, InMemoryPanelStore
+from fakes import BrandFactory, FakeResearchRunner, InMemoryEvidenceStore, InMemoryObservationStore, InMemoryPanelStore
+from mlbooster.application.dto import RunnerReadiness
 from mlbooster.bootstrap import Container
 from mlbooster.domain.services.evidence import EvidenceDraft
 from mlbooster.interfaces import cli, mcp_server
@@ -299,3 +300,38 @@ def test_cli_shows_a_few_comparisons_and_says_how_many_more():
     section = {"label": "x", "current": [], "historical": [], "single_source": False, "comparison": rows, "contradictions": [], "next_step": None}
     lines = evidence_lines(section)
     assert sum("Karşılaştırma:" in line for line in lines) == 3 and any("2 karşılaştırma daha" in line for line in lines)
+
+
+def _with_runner(container, runner):
+    container.research_runner = runner
+    return container
+
+
+def test_cli_web_search_runs_on_request_and_the_report_follows(monkeypatch, brand_container):
+    record = lambda: brand_container.record_evidence(EvidenceDraft(**MIGROS))  # noqa: E731
+    runner = FakeResearchRunner(record=record)
+    monkeypatch.setattr(cli, "container", lambda: _with_runner(brand_container, runner))
+    assert "%24,5" not in CliRunner().invoke(cli.app, ["brand", "Migros"]).stdout and runner.calls == []
+    out = CliRunner().invoke(cli.app, ["brand", "Migros", "--web-search"])
+    assert out.exit_code == 0 and runner.calls == [("Migros", "perakende")]
+    assert "%24,5" in out.stdout and "1 yeni kayıt" in out.stderr
+
+
+def test_cli_web_search_leaves_the_report_when_claude_is_missing(monkeypatch, brand_container):
+    runner = FakeResearchRunner(RunnerReadiness(False, "Claude Code bulunamadı.", "Kurun."))
+    monkeypatch.setattr(cli, "container", lambda: _with_runner(brand_container, runner))
+    out = CliRunner().invoke(cli.app, ["brand", "Migros", "--web-search"])
+    assert out.exit_code == 0 and "bulunamadı. Kurun." in out.stderr and "pazar payı hesaplanmadı" in out.stdout
+
+
+def test_cli_web_search_waits_for_a_choice(monkeypatch, brand_container):
+    runner = FakeResearchRunner()
+    monkeypatch.setattr(cli, "container", lambda: _with_runner(brand_container, runner))
+    out = CliRunner().invoke(cli.app, ["brand", "Anadolu", "--web-search"])
+    assert runner.calls == [] and "adayı seçin" in out.stderr
+
+
+def test_cli_group_shows_the_sum_and_its_members(monkeypatch, brand_container):
+    monkeypatch.setattr(cli, "container", lambda: brand_container)
+    text = CliRunner().invoke(cli.app, ["brand", "Tofaş", "--start", "2022-01", "--end", "2025-12"]).stdout
+    assert "Grup payı" in text and "üye markaların toplamı" in text and "Fiat" in text and "doğrulanamadı" in text

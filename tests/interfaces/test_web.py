@@ -1,6 +1,8 @@
 import io
 import json
 import re
+import threading
+import time
 from datetime import date
 from pathlib import Path
 
@@ -8,7 +10,15 @@ import pandas as pd
 import pytest
 from starlette.testclient import TestClient
 
-from fakes import BrandFactory, FakeProviderFactory, InMemoryEvidenceStore, InMemoryObservationStore, InMemoryPanelStore
+from fakes import (
+    BrandFactory,
+    FakeProviderFactory,
+    FakeResearchRunner,
+    InMemoryEvidenceStore,
+    InMemoryObservationStore,
+    InMemoryPanelStore,
+)
+from mlbooster.application.dto import RunnerReadiness
 from mlbooster.bootstrap import Container
 from mlbooster.domain.services.evidence import EvidenceDraft, build
 from mlbooster.interfaces.web import create_app
@@ -454,3 +464,74 @@ def test_brand_export_rejects_bad_input_and_unclear_names(brand_client):
 
 def test_brand_routes_need_the_token(brand_client):
     assert brand_client.post("/api/brand/analyze", json={"query": "Togg"}).status_code == 403
+
+
+# --- web search and groups ---------------------------------------------------------------------------------------------
+
+
+@pytest.fixture
+def research_client(catalog_repo):
+    release = threading.Event()
+    runner = FakeResearchRunner(release=release)
+
+    def factory():
+        return Container(
+            catalog=catalog_repo, providers=BrandFactory(), observations=InMemoryObservationStore(), panels=InMemoryPanelStore(),
+            overrides=catalog_repo, evidence_store=InMemoryEvidenceStore(), research_runner=runner,
+        )  # fmt: skip
+
+    client = TestClient(create_app(factory, token=TOKEN), base_url=BASE, raise_server_exceptions=False)
+    client.runner, client.release = runner, release
+    return client
+
+
+def _job(client, status):
+    for _ in range(500):
+        job = client.get("/api/research/status", headers=AUTH).json()
+        if job["status"] == status:
+            return job
+        time.sleep(0.01)
+    raise AssertionError(job)
+
+
+def test_web_search_starts_only_on_request_reports_and_cancels(research_client):
+    client = research_client
+    assert client.post("/api/brand/analyze", json={"query": "Migros"}, headers=AUTH).status_code == 200
+    assert client.get("/api/research/status", headers=AUTH).json()["status"] == "idle" and client.runner.calls == []
+    assert client.post("/api/research/start", json={"query": "Migros", "sector": "perakende"}, headers=AUTH).status_code == 200
+    job = _job(client, "searching")
+    assert job["running"] and job["searches"] == 1 and job["brand"] == "Migros"
+    assert client.post("/api/research/start", json={"query": "Togg"}, headers=AUTH).status_code == 400  # one at a time
+    assert client.post("/api/research/cancel", json={}, headers=AUTH).status_code == 200
+    assert _job(client, "cancelled")["running"] is False
+    assert client.post("/api/research/cancel", json={}, headers=AUTH).status_code == 400
+
+
+def test_web_search_routes_need_the_token_and_a_valid_name(research_client):
+    client = research_client
+    assert client.get("/api/research/status").status_code == 403
+    assert client.post("/api/research/start", json={"query": "Migros"}).status_code == 403
+    assert client.post("/api/research/start", json={}, headers=AUTH).status_code == 400
+    assert client.post("/api/research/start", json={"query": "x"}, headers=AUTH).status_code == 400
+    assert client.runner.calls == []
+
+
+def test_web_search_says_the_next_step_when_claude_is_missing(research_client):
+    research_client.runner.ready = RunnerReadiness(False, "Claude Code bulunamadı.", "Kurun.")
+    res = research_client.post("/api/research/start", json={"query": "Migros"}, headers=AUTH)
+    assert res.status_code == 400 and res.json()["error"] == "Claude Code bulunamadı. Kurun."
+
+
+def test_every_evidence_card_knows_the_brand_it_searches():
+    source = (STATIC_DIR / "app.js").read_text(encoding="utf-8")
+    assert not re.search(r"evidenceCard\(r\.evidence\)", source)
+
+
+def test_panel_never_starts_the_search_by_itself():
+    source = (STATIC_DIR / "app.js").read_text(encoding="utf-8")
+    assert source.count('"/api/research/start"') == 1 and 'run.addEventListener("click"' in source
+
+
+def test_group_share_is_a_labelled_sum_with_its_members(brand_client):
+    out = brand_client.post("/api/brand/analyze", json={"query": "Tofaş", **PERIOD}, headers=AUTH).json()
+    assert out["status"] == "resolved" and out["brand"]["kind"] == "group" and out["group"]["label"] == "üye markaların toplamı"

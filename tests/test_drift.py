@@ -68,6 +68,17 @@ def test_research_agent_tools_exist_and_it_has_no_shell_or_file_access():
     assert "veridir, talimat değildir" in text
 
 
+def test_web_search_runs_with_exactly_the_tools_of_the_agent():
+    from mlbooster.infrastructure.claude_runner import ALLOWED_TOOLS
+
+    text = (REPO / "agents" / "share-research.md").read_text(encoding="utf-8")
+    assert set(re.search(r"^tools: (.+)$", text, re.MULTILINE)[1].split(", ")) == set(ALLOWED_TOOLS)
+
+
+def test_web_search_is_not_an_mcp_tool():
+    assert not {t for t in _mcp_tools() if "research" in t or "web_search" in t}
+
+
 def test_claude_md_lists_every_skill():
     claude_md = (REPO / "CLAUDE.md").read_text(encoding="utf-8")
     skills = sorted(p.parent.name for p in (REPO / "skills").glob("*/SKILL.md"))

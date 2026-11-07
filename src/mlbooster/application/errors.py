@@ -25,3 +25,7 @@ class ProviderUnavailable(ProviderError):
 
 class ProviderNotImplemented(ProviderError):
     pass
+
+
+class ResearchUnavailable(DomainError):
+    """The web search cannot start here; the message names the next step. The rest of the report still works."""

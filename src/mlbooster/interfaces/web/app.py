@@ -412,6 +412,19 @@ def create_app(container_factory: Callable[[], Container] = build_container, tok
     def _brand_args(data: dict) -> tuple[str, str | None, date | None, date | None]:
         return _str(data, "query", required=True), _str(data, "choice"), _date(data, "start", None), _date(data, "end", None)
 
+    # The web search runs for minutes in its own thread; these routes stay outside the store lock so that the panel can
+    # read its status and work on while it runs.
+    async def research_start(request: Request) -> dict:
+        data = await _body(request)
+        query, sector = _str(data, "query", required=True), _str(data, "sector")
+        return await run_in_threadpool(lambda: container().web_research.start(query, sector))
+
+    async def research_status(request: Request) -> dict:
+        return container().web_research.status()
+
+    async def research_cancel(request: Request) -> dict:
+        return container().web_research.cancel()
+
     async def brand_analyze(request: Request) -> dict:
         data = await _body(request)
         query, choice, start, end = _brand_args(data)
@@ -490,6 +503,9 @@ def create_app(container_factory: Callable[[], Container] = build_container, tok
         Route("/api/brand/features", endpoint(brand_features), methods=["POST"]),
         Route("/api/brand/export", endpoint(brand_export), methods=["POST"]),
         Route("/api/trends-mirror", endpoint(trends_mirror), methods=["POST"]),
+        Route("/api/research/start", endpoint(research_start), methods=["POST"]),
+        Route("/api/research/status", endpoint(research_status)),
+        Route("/api/research/cancel", endpoint(research_cancel), methods=["POST"]),
         Route("/api/health", endpoint(health)),
         Mount("/static", StaticFiles(directory=STATIC_DIR), name="static"),
     ]
