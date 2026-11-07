@@ -10,6 +10,7 @@ macro_features:
   - {name: m2_yoy, source: evds3, series: TP.HPBITABLO1.11, transform: yoy_pct, agg: last}
   - {name: kart_toplam_reel_yoy, source: evds3, series: TP.KKHARTUT.KT1, transform: yoy_pct, agg: avg, real: true}
   - {name: tufe_yoy, source: evds3, series: TP.TUKFIY2025.GENEL, transform: yoy_pct}
+  - {name: gida_tufe_yoy, source: evds3, series: TP.TUKFIY2025.01, transform: yoy_pct}  # food and non-alcoholic beverages
   - {name: ufe_yoy, source: evds3, series: TP.TUFE1YI.T1, transform: yoy_pct}
   - {name: pka_enflasyon_beklentisi, source: evds3, series: TP.ENFBEK.PKA12ENF, transform: level}
   - {name: sanayi_uretim_yoy, source: evds3, series: TP.TSANAYMT2021.BCD, transform: yoy_pct}
@@ -26,6 +27,7 @@ sector_sources: [epias]
 market_share_sources: []
 ml_use_cases: ["Makro nowcasting", "Rejim tespiti", "Feature havuzu"]
 feature_recipes:
+  - {name: gida_tufe_farki, op: spread, inputs: [gida_tufe_yoy, tufe_yoy], note: "Yıllık gıda enflasyonu − yıllık TÜFE; gıda fiyatlarının genel enflasyondan ayrışması"}
   - {name: reel_faiz_ex_ante, op: spread, inputs: [aofm, pka_enflasyon_beklentisi], note: "İleriye dönük reel faiz"}
   - {name: reel_faiz_ex_post, op: spread, inputs: [aofm, tufe_yoy], note: "Gerçekleşen reel faiz"}
   - {name: aofm_politika_farki, op: spread, inputs: [aofm, politika_faizi], note: "Efektif politika duruşu"}

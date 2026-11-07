@@ -2,6 +2,7 @@ id: perakende
 name: Perakende / FMCG
 macro_features:
   - {name: tufe_yoy, source: evds3, series: TP.TUKFIY2025.GENEL, transform: yoy_pct}
+  - {name: gida_tufe_yoy, source: evds3, series: TP.TUKFIY2025.01, transform: yoy_pct}  # food and non-alcoholic beverages
   - {name: kart_toplam_reel_yoy, source: evds3, series: TP.KKHARTUT.KT1, transform: yoy_pct, agg: avg, real: true}
   - {name: kart_market_reel_yoy, source: evds3, series: TP.KKHARTUT.KT16, transform: yoy_pct, agg: avg, real: true}
   - {name: kart_giyim_reel_yoy, source: evds3, series: TP.KKHARTUT.KT9, transform: yoy_pct, agg: avg, real: true}
@@ -19,6 +20,7 @@ market_share_sources:
   - {source: bkm, metric: "sektörel kart harcaması (talep proxy'si; firma payı değildir; BKM.SEKTOR.*)", is_proxy: true}
 ml_use_cases: ["Satış tahmini", "Enflasyon geçişkenliği", "Sepet/kategori talebi"]
 feature_recipes:
+  - {name: gida_tufe_farki, op: spread, inputs: [gida_tufe_yoy, tufe_yoy], note: "Yıllık gıda enflasyonu − yıllık TÜFE; gıda fiyatlarının genel enflasyondan ayrışması"}
   - {name: market_toplam_farki, op: spread, inputs: [kart_market_reel_yoy, kart_toplam_reel_yoy], note: "Temel tüketimin toplam harcamaya göre büyüme farkı"}
   - {name: yemek_toplam_farki, op: spread, inputs: [kart_yemek_reel_yoy, kart_toplam_reel_yoy], note: "Dışarıda yemek harcamasının göreli büyümesi"}
   - {name: online_toplam_farki, op: spread, inputs: [kart_internet_reel_yoy, kart_toplam_reel_yoy], note: "Çevrim içi kanalın göreli büyümesi"}
