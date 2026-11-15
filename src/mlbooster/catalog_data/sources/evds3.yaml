@@ -36,6 +36,7 @@ series:
   - {code: TP.DK.USD.A, name: "USD/TRY döviz alış", freq: B, kind: level, unit: TRY, currency: TRY, datagroup: bie_dkdovizgn, publication_lag_days: 0, canary: true}
   - {code: TP.DK.EUR.A, name: "EUR/TRY döviz alış", freq: B, kind: level, unit: TRY, currency: TRY, datagroup: bie_dkdovizgn, publication_lag_days: 0}
   - {code: TP.TUKFIY2025.GENEL, name: "TÜFE genel endeksi (2025=100)", freq: M, kind: level, unit: index, datagroup: bie_tukfiy2025, publication_lag_days: 3, canary: true}
+  - {code: TP.TUKFIY2025.01, name: "TÜFE gıda ve alkolsüz içecekler endeksi (2025=100)", freq: M, kind: level, unit: index, datagroup: bie_tukfiy2025, publication_lag_days: 3}  # verified live 2026-11-07: 2005-01 → 2026-10
   - {code: TP.APIFON4, name: "TCMB ağırlıklı ortalama fonlama maliyeti", freq: B, kind: level, unit: percent, datagroup: bie_apifon, publication_lag_days: 1}
   - {code: TP.BRUTDBORCLU.G1, name: "Brüt dış borç stoku, toplam", freq: Q, kind: level, unit: million_usd, currency: USD, datagroup: bie_brutdbborclu, publication_lag_days: 90}
   - {code: TP.ENFBEK.PKA12ENF, name: "Piyasa katılımcılarının 12 ay sonrası yıllık enflasyon beklentisi", freq: M, kind: level, unit: percent, datagroup: bie_enfbek, publication_lag_days: 0}
