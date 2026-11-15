@@ -438,7 +438,8 @@ def test_healthcheck_ok_and_stale(tsb):
 
 @respx.mock
 def test_healthcheck_fails_on_stale_data_and_errors(tsb, monkeypatch):
-    stale = date.today() - timedelta(days=100)
+    today = date.today()
+    stale = date(today.year, today.month, 1) - timedelta(days=100)  # its month ended 90+ days ago on any day
     _recent_site(date(stale.year, stale.month, 1)).install(respx)
     monkeypatch.setattr(tsb_module, "_HEALTH_LOOKBACK_DAYS", 400)
     assert tsb.healthcheck().status is HealthStatus.FAIL

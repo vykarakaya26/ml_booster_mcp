@@ -23,8 +23,10 @@ swagger.json; CAS REST guide on epias.com.tr), responses with a valid TGT verifi
 - The gateway sends `RateLimit-Limit` per service (observed: 60 per 60 s for the MCP service, 3600 per hour for the
   others); the catalog rps keeps every service under that. robots.txt allows everything.
 
-The catalog `remote` field is `<dataset>/<field>`: the dataset names one of the services below and the field one
-of its numeric item fields. For `realtime-generation/by_source` domestic generation is written with an empty
+The catalog `remote` field is `<dataset>/<field>[.<BLOCK>]`: the dataset names one of the services below and the
+field one of its numeric item fields. An optional suffix reduces each day to one time block of the three-time
+electricity tariff (EPDK tariff tables since 2016: GUNDUZ 06-17, PUANT 17-22, GECE 22-06 and 00-06 of the same
+calendar day, local clock hours) or to the intra-day range (SPREAD: highest minus lowest hourly value). For `realtime-generation/by_source` domestic generation is written with an empty
 `entity_id` and every generation source is an entity (entity_id = API field). Hourly values are aggregated to daily
 ones by the seed `kind` (level → mean, flow → sum); a day missing more than one of its local hours (e.g. today) is
 dropped (DST days have 23 or 25 hours).
@@ -81,13 +83,16 @@ _HEALTH_LOOKBACK_DAYS = 14
 _STALENESS_MARGIN_DAYS = 3
 
 _SERVICE = "/electricity-service/v1/"
+_GAS_SERVICE = "/natural-gas-service/v1/"
 # dataset key → (service path, numeric item fields, calendar months per call; SEF1117 above that, verified live)
 DATASETS: dict[str, tuple[str, frozenset[str], int]] = {
-    "dam-mcp": ("markets/dam/data/mcp", frozenset({"price", "priceUsd", "priceEur"}), 12),
-    "bpm-smp": ("markets/bpm/data/system-marginal-price", frozenset({"systemMarginalPrice"}), 12),
-    "realtime-consumption": ("consumption/data/realtime-consumption", frozenset({"consumption"}), 12),
+    "dam-mcp": (f"{_SERVICE}markets/dam/data/mcp", frozenset({"price", "priceUsd", "priceEur"}), 12),
+    "bpm-smp": (f"{_SERVICE}markets/bpm/data/system-marginal-price", frozenset({"systemMarginalPrice"}), 12),
+    "realtime-consumption": (f"{_SERVICE}consumption/data/realtime-consumption", frozenset({"consumption"}), 12),
+    "renewables-unit-cost": (f"{_SERVICE}renewables/data/unit-cost", frozenset({"unitCost", "supplierUnitCost"}), 12),
+    "gas-grf": (f"{_GAS_SERVICE}markets/sgp/data/daily-reference-price", frozenset({"grfTl", "grfUsd"}), 12),
     "realtime-generation": (
-        "generation/data/realtime-generation",
+        f"{_SERVICE}generation/data/realtime-generation",
         frozenset({
             "total", "naturalGas", "dammedHydro", "lignite", "river", "importCoal", "wind", "sun", "fueloil",
             "geothermal", "asphaltiteCoal", "blackCoal", "biomass", "naphta", "lng", "importExport", "wasteheat",
@@ -95,6 +100,10 @@ DATASETS: dict[str, tuple[str, frozenset[str], int]] = {
         3,
     ),
 }  # fmt: skip
+# Datasets that are not hourly: "daily" items are one value per day (no completeness rule), "versioned_monthly" items
+# carry `period` and `version` (the month a revision was computed); only the first version of a period is written,
+# so a revised value never replaces what was known when the period was first published.
+SHAPES = {"gas-grf": "daily", "renewables-unit-cost": "versioned_monthly"}
 # Entity labels of the generation sources (unknown new fields, e.g. nuclear, keep their API name as label).
 GENERATION_SOURCES = {
     "naturalGas": "Doğal gaz", "dammedHydro": "Barajlı hidroelektrik", "lignite": "Linyit", "river": "Akarsu",
@@ -104,24 +113,39 @@ GENERATION_SOURCES = {
 }  # fmt: skip
 _NOT_A_SOURCE = {"date", "hour", "time", "total", "importExport"}  # cross-border exchange is not generation
 
-_REMOTE = re.compile(r"^(?P<dataset>[a-z][a-z-]{1,40})/(?P<field>[A-Za-z_]{1,40})$")
+# Three-time tariff blocks (local clock hours, hour h = h:00-h:59) and intra-day statistics.
+BLOCKS: dict[str, frozenset[int]] = {
+    "GUNDUZ": frozenset(range(6, 17)),
+    "PUANT": frozenset(range(17, 22)),
+    "GECE": frozenset({22, 23, *range(0, 6)}),
+}
+SPREAD = "SPREAD"
+_REMOTE = re.compile(r"^(?P<dataset>[a-z][a-z-]{1,40})/(?P<field>[A-Za-z_]{1,40})(?:\.(?P<block>[A-Z]{3,10}))?$")
 _TGT = re.compile(r"^TGT-[A-Za-z0-9._-]{8,512}$")
 _TR_FOLD = str.maketrans("İIıŞşĞğÜüÖöÇç", "IIiSsGgUuOoCc")
 
 
 def parse_remote(remote: str) -> tuple[str, str]:
-    """(dataset, field) of a catalog `remote` field."""
+    """(dataset, field) of a catalog `remote` field; the field keeps its `.<BLOCK>` suffix (see `split_block`)."""
     m = _REMOTE.fullmatch(remote)
     if m is None or m["dataset"] not in DATASETS:
         raise InvalidInput(
-            f"EPİAŞ remote alanı '<veri seti>/<alan>' biçiminde olmalıdır; veri setleri: {sorted(DATASETS)}"
+            f"EPİAŞ remote alanı '<veri seti>/<alan>[.<blok>]' biçiminde olmalıdır; veri setleri: {sorted(DATASETS)}"
         )
-    dataset, field = m["dataset"], m["field"]
+    dataset, field, block = m["dataset"], m["field"], m["block"]
     if field not in DATASETS[dataset][1] and not (
         field in (BY_SOURCE, GENERATION) and dataset == "realtime-generation"
     ):
         raise InvalidInput(f"EPİAŞ {dataset} veri setinde '{field}' alanı yok")
-    return dataset, field
+    if block is not None and (block not in {*BLOCKS, SPREAD} or field == BY_SOURCE or dataset in SHAPES):
+        raise InvalidInput(f"EPİAŞ remote alanında geçersiz blok: '{block}' (geçerli bloklar: {sorted({*BLOCKS, SPREAD})})")
+    return dataset, f"{field}.{block}" if block else field
+
+
+def split_block(field: str) -> tuple[str, str | None]:
+    """('price', 'PUANT') for 'price.PUANT'; ('price', None) for 'price'."""
+    name, _, block = field.partition(".")
+    return name, block or None
 
 
 @dataclass
@@ -254,7 +278,7 @@ class EpiasProvider:
     # --- Requests ------------------------------------------------------------------------
 
     def _post(self, dataset: str, start: date, end: date) -> list[dict]:
-        url = f"https://{DATA_HOST}{_SERVICE}{DATASETS[dataset][0]}"
+        url = f"https://{DATA_HOST}{DATASETS[dataset][0]}"
         body = {"startDate": _iso(start), "endDate": _iso(end)}
         for attempt in range(2):  # a second try only with a fresh ticket
             key, ticket = self._ticket()
@@ -342,22 +366,31 @@ class EpiasProvider:
     # --- Data ----------------------------------------------------------------------------
 
     def fetch(self, request: FetchRequest) -> pd.DataFrame:
-        if request.formula or request.agg or request.freq not in (None, Frequency.DAILY):
+        seeds = [(seed, parse_remote(seed.remote or "")) for seed in map(self._seed, request.series_ids)]
+        if request.formula or request.agg or request.freq not in (None, *{seed.freq for seed, _ in seeds}):
             raise InvalidInput(
                 f"{self.source.id}: saatlik veriler günlük değerlere çevrilir; formül, agregasyon ve başka frekans "
                 "desteklenmiyor, dönüşümü yerelde yapın"
             )
-        seeds = [(seed, parse_remote(seed.remote or "")) for seed in map(self._seed, request.series_ids)]
         self._credentials()  # fail before any request when the account is not configured
         vintage, frames = datetime.now(UTC), []
         for dataset in sorted({d for _, (d, _) in seeds}):
             items: list[dict] = []
-            for start, end in month_chunks(request.period.start, request.period.end, DATASETS[dataset][2]):
+            shape = SHAPES.get(dataset, "hourly")
+            first = request.period.start.replace(day=1) if shape == "versioned_monthly" else request.period.start
+            for start, end in month_chunks(first, request.period.end, DATASETS[dataset][2]):
                 items += self._post(dataset, start, end)
-            hourly = _hourly(items, request.period.start, request.period.end)
+            if shape == "hourly":
+                hourly = _hourly(items, request.period.start, request.period.end)
             for seed, (d, field) in seeds:
-                if d == dataset:
+                if d != dataset:
+                    continue
+                if shape == "hourly":
                     frames.append(_daily(hourly, seed, field))
+                elif shape == "daily":
+                    frames.append(_per_day(items, seed, field, request.period.start, request.period.end))
+                else:
+                    frames.append(_first_versions(items, seed, field, request.period.start, request.period.end))
         frame = pd.concat(frames, ignore_index=True) if frames else pd.DataFrame()
         if frame.empty:
             return empty_observations()
@@ -365,7 +398,7 @@ class EpiasProvider:
         frame["source_id"] = self.source.id
         frame["dataset_id"] = frame["series_id"].map(lambda c: by_code[c][1][0])
         frame["metric"] = metric_name(0)
-        frame["freq"] = Frequency.DAILY.value
+        frame["freq"] = frame["series_id"].map(lambda c: by_code[c][0].freq.value)
         frame["unit"] = frame["series_id"].map(lambda c: by_code[c][0].unit)
         frame["currency"] = frame["series_id"].map(lambda c: by_code[c][0].currency)
         frame["is_proxy"] = False
@@ -424,8 +457,58 @@ def _hourly(items: list[dict], start: date, end: date) -> pd.DataFrame:
     # `date` carries the hour already (local time); `hour` is kept in the key for services that put only the day there.
     frame["stamp"] = [f"{s.isoformat()}|{h}" for s, h in zip(stamps, hours, strict=True)]
     frame["day"] = [s.date() for s in stamps]
+    frame["hour_of_day"] = [s.hour for s in stamps]
     frame = frame[(frame["day"] >= start) & (frame["day"] <= end)]
     return frame.drop_duplicates("stamp", keep="last")
+
+
+def _stamp(item: object, key: str) -> datetime:
+    if not isinstance(item, dict) or not isinstance(item.get(key), str):
+        raise UnexpectedResponse(f"EPİAŞ yanıtındaki kayıtlarda '{key}' alanı yok")
+    try:
+        return datetime.fromisoformat(item[key])
+    except ValueError:
+        raise UnexpectedResponse("EPİAŞ yanıtında tanınmayan tarih biçimi") from None
+
+
+def _number(item: dict, field: str, code: str) -> float | None:
+    if field not in item:
+        raise UnexpectedResponse(f"{code}: EPİAŞ yanıtında '{field}' alanı yok")
+    value = item[field]
+    if value is None:
+        return None
+    if isinstance(value, bool) or not isinstance(value, int | float):
+        raise UnexpectedResponse(f"{code}: EPİAŞ yanıtında sayısal olmayan '{field}' değeri")
+    return float(value)
+
+
+_COLUMNS = ["series_id", "entity_id", "entity_name", "date", "value"]
+
+
+def _per_day(items: list[dict], seed: SeedSeries, field: str, start: date, end: date) -> pd.DataFrame:
+    """Daily services (one item per local day): the value as published; a repeated day keeps the last item."""
+    values: dict[date, float] = {}
+    for item in items:
+        day = _stamp(item, "date").date()
+        if start <= day <= end and (value := _number(item, field, seed.code)) is not None:
+            values[day] = value
+    return pd.DataFrame([(seed.code, "", None, d, v) for d, v in sorted(values.items())], columns=_COLUMNS)
+
+
+def _first_versions(items: list[dict], seed: SeedSeries, field: str, start: date, end: date) -> pd.DataFrame:
+    """Monthly services published in versions: the first (earliest) version of each period, dated at month end."""
+    first: dict[date, tuple[datetime, float | None]] = {}
+    for item in items:
+        period, version = _stamp(item, "period"), _stamp(item, "version")
+        month = period.date().replace(day=1)
+        if month not in first or version < first[month][0]:
+            first[month] = (version, _number(item, field, seed.code))
+    rows = []
+    for month, (_, value) in sorted(first.items()):
+        month_end = (month + timedelta(days=32)).replace(day=1) - timedelta(days=1)
+        if value is not None and start <= month_end and month <= end:
+            rows.append((seed.code, "", None, month_end, value))
+    return pd.DataFrame(rows, columns=_COLUMNS)
 
 
 def _numeric(hourly: pd.DataFrame, name: str, code: str) -> pd.Series | None:
@@ -440,7 +523,7 @@ def _numeric(hourly: pd.DataFrame, name: str, code: str) -> pd.Series | None:
 
 def _generation_parts(hourly: pd.DataFrame, code: str) -> dict[str, pd.Series]:
     """Hourly values of every generation source (unknown new numeric fields included, text fields skipped)."""
-    names = sorted(c for c in hourly.columns if c not in _NOT_A_SOURCE | {"day", "stamp"})
+    names = sorted(c for c in hourly.columns if c not in _NOT_A_SOURCE | {"day", "stamp", "hour_of_day"})
     parts = {name: values for name in names if (values := _numeric(hourly, name, code)) is not None}
     if not parts:
         raise UnexpectedResponse(f"{code}: EPİAŞ üretim yanıtında kaynak alanı yok")
@@ -453,6 +536,7 @@ def _daily(hourly: pd.DataFrame, seed: SeedSeries, field: str) -> pd.DataFrame:
     if hourly.empty:
         return pd.DataFrame(columns=columns)
     series: dict[str, pd.Series] = {}  # entity_id → hourly values; "" is the series total
+    field, block = split_block(field)
     if field in (BY_SOURCE, GENERATION):
         parts = _generation_parts(hourly, seed.code)
         series[""] = pd.concat(parts, axis=1).sum(axis=1, min_count=1)
@@ -466,9 +550,19 @@ def _daily(hourly: pd.DataFrame, seed: SeedSeries, field: str) -> pd.DataFrame:
     how = "sum" if seed.kind is SeriesKind.FLOW else "mean"
     out = []
     for entity, values in series.items():
-        grouped = values.groupby(hourly["day"]).agg([how, "count"])
         # A day missing more than one local hour (e.g. today) is dropped; DST days have 23 or 25 hours.
-        complete = [n >= _hours_in_day(day) - 1 for day, n in grouped["count"].items()]
+        counts = values.groupby(hourly["day"]).count()
+        complete = {day for day, n in counts.items() if n >= _hours_in_day(day) - 1}
+        if block in BLOCKS:
+            in_block = hourly["hour_of_day"].isin(BLOCKS[block])
+            grouped = values[in_block].groupby(hourly["day"][in_block]).agg([how, "count"])
+            daily = grouped.loc[[d in complete and n >= len(BLOCKS[block]) - 1 for d, n in grouped["count"].items()], how]
+        elif block == SPREAD:
+            grouped = values.groupby(hourly["day"]).agg(["max", "min"])
+            daily = (grouped["max"] - grouped["min"])[[d in complete for d in grouped.index]]
+        else:
+            grouped = values.groupby(hourly["day"]).agg(how)
+            daily = grouped[[d in complete for d in grouped.index]]
         label = GENERATION_SOURCES.get(entity, entity) if entity else None
-        out += [(seed.code, entity, label, day, float(v)) for day, v in grouped.loc[complete, how].items()]
+        out += [(seed.code, entity, label, day, float(v)) for day, v in daily.items() if pd.notna(v)]
     return pd.DataFrame(out, columns=columns)
