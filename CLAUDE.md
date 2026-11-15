@@ -28,7 +28,7 @@ src/mlbooster/
   application/       # ports.py (Protocols), dto.py (FetchRequest: input validation gate), errors.py,
                      # use_cases/ (catalog, series, discovery, panel, health, analysis, modeling, market_share, brand, evidence, research,
                      # files: ExportTable). Depends only on domain.
-  infrastructure/    # port implementations: providers/ (evds3, sdmx, tuik, bddk, tbb, bkm, tsb, odmd, epdk, btk, epias,
+  infrastructure/    # port implementations: providers/ (evds3, sdmx, tuik, bddk, tbb, bkm, tsb, odmd, epdk, epdk_tariffs, btk, epias,
                      # bigquery_trends + bigquery_terms + google_auth/bigquery_rest, registry), http_client.py (SecureHttpClient),
                      # catalog_yaml.py (pydantic → domain), secret_store.py, settings.py, storage/,
                      # update_check.py (GitHub tags), table_reader.py (user CSV/JSON input; CLI only),
@@ -120,6 +120,11 @@ Rules:
    inclusive (T00:00 returns all its hours) and responses are not paged. Dates carry the Europe/Istanbul offset of
    that day (+02:00 in winters before Sep 2016; +03:00 there returns the previous day). Generation `total` = sources
    + `importExport`; domestic generation (`generation`, the `by_source` total) is the sum of the sources.
+   Remote suffix `.<BLOCK>`: GUNDUZ 06-17, PUANT 17-22, GECE 22-06 (EPDK three-time hours, local clock, same calendar
+   day), SPREAD = hourly max − min. renewables-unit-cost (YEKDEM, monthly, one item per (period, version)): only the
+   first version is written, lag 45 days. gas-grf: natural-gas-service daily reference price (TL/1000 Sm3, from 2018-09)
+   on the same pinned host. percentage-consumption-info (province × group) is not integrated: coverage varies month to
+   month (15-82 provinces).
    History: catalog `history: {default_years: 5, revision_days: 7}` (opt-in per source; only EPİAŞ): `fetch` without
    a start goes back 5 years; later fetches request only history before the earliest earlier request plus the tail
    from (last cached day − revision_days); `--refresh` / `refresh=true` refetches everything.
@@ -174,6 +179,13 @@ Rules:
    `petrol|lpg/<COLUMN>`; the total gets an empty `entity_id`, holders are keyed by the first two words of their title
    (renames in `epdk.ALIASES`). Checks: holders sum to the total ±0.5 %, published shares 100±0.5, month-on-month total
    < 3×. Office files: size-capped before decompression, XML with a DTD refused.
+   EPDK electricity tariffs (done — infrastructure/providers/epdk_tariffs.py, adapter epdk_tarife), live 2026-11-15:
+   decision list via POST /Detay/GetFastAccessList {"fId":"1327"} (JSON: Date = decision date, Title = effective date,
+   ContentType 9 = Excel); xlsx tables 2016-01 → (two sheets 'Faaliyet Bazlı' + 'Nihai' until 2025-04, one 'Tarife
+   Tablosu' from 2026-04), kuruş → TL by the seed unit. Point-in-time: month value = tariff in force at month end among
+   decisions taken by then (retroactive decisions not written back); complete months only, lag 0. Tables exclude taxes,
+   funds and levies; none is written. Catalog `remote`: `<ILETIM|OG_CIFT|OG_TEK|AG_TEK>.<GROUP>[,<GROUP>]/<COMPONENT>`.
+   Data only: cost accounting (per-product energy cost, allocation) is out of scope and belongs to a separate product.
    BTK (done — infrastructure/providers/btk.py), live observation 2026-11-02: robots.txt allows all but /api/ and
    /_next/; no terms page (footer "Tüm Hakları Saklıdır": attribution, no redistribution, no commercial use). Report
    list /elektronik-haberlesme-pazar-verileri (server-rendered HTML, one PDF per quarter, 2009-Q1 →; 2018-Q2/Q4
@@ -214,6 +226,8 @@ Rules:
    bigquery_rest falls back to the bytes processed. Dataset terms neither forbid nor explicitly allow retention
    ("as is" listing, Trends FAQ: Google ToS + attribution); recorded in bq_trends.yaml.
 
+8. BOTAŞ: only the current sales tariff (hand-edited HTML + PDF), no archive or listing; not integrated. EPİAŞ GRF is
+   the natural gas price series.
 ## Observation (silver) schema (domain/observations.py; Parquet schema in storage/observation_store.py)
 source_id, dataset_id, series_id, entity_id, entity_name, metric, date (period end), freq, value, unit,
 currency, is_proxy, vintage_ts, publication_lag_days. Key: source_id, series_id, entity_id, metric, freq, date.

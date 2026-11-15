@@ -1,0 +1,47 @@
+id: epdk_tarife
+name: EPDK elektrik tarife tabloları (vergiler hariç)
+owner: EPDK
+# The provider pins this host, reads the decision list of "Elektrik Faturalarına Esas Tarife Tabloları" through
+# POST /Detay/GetFastAccessList ({"fId": "1327"}) and the Excel tables at /Detay/DownloadDocument?id=... .
+base_url: https://www.epdk.gov.tr/
+access: file_download
+auth: {type: none}
+rate_limit: {rps: 1, backoff: exponential, notes: "Her tarife kararı için bir Excel dosyası (~50 KB) indirilir; 2016'dan bugüne yaklaşık 40 karar vardır."}
+license: {attribution: required, notes: "EPDK'nın internet sitesinde herkese açık yayımlanan tarife tabloları (Kurul kararı ekleri). Sitede kullanım şartları sayfası ve robots.txt yok; kaynak gösterilerek kullanılmalıdır. Ticari kullanım için açık bir izin ya da yasak bulunamadı. Tablolar vergi, fon ve paylar hariçtir; bu kalemler tabloda yayımlanmadığı için seri olarak yazılmaz."}
+frequency: [M]
+formats: [xlsx]
+sectors: [sanayi, makro_genel, enerji]
+# A tariff enters the month in which it is in force and already decided (the decision precedes the month end), so no
+# extra lag is needed; retroactive decisions are not written back (see the provider docstring).
+publication_lag_days: 0
+verification_status: verified
+verification_notes: "2026-11-15: Karar listesi (JSON) ve 2015-12..2026-04 arasındaki 38 tarife kararının Excel tabloları anahtarsız olarak canlı test edildi; hepsi okunuyor. 2016-01..2025-04 düzeninde enerji ve dağıtım bileşenleri 'Faaliyet Bazlı Tarife Tablosu', güç bedeli 'Nihai Tarife Tablosu' sayfasında; 2026-04'ten itibaren tek sayfa ('Tarife Tablosu'). Değerler kr/kWh (güç bedeli kr/kW/ay) olarak yayımlanıyor ve TL'ye çevriliyor. Çok zamanlı tarifenin saatleri (sürekli yaz saatine göre güncellenmiş sayaçlar): gündüz 06-17, puant 17-22, gece 22-06. 2016 öncesi tablolar farklı bileşen düzeninde (.xls/.docx) olduğu için okunmuyor."
+known_breaks: ["2016-01: daha önceki tarife tabloları farklı düzende; seriler 2016-01'de başlıyor", "2022-01: alçak gerilim mesken tarifesi kademeli hale geldi (günlük 5, 2022-02'den 7, 2022-03'ten 8 kWh); mesken serisi bu tarihten itibaren düşük kademeyi izliyor", "2022-03: alçak gerilim ticarethane (kamu ve özel hizmetler) tarifesi kademeli hale geldi (günlük 30 kWh); seri bu tarihten itibaren yüksek kademeyi izliyor", "2022-06: 'Ticarethane' abone grubunun adı 'Kamu ve Özel Hizmetler Sektörü ile Diğer', 'Tarımsal Sulama' grubunun adı 'Tarımsal Faaliyetler' oldu", "2021-01: 1/1/2021'den geçerli tarife 30.01.2021'de kararlaştırıldı; point-in-time seride Ocak 2021'e yazılıyor, Aralık 2020 önceki tarifeyle kalıyor", "2025-04..2026-03: tarife değişmedi (5/4/2025 ile 4/4/2026 arasında yeni karar yok)", "2026-04: tablolar tek sayfalık yeni düzene geçti (aynı bileşenler)"]
+adapter: epdk_tarife
+priority: 6
+# remote: "<SECTION>.<GROUP>[,<GROUP>]/<COMPONENT>" — SECTION ILETIM | OG_CIFT | OG_TEK | AG_TEK; GROUP TUKETICI,
+# SANAYI, KAMU_OZEL (ticarethane), MESKEN, TARIMSAL, AYDINLATMA, ... with _DUSUK/_YUKSEK tiers (first one present is
+# used); COMPONENT ENERJI_TEK | ENERJI_GUNDUZ | ENERJI_PUANT | ENERJI_GECE | DAGITIM | GUC | REAKTIF. The unit sets
+# the scale of the published kuruş values: try_per_kwh, try_per_mwh, try_per_kw_month (GUC), try_per_kvarh.
+series:
+  - {code: EPDK.TARIFE.SANAYI.AG.ENERJI, name: "Sanayi, alçak gerilim tek terim: tek zamanlı aktif enerji bedeli (TL/kWh)", freq: M, kind: level, unit: try_per_kwh, currency: TRY, remote: "AG_TEK.SANAYI/ENERJI_TEK", canary: true}
+  - {code: EPDK.TARIFE.SANAYI.AG.GUNDUZ, name: "Sanayi, alçak gerilim tek terim: çok zamanlı enerji bedeli, gündüz 06-17 (TL/kWh)", freq: M, kind: level, unit: try_per_kwh, currency: TRY, remote: "AG_TEK.SANAYI/ENERJI_GUNDUZ"}
+  - {code: EPDK.TARIFE.SANAYI.AG.PUANT, name: "Sanayi, alçak gerilim tek terim: çok zamanlı enerji bedeli, puant 17-22 (TL/kWh)", freq: M, kind: level, unit: try_per_kwh, currency: TRY, remote: "AG_TEK.SANAYI/ENERJI_PUANT"}
+  - {code: EPDK.TARIFE.SANAYI.AG.GECE, name: "Sanayi, alçak gerilim tek terim: çok zamanlı enerji bedeli, gece 22-06 (TL/kWh)", freq: M, kind: level, unit: try_per_kwh, currency: TRY, remote: "AG_TEK.SANAYI/ENERJI_GECE"}
+  - {code: EPDK.TARIFE.SANAYI.AG.DAGITIM, name: "Sanayi, alçak gerilim tek terim: dağıtım bedeli (TL/kWh)", freq: M, kind: level, unit: try_per_kwh, currency: TRY, remote: "AG_TEK.SANAYI/DAGITIM"}
+  - {code: EPDK.TARIFE.SANAYI.OG.ENERJI, name: "Sanayi, orta gerilim çift terim: tek zamanlı aktif enerji bedeli (TL/kWh)", freq: M, kind: level, unit: try_per_kwh, currency: TRY, remote: "OG_CIFT.SANAYI/ENERJI_TEK"}
+  - {code: EPDK.TARIFE.SANAYI.OG.ENERJI.MWH, name: "Sanayi, orta gerilim çift terim: tek zamanlı aktif enerji bedeli (TL/MWh; PTF ile aynı birim)", freq: M, kind: level, unit: try_per_mwh, currency: TRY, remote: "OG_CIFT.SANAYI/ENERJI_TEK"}
+  - {code: EPDK.TARIFE.SANAYI.OG.GUNDUZ, name: "Sanayi, orta gerilim çift terim: çok zamanlı enerji bedeli, gündüz 06-17 (TL/kWh)", freq: M, kind: level, unit: try_per_kwh, currency: TRY, remote: "OG_CIFT.SANAYI/ENERJI_GUNDUZ"}
+  - {code: EPDK.TARIFE.SANAYI.OG.PUANT, name: "Sanayi, orta gerilim çift terim: çok zamanlı enerji bedeli, puant 17-22 (TL/kWh)", freq: M, kind: level, unit: try_per_kwh, currency: TRY, remote: "OG_CIFT.SANAYI/ENERJI_PUANT"}
+  - {code: EPDK.TARIFE.SANAYI.OG.GECE, name: "Sanayi, orta gerilim çift terim: çok zamanlı enerji bedeli, gece 22-06 (TL/kWh)", freq: M, kind: level, unit: try_per_kwh, currency: TRY, remote: "OG_CIFT.SANAYI/ENERJI_GECE"}
+  - {code: EPDK.TARIFE.SANAYI.OG.DAGITIM, name: "Sanayi, orta gerilim çift terim: dağıtım bedeli (TL/kWh)", freq: M, kind: level, unit: try_per_kwh, currency: TRY, remote: "OG_CIFT.SANAYI/DAGITIM"}
+  - {code: EPDK.TARIFE.SANAYI.OG.GUC, name: "Sanayi, orta gerilim çift terim: güç bedeli (TL/kW/ay)", freq: M, kind: level, unit: try_per_kw_month, currency: TRY, remote: "OG_CIFT.SANAYI/GUC"}
+  - {code: EPDK.TARIFE.SANAYI.OG_TEK.DAGITIM, name: "Sanayi, orta gerilim tek terim: dağıtım bedeli (TL/kWh)", freq: M, kind: level, unit: try_per_kwh, currency: TRY, remote: "OG_TEK.SANAYI/DAGITIM"}
+  - {code: EPDK.TARIFE.ILETIM.ENERJI, name: "İletim sistemi kullanıcıları: tek zamanlı aktif enerji bedeli (TL/kWh)", freq: M, kind: level, unit: try_per_kwh, currency: TRY, remote: "ILETIM.TUKETICI/ENERJI_TEK"}
+  - {code: EPDK.TARIFE.TICARETHANE.AG.ENERJI, name: "Kamu ve özel hizmetler (ticarethane), alçak gerilim: tek zamanlı aktif enerji bedeli, 2022-03'ten itibaren yüksek kademe (TL/kWh)", freq: M, kind: level, unit: try_per_kwh, currency: TRY, remote: "AG_TEK.KAMU_OZEL,KAMU_OZEL_YUKSEK/ENERJI_TEK"}
+  - {code: EPDK.TARIFE.TICARETHANE.AG.DAGITIM, name: "Kamu ve özel hizmetler (ticarethane), alçak gerilim: dağıtım bedeli (TL/kWh)", freq: M, kind: level, unit: try_per_kwh, currency: TRY, remote: "AG_TEK.KAMU_OZEL,KAMU_OZEL_YUKSEK/DAGITIM"}
+  - {code: EPDK.TARIFE.MESKEN.AG.ENERJI, name: "Mesken, alçak gerilim: tek zamanlı aktif enerji bedeli, 2022-01'den itibaren düşük kademe (TL/kWh)", freq: M, kind: level, unit: try_per_kwh, currency: TRY, remote: "AG_TEK.MESKEN,MESKEN_DUSUK/ENERJI_TEK"}
+  - {code: EPDK.TARIFE.MESKEN.AG.DAGITIM, name: "Mesken, alçak gerilim: dağıtım bedeli (TL/kWh)", freq: M, kind: level, unit: try_per_kwh, currency: TRY, remote: "AG_TEK.MESKEN,MESKEN_DUSUK/DAGITIM"}
+  - {code: EPDK.TARIFE.TARIMSAL.AG.ENERJI, name: "Tarımsal faaliyetler, alçak gerilim: tek zamanlı aktif enerji bedeli (TL/kWh)", freq: M, kind: level, unit: try_per_kwh, currency: TRY, remote: "AG_TEK.TARIMSAL/ENERJI_TEK"}
+  - {code: EPDK.TARIFE.TARIMSAL.AG.DAGITIM, name: "Tarımsal faaliyetler, alçak gerilim: dağıtım bedeli (TL/kWh)", freq: M, kind: level, unit: try_per_kwh, currency: TRY, remote: "AG_TEK.TARIMSAL/DAGITIM"}
+  - {code: EPDK.TARIFE.AYDINLATMA.AG.ENERJI, name: "Aydınlatma, alçak gerilim: tek zamanlı aktif enerji bedeli (TL/kWh)", freq: M, kind: level, unit: try_per_kwh, currency: TRY, remote: "AG_TEK.AYDINLATMA/ENERJI_TEK"}

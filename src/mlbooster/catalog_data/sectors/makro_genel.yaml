@@ -22,8 +22,13 @@ macro_features:
   - {name: oecd_is_guveni, source: oecd, series: OECD.BCI.TR, transform: level}
   - {name: elektrik_tuketimi_yoy, source: epias, series: EPIAS.TUKETIM, transform: yoy_pct, agg: sum}
   - {name: ptf_yoy, source: epias, series: EPIAS.PTF, transform: yoy_pct, agg: avg}
+  - {name: ptf_puant, source: epias, series: EPIAS.PTF.PUANT, transform: level, agg: avg}  # TL/MWh, hours 17-22
+  - {name: ptf_gece, source: epias, series: EPIAS.PTF.GECE, transform: level, agg: avg}  # TL/MWh, hours 22-06
+  - {name: dogalgaz_grf_yoy, source: epias, series: EPIAS.GRF, transform: yoy_pct, agg: avg}
+  - {name: sanayi_elektrik_tarifesi_yoy, source: epdk_tarife, series: EPDK.TARIFE.SANAYI.OG.ENERJI, transform: yoy_pct}  # value in force at month end
+  - {name: mesken_elektrik_tarifesi_yoy, source: epdk_tarife, series: EPDK.TARIFE.MESKEN.AG.ENERJI, transform: yoy_pct}
   - {name: google_ekonomi_gundemi, source: bq_trends, series: BQT.TOP.EKONOMI.SAYI, transform: level, agg: avg}  # search-interest proxy; history accumulates locally (30-day upstream window)
-sector_sources: [epias]
+sector_sources: [epias, epdk_tarife]
 market_share_sources: []
 ml_use_cases: ["Makro nowcasting", "Rejim tespiti", "Feature havuzu"]
 feature_recipes:
@@ -34,3 +39,5 @@ feature_recipes:
   - {name: ufe_tufe_farki, op: spread, inputs: [ufe_yoy, tufe_yoy], note: "Maliyet baskısı"}
   - {name: beklenti_gerceklesme_farki, op: spread, inputs: [pka_enflasyon_beklentisi, tufe_yoy], note: "Beklenen ve gerçekleşen enflasyon farkı (dezenflasyon beklentisi)"}
   - {name: reel_kur_sapma_12, op: gap, inputs: [reel_efektif_kur], window: 12, note: "Reel kur sapması"}
+  - {name: ptf_puant_gece_orani, op: ratio, inputs: [ptf_puant, ptf_gece], note: "Aylık ortalama PTF'de puant (17-22) / gece (22-06) oranı; gün içi fiyat profilinin dikliği"}
+  - {name: elektrik_tarife_tufe_farki, op: spread, inputs: [sanayi_elektrik_tarifesi_yoy, tufe_yoy], note: "Sanayi elektrik tarifesinin (enerji bedeli) yıllık değişimi − yıllık TÜFE; düzenlenen enerji fiyatının enflasyondan ayrışması"}

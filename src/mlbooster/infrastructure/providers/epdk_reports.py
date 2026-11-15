@@ -227,8 +227,9 @@ def _row(tr) -> list[object]:
     return cells
 
 
-def read_xlsx(content: bytes) -> list[Grid]:
-    import openpyxl  # imported lazily: it is slow to load and only the Excel annexes (2026 onwards) need it
+def read_xlsx(content: bytes, *, titles: bool = False):
+    """Every sheet as a Grid (list[Grid]); with `titles`, as (sheet title, Grid) pairs."""
+    import openpyxl  # imported lazily: it is slow to load and only the Excel files need it
 
     _archive(content)  # size check before openpyxl decompresses anything
     try:
@@ -243,7 +244,7 @@ def read_xlsx(content: bytes) -> list[Grid]:
                 if i >= MAX_ROWS_PER_SHEET:
                     raise UnexpectedResponse("EPDK Excel sayfası satır sınırını aşıyor")
                 rows.append(list(row))
-            grids.append(Grid("", rows))
+            grids.append((sheet.title, Grid("", rows)) if titles else Grid("", rows))
         return grids
     finally:
         book.close()

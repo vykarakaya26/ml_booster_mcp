@@ -13,6 +13,7 @@ from mlbooster.infrastructure.providers.bigquery_trends import BigQueryTrendsPro
 from mlbooster.infrastructure.providers.bkm import BkmProvider
 from mlbooster.infrastructure.providers.btk import BtkProvider
 from mlbooster.infrastructure.providers.epdk import EpdkProvider
+from mlbooster.infrastructure.providers.epdk_tariffs import EpdkTariffProvider
 from mlbooster.infrastructure.providers.epias import EpiasProvider
 from mlbooster.infrastructure.providers.evds3 import Evds3Provider
 from mlbooster.infrastructure.providers.odmd import OdmdProvider
@@ -29,6 +30,7 @@ PROVIDERS: dict[str, type] = {
     "bq_trends": BigQueryTrendsProvider,
     "btk": BtkProvider,
     "epdk": EpdkProvider,
+    "epdk_tarife": EpdkTariffProvider,
     "epias": EpiasProvider,
     "evds3": Evds3Provider,
     "odmd": OdmdProvider,

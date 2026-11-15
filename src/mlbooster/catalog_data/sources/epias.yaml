@@ -20,7 +20,7 @@ history: {default_years: 5, revision_days: 7}
 license: {attribution: required, notes: "Veriler EPİAŞ Şeffaflık Platformu'ndan kaynak gösterilerek kullanılır. Web servis erişimi ücretsiz kullanıcı hesabı gerektirir (kayit.epias.com.tr). Ticari kullanım koşulları yayımlanmamıştır; doğrulanmadı."}
 frequency: [H, D]
 formats: [json]
-sectors: [enerji, akaryakit, makro_genel]
+sectors: [enerji, akaryakit, makro_genel, sanayi]
 publication_lag_days: 1
 verification_status: verified
 verification_notes: "2026-11-03: Geçerli TGT ile dört servis canlı test edildi. Tarih aralığı sınırı PTF, SMF ve tüketimde 1 yıl, üretimde 3 ay (aşılırsa HTTP 400 SEF1117); istekler takvim ayı sonlarında bölünüyor. Bitiş günü T00:00 ile gönderildiğinde o günün 24 saati de dönüyor; 8.784 satırlık yanıtlar bile sayfalanmıyor. Tarihler o günkü Türkiye saatiyle (2016 öncesi kışın +02:00) gönderilmelidir. Üretimde total, kaynakların toplamı ile ithalat-ihracat dengesinin toplamıdır; yurt içi üretim kaynakların toplamı olarak hesaplanır. Veri başlangıcı: SMF 2011-01, PTF 2011-11, üretim 2013-10, tüketim en geç 2016-01. 2026-11-02: Teknik doküman (swagger.json) ve CAS REST kılavuzu incelendi; TGT ömrü 2 saat; kimlik bilgisi olmadan 401 (AUTH002), geçersiz TGT ile 401 (AUTH009), üretim servisinde 406. robots.txt tüm yollara izin veriyor."
@@ -30,8 +30,17 @@ priority: 5
 # remote: "<dataset>/<field>". Datasets: dam-mcp (PTF: price, priceUsd, priceEur), bpm-smp (SMF: systemMarginalPrice),
 # realtime-consumption (consumption), realtime-generation (a source field; generation = sum of the sources, i.e.
 # domestic generation; total = generation + importExport; by_source = generation plus every source as an entity). Hourly values become daily ones: kind level → daily mean, kind flow → daily sum (MWh).
+# A ".<BLOCK>" suffix keeps one block of the EPDK three-time tariff (GUNDUZ 06-17, PUANT 17-22, GECE 22-06, local
+# clock hours of the same calendar day) or the intra-day range (SPREAD = max − min of the hourly values).
+# renewables-unit-cost (YEKDEM unitCost, supplierUnitCost; monthly, one item per period and revision `version`: only
+# the first version is written, lag 45 days because the first version of month M appears in M+1 or M+2) and gas-grf
+# (natural-gas-service daily reference price GRF: grfTl in TL/1000 Sm3, grfUsd; from 2018-09) are not hourly.
 series:
   - {code: EPIAS.PTF, name: "Piyasa takas fiyatı (PTF), günlük ortalama (TL/MWh)", freq: D, kind: level, unit: try_per_mwh, currency: TRY, remote: "dam-mcp/price", canary: true}
+  - {code: EPIAS.PTF.GUNDUZ, name: "PTF, gündüz bloğu 06-17 ortalaması (TL/MWh; EPDK çok zamanlı tarife saatleri)", freq: D, kind: level, unit: try_per_mwh, currency: TRY, remote: "dam-mcp/price.GUNDUZ"}
+  - {code: EPIAS.PTF.PUANT, name: "PTF, puant bloğu 17-22 ortalaması (TL/MWh; EPDK çok zamanlı tarife saatleri)", freq: D, kind: level, unit: try_per_mwh, currency: TRY, remote: "dam-mcp/price.PUANT"}
+  - {code: EPIAS.PTF.GECE, name: "PTF, gece bloğu 22-06 ortalaması (TL/MWh; aynı takvim gününün 00-06 ve 22-24 saatleri)", freq: D, kind: level, unit: try_per_mwh, currency: TRY, remote: "dam-mcp/price.GECE"}
+  - {code: EPIAS.PTF.SPREAD, name: "PTF, gün içi fark: en yüksek saatlik fiyat − en düşük saatlik fiyat (TL/MWh)", freq: D, kind: level, unit: try_per_mwh, currency: TRY, remote: "dam-mcp/price.SPREAD"}
   - {code: EPIAS.PTF.USD, name: "Piyasa takas fiyatı (PTF), günlük ortalama (USD/MWh)", freq: D, kind: level, unit: usd_per_mwh, currency: USD, remote: "dam-mcp/priceUsd"}
   - {code: EPIAS.SMF, name: "Sistem marjinal fiyatı (SMF), günlük ortalama (TL/MWh)", freq: D, kind: level, unit: try_per_mwh, currency: TRY, remote: "bpm-smp/systemMarginalPrice"}
   - {code: EPIAS.TUKETIM, name: "Gerçek zamanlı elektrik tüketimi, günlük toplam (MWh)", freq: D, kind: flow, unit: mwh, remote: "realtime-consumption/consumption"}
@@ -42,3 +51,5 @@ series:
   - {code: EPIAS.URETIM.RUZGAR, name: "Rüzgâr santrallerinin gerçek zamanlı üretimi, günlük toplam (MWh)", freq: D, kind: flow, unit: mwh, remote: "realtime-generation/wind"}
   - {code: EPIAS.URETIM.GUNES, name: "Güneş santrallerinin gerçek zamanlı üretimi, günlük toplam (MWh)", freq: D, kind: flow, unit: mwh, remote: "realtime-generation/sun"}
   - {code: EPIAS.URETIM.BARAJ, name: "Barajlı hidroelektrik santrallerin gerçek zamanlı üretimi, günlük toplam (MWh)", freq: D, kind: flow, unit: mwh, remote: "realtime-generation/dammedHydro"}
+  - {code: EPIAS.YEKDEM.BIRIM_MALIYET, name: "YEKDEM birim maliyeti, ilk yayımlanan versiyon (TL/MWh)", freq: M, kind: level, unit: try_per_mwh, currency: TRY, publication_lag_days: 45, remote: "renewables-unit-cost/unitCost"}
+  - {code: EPIAS.GRF, name: "Doğal gaz referans fiyatı (GRF), günlük (TL/1000 Sm3)", freq: D, kind: level, unit: try_per_1000sm3, currency: TRY, remote: "gas-grf/grfTl"}

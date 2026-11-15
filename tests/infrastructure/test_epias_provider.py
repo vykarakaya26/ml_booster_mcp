@@ -29,6 +29,7 @@ from mlbooster.infrastructure.providers.epias import (
     _iso,
     month_chunks,
     parse_remote,
+    split_block,
 )
 from mlbooster.infrastructure.providers.registry import PROVIDERS, ProviderRegistry
 from mlbooster.infrastructure.secret_store import EnvSecretProvider
@@ -539,3 +540,87 @@ def test_ticket_cache_drop_and_clear():
     assert cache.get("a") is None and cache.get("b").reveal() == TGT2
     cache.clear()
     assert cache.get("b") is None
+
+
+# --- Tariff blocks, daily and versioned services ------------------------------------------------------------------
+
+YEKDEM_URL = DATA + "renewables/data/unit-cost"
+GRF_URL = "https://seffaflik.epias.com.tr/natural-gas-service/v1/markets/sgp/data/daily-reference-price"
+
+
+def test_parse_remote_blocks():
+    assert parse_remote("dam-mcp/price.PUANT") == ("dam-mcp", "price.PUANT")
+    assert split_block("price.PUANT") == ("price", "PUANT") and split_block("price") == ("price", None)
+    for remote in ["dam-mcp/price.OGLE", "realtime-generation/by_source.GECE", "gas-grf/grfTl.GECE", "dam-mcp/price."]:
+        with pytest.raises(InvalidInput):
+            parse_remote(remote)
+
+
+@respx.mock
+def test_tariff_blocks_and_intra_day_spread(respx_mock, epias, creds):
+    _ticket_route(respx_mock)
+    day = date(2026, 10, 1)
+    items = hours(day, price=lambda h: 100.0 if 6 <= h < 17 else 400.0 if 17 <= h < 22 else 50.0)
+    items += hours(date(2026, 10, 2), n=20, price=1.0)  # incomplete day: no block either
+    respx_mock.post(PTF_URL).mock(return_value=_ok(items))
+    codes = ["EPIAS.PTF", "EPIAS.PTF.GUNDUZ", "EPIAS.PTF.PUANT", "EPIAS.PTF.GECE", "EPIAS.PTF.SPREAD"]
+    df = epias.fetch(_req(codes, day, date(2026, 10, 2)))
+    values = df.set_index("series_id")["value"].to_dict()
+    assert values == pytest.approx({"EPIAS.PTF": (11 * 100 + 5 * 400 + 8 * 50) / 24, "EPIAS.PTF.GUNDUZ": 100.0,
+                                    "EPIAS.PTF.PUANT": 400.0, "EPIAS.PTF.GECE": 50.0, "EPIAS.PTF.SPREAD": 350.0})  # fmt: skip
+    assert set(df["date"]) == {day}
+
+
+@respx.mock
+def test_block_with_missing_hours_is_dropped(respx_mock, epias, creds):
+    _ticket_route(respx_mock)
+    day = date(2026, 10, 1)
+    items = [i for i in hours(day, price=10.0) if i["hour"] not in {"17:00", "18:00"}]  # 22 of 24 hours, puant 3 of 5
+    respx_mock.post(PTF_URL).mock(return_value=_ok(items))
+    df = epias.fetch(_req(["EPIAS.PTF.PUANT", "EPIAS.PTF.GECE"], day, day))
+    assert df.empty  # the day itself misses two hours
+
+
+@respx.mock
+def test_daily_gas_reference_price(respx_mock, epias, creds):
+    _ticket_route(respx_mock)
+    items = [{"date": "2026-11-01T00:00:00+03:00", "grfTl": 20850, "grfUsd": 418.89},
+             {"date": "2026-11-02T00:00:00+03:00", "grfTl": None, "grfUsd": 415.98},
+             {"date": "2026-11-03T00:00:00+03:00", "grfTl": 20485.5, "grfUsd": 410.44},
+             {"date": "2026-10-31T00:00:00+03:00", "grfTl": 1.0, "grfUsd": 1.0}]  # fmt: skip
+    route = respx_mock.post(GRF_URL).mock(return_value=_ok(items))
+    df = epias.fetch(_req("EPIAS.GRF", date(2026, 11, 1), date(2026, 11, 3)))
+    assert df.set_index("date")["value"].to_dict() == {date(2026, 11, 1): 20850.0, date(2026, 11, 3): 20485.5}
+    assert set(df["unit"]) == {"try_per_1000sm3"} and set(df["freq"]) == {"D"} and set(df["dataset_id"]) == {"gas-grf"}
+    assert json.loads(route.calls.last.request.content)["startDate"] == "2026-11-01T00:00:00+03:00"
+
+
+@respx.mock
+def test_yekdem_unit_cost_keeps_the_first_version(respx_mock, epias, creds):
+    _ticket_route(respx_mock)
+    items = [
+        {"period": "2026-08-01T00:00:00+03:00", "version": "2026-09-01T00:00:00+03:00", "unitCost": 397.268, "supplierUnitCost": 397.268},
+        {"period": "2026-08-01T00:00:00+03:00", "version": "2026-08-01T00:00:00+03:00", "unitCost": 395.303, "supplierUnitCost": 395.303},
+        {"period": "2026-09-01T00:00:00+03:00", "version": "2026-09-01T00:00:00+03:00", "unitCost": 444.994, "supplierUnitCost": 444.994},
+        {"period": "2026-07-01T00:00:00+03:00", "version": "2026-07-01T00:00:00+03:00", "unitCost": None, "supplierUnitCost": None},
+    ]  # fmt: skip
+    route = respx_mock.post(YEKDEM_URL).mock(return_value=_ok(items))
+    df = epias.fetch(_req("EPIAS.YEKDEM.BIRIM_MALIYET", date(2026, 8, 15), date(2026, 11, 15)))
+    assert df.set_index("date")["value"].to_dict() == {date(2026, 8, 31): 395.303, date(2026, 9, 30): 444.994}
+    assert set(df["freq"]) == {"M"} and set(df["publication_lag_days"]) == {45}
+    assert json.loads(route.calls.last.request.content)["startDate"] == "2026-08-01T00:00:00+03:00"  # whole month asked
+
+
+@respx.mock
+def test_daily_and_versioned_items_are_checked(respx_mock, epias, creds):
+    _ticket_route(respx_mock)
+    respx_mock.post(GRF_URL).mock(side_effect=[_ok([{"grfTl": 1.0}]), _ok([{"date": "2026-11-01", "grfTl": "1,0"}]),
+                                               _ok([{"date": "dün", "grfTl": 1.0}]), _ok([{"date": "2026-11-01T00:00:00+03:00"}])])  # fmt: skip
+    for match in ["'date' alanı yok", "sayısal olmayan", "tarih biçimi", "'grfTl' alanı yok"]:
+        with pytest.raises(UnexpectedResponse, match=match):
+            epias.fetch(_req("EPIAS.GRF", date(2026, 11, 1), date(2026, 11, 1)))
+
+
+def test_monthly_freq_requests_are_accepted_for_monthly_series(epias, creds):
+    with pytest.raises(InvalidInput, match="desteklenmiyor"):
+        epias.fetch(_req("EPIAS.YEKDEM.BIRIM_MALIYET", date(2026, 1, 1), date(2026, 2, 1), freq="D"))

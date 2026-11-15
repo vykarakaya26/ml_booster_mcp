@@ -1,0 +1,41 @@
+# Manufacturing. Energy is a direct input cost here (electricity tariffs by voltage, wholesale price profile, natural
+# gas reference price), unlike the service sectors in the catalog, so the energy features live in their own sector
+# next to the usual activity, price and exchange-rate features. The sector supplies data only: no cost allocation.
+id: sanayi
+name: Sanayi (imalat)
+macro_features:
+  - {name: sanayi_uretim_yoy, source: evds3, series: TP.TSANAYMT2021.BCD, transform: yoy_pct}
+  - {name: kapasite_kullanim, source: evds3, series: TP.KKO.MA, transform: level}
+  - {name: ufe_yoy, source: evds3, series: TP.TUFE1YI.T1, transform: yoy_pct}
+  - {name: tufe_yoy, source: evds3, series: TP.TUKFIY2025.GENEL, transform: yoy_pct}
+  - {name: usdtry_logdiff, source: evds3, series: TP.DK.USD.A, transform: log_diff, agg: avg}
+  - {name: elektrik_tuketimi_yoy, source: epias, series: EPIAS.TUKETIM, transform: yoy_pct, agg: sum}
+  - {name: ptf_ortalama, source: epias, series: EPIAS.PTF, transform: level, agg: avg}  # TL/MWh
+  - {name: ptf_yoy, source: epias, series: EPIAS.PTF, transform: yoy_pct, agg: avg}
+  - {name: ptf_gunduz, source: epias, series: EPIAS.PTF.GUNDUZ, transform: level, agg: avg}  # TL/MWh, hours 06-17
+  - {name: ptf_puant, source: epias, series: EPIAS.PTF.PUANT, transform: level, agg: avg}  # TL/MWh, hours 17-22
+  - {name: ptf_gece, source: epias, series: EPIAS.PTF.GECE, transform: level, agg: avg}  # TL/MWh, hours 22-06
+  - {name: ptf_gun_ici_fark, source: epias, series: EPIAS.PTF.SPREAD, transform: level, agg: avg}  # TL/MWh, mean daily max − min
+  - {name: yekdem_birim_maliyet, source: epias, series: EPIAS.YEKDEM.BIRIM_MALIYET, transform: level}  # TL/MWh, first version
+  - {name: dogalgaz_grf, source: epias, series: EPIAS.GRF, transform: level, agg: avg}  # TL/1000 Sm3
+  - {name: dogalgaz_grf_yoy, source: epias, series: EPIAS.GRF, transform: yoy_pct, agg: avg}
+  - {name: sanayi_tarife_enerji_og, source: epdk_tarife, series: EPDK.TARIFE.SANAYI.OG.ENERJI, transform: level}  # TL/kWh
+  - {name: sanayi_tarife_enerji_og_mwh, source: epdk_tarife, series: EPDK.TARIFE.SANAYI.OG.ENERJI.MWH, transform: level}  # TL/MWh
+  - {name: sanayi_tarife_enerji_og_yoy, source: epdk_tarife, series: EPDK.TARIFE.SANAYI.OG.ENERJI, transform: yoy_pct}
+  - {name: sanayi_tarife_enerji_og_reel, source: epdk_tarife, series: EPDK.TARIFE.SANAYI.OG.ENERJI, transform: level, real: true}
+  - {name: sanayi_tarife_puant_og, source: epdk_tarife, series: EPDK.TARIFE.SANAYI.OG.PUANT, transform: level}  # TL/kWh
+  - {name: sanayi_tarife_gece_og, source: epdk_tarife, series: EPDK.TARIFE.SANAYI.OG.GECE, transform: level}  # TL/kWh
+  - {name: sanayi_tarife_dagitim_og, source: epdk_tarife, series: EPDK.TARIFE.SANAYI.OG.DAGITIM, transform: level}  # TL/kWh
+  - {name: sanayi_tarife_guc_og, source: epdk_tarife, series: EPDK.TARIFE.SANAYI.OG.GUC, transform: level}  # TL/kW/ay
+  - {name: sanayi_tarife_enerji_ag_yoy, source: epdk_tarife, series: EPDK.TARIFE.SANAYI.AG.ENERJI, transform: yoy_pct}
+sector_sources: [epdk_tarife, epias]
+market_share_sources: []
+ml_use_cases: ["Enerji fiyatı feature'ları", "Sanayi üretimi nowcasting", "Maliyet baskısı göstergeleri"]
+feature_recipes:
+  - {name: tarife_puant_gece_orani, op: ratio, inputs: [sanayi_tarife_puant_og, sanayi_tarife_gece_og], note: "Sanayi OG çok zamanlı tarifede puant / gece enerji bedeli oranı"}
+  - {name: ptf_puant_gece_orani, op: ratio, inputs: [ptf_puant, ptf_gece], note: "Aylık ortalama PTF'de puant (17-22) / gece (22-06) oranı"}
+  - {name: tarife_ptf_farki, op: spread, inputs: [sanayi_tarife_enerji_og_mwh, ptf_ortalama], note: "Sanayi OG tarifesinin enerji bedeli − aylık ortalama PTF (ikisi de TL/MWh); düzenlenen tarife ile toptan fiyat arasındaki fark"}
+  - {name: tarife_ptf_orani, op: ratio, inputs: [sanayi_tarife_enerji_og_mwh, ptf_ortalama], note: "Sanayi OG tarifesinin enerji bedeli / aylık ortalama PTF"}
+  - {name: tarife_ufe_farki, op: spread, inputs: [sanayi_tarife_enerji_og_yoy, ufe_yoy], note: "Sanayi elektrik tarifesinin yıllık değişimi − yıllık ÜFE"}
+  - {name: grf_ptf_orani, op: ratio, inputs: [dogalgaz_grf, ptf_ortalama], note: "Doğal gaz referans fiyatı (TL/1000 Sm3) / ortalama PTF (TL/MWh); gaz ve elektrik toptan fiyatlarının göreli seyri"}
+  - {name: ptf_z_24, op: zscore, inputs: [ptf_yoy], window: 24, note: "PTF yıllık değişiminin son 24 aya göre z-score'u"}

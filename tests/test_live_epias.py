@@ -53,8 +53,9 @@ def test_epias_healthcheck(epias):
 
 
 def test_epias_seed_series_return_recent_days(epias, catalog):
-    """Every catalog field still exists; the last requested day is complete (endDate covers the whole day)."""
-    codes = [s.code for s in catalog.source("epias").series]
+    """Every daily catalog field still exists; the last requested day is complete (endDate covers the whole day).
+    Monthly series (YEKDEM) are covered by their own test."""
+    codes = [s.code for s in catalog.source("epias").series if s.freq is Frequency.DAILY]
     end = date.today() - timedelta(days=2)
     df = epias.fetch(FetchRequest.create("epias", codes, end - timedelta(days=6), end))
     for code in codes:
@@ -103,3 +104,32 @@ def test_epias_ptf_is_plausible(epias):
     """PTF daily averages stay within the market price caps (TL/MWh) of recent years."""
     df = epias.fetch(FetchRequest.create("epias", ["EPIAS.PTF"], date(2026, 1, 1), date(2026, 1, 31)))
     assert len(df) == 31 and df["value"].between(0, 10_000).all()
+
+
+def test_epias_ptf_tariff_blocks_add_up_to_the_daily_mean(epias):
+    """11 gündüz + 5 puant + 8 gece hours make the day: the weighted block means equal the daily PTF."""
+    start = date.today() - timedelta(days=10)
+    codes = ["EPIAS.PTF", "EPIAS.PTF.GUNDUZ", "EPIAS.PTF.PUANT", "EPIAS.PTF.GECE", "EPIAS.PTF.SPREAD"]
+    df = epias.fetch(FetchRequest.create("epias", codes, start, date.today() - timedelta(days=2)))
+    wide = df.pivot(index="date", columns="series_id", values="value").dropna()
+    assert len(wide) >= 5
+    weighted = (11 * wide["EPIAS.PTF.GUNDUZ"] + 5 * wide["EPIAS.PTF.PUANT"] + 8 * wide["EPIAS.PTF.GECE"]) / 24
+    assert (weighted - wide["EPIAS.PTF"]).abs().max() < 0.01
+    assert (wide["EPIAS.PTF.SPREAD"] >= 0).all()
+
+
+def test_epias_yekdem_unit_cost_first_versions(epias):
+    """Monthly YEKDEM unit cost, verified 2026-11-15: 2025-11 first version 339,003 TL/MWh (later 342,3)."""
+    df = epias.fetch(FetchRequest.create("epias", ["EPIAS.YEKDEM.BIRIM_MALIYET"], date(2025, 11, 1), date(2026, 8, 31)))
+    values = df.set_index("date")["value"]
+    assert values[date(2025, 11, 30)] == pytest.approx(339.003)
+    assert values[date(2026, 8, 31)] == pytest.approx(395.303)
+    assert len(values) == 10 and set(df["freq"]) == {"M"}
+
+
+def test_epias_gas_reference_price(epias):
+    """Daily GRF (TL/1000 Sm3), verified 2026-11-15: first day 2018-09-01 at 1.650; a year per call is accepted."""
+    df = epias.fetch(FetchRequest.create("epias", ["EPIAS.GRF"], date(2018, 8, 25), date(2019, 9, 5)))
+    values = df.set_index("date")["value"]
+    assert min(values.index) == date(2018, 9, 1) and values[date(2018, 9, 1)] == pytest.approx(1650.0)
+    assert len(values) == 370
