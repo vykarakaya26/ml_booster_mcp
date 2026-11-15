@@ -18,6 +18,13 @@ UNITS = {
     "thousand_try": "bin TL",
     "million_try": "milyon TL",
     "count": "adet",
+    "mwh": "MWh",
+    "try_per_kwh": "TL/kWh",
+    "try_per_mwh": "TL/MWh",
+    "usd_per_mwh": "USD/MWh",
+    "try_per_kw_month": "TL/kW/ay",
+    "try_per_kvarh": "TL/kVArh",
+    "try_per_1000sm3": "TL/1000 Sm3",
 }
 
 FREQUENCIES = {
